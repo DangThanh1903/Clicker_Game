@@ -993,6 +993,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bff9adb1c4afc3248b503ffaa9dda81c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  spinSpeed: 0
   spinBoostPerClick: 100
   decayPercentPerSecond: 0.5
   stopThreshold: 5
@@ -2809,6 +2810,95 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1436734515}
   m_CullTransparentMesh: 1
+--- !u!1 &1566975016
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1566975017}
+  - component: {fileID: 1566975018}
+  - component: {fileID: 1566975019}
+  - component: {fileID: 1566975020}
+  m_Layer: 0
+  m_Name: Manager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1566975017
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1566975016}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 3.5953228, y: -1.8929253, z: 1.8450102}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1566975018
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1566975016}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 67537b6ff0e2e784a88e1d7d14c2751b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  clickNumberUI: {fileID: 1984347238}
+  clickPerTickUI: {fileID: 1607575594}
+--- !u!114 &1566975019
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1566975016}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 73b9401927c1c6542b4126be4b77ae4d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  statsList:
+  - statType: 0
+    value:
+      value: 0
+  - statType: 1
+    value:
+      value: 0
+--- !u!114 &1566975020
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1566975016}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 34897c1f504c76544a5c2b323a9b3cd5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  triggers:
+  - name: 200Click
+    triggerType: 0
+    watchStat: 0
+    triggerThreshold: 200
+    triggerOnce: 1
+    vfxPrefab: {fileID: 919132149155446097, guid: 1af0822a1b505434bbc7bd02aa237649,
+      type: 3}
+    triggered: 0
+    spawnedVFX: {fileID: 0}
 --- !u!1 &1607575592
 GameObject:
   m_ObjectHideFlags: 0
@@ -3813,3 +3903,4 @@ SceneRoots:
   - {fileID: 364748180}
   - {fileID: 1137147011}
   - {fileID: 408477635}
+  - {fileID: 1566975017}

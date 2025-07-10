@@ -1,0 +1,10 @@
+ea4bc82a6ad023ab7ee23ee620429895
+::res://::1751050017
+icon.svg::CompressedTexture2D::7291514477816513204::1750892283::1751050018::1::::<><><>0<>0<>16d9e2bcf9956e38d89e8e41d4ae99e0<>res://.godot/imported/icon.svg-218a8f2b3041327d8a5756f3a245f83b.ctex::
+main.tscn::PackedScene::8330982243795082720::1751047113::0::1::::<><><>0<>0<><>::uid://bpr7ysrg4w2ly::::res://shield_basic.tres<>uid://lp8pwejhknxk::::res://shield_ring.tres<>uid://c7uc6w4vfuygh::::res://shield_basic2.tres<>uid://c6cnj4rrsrnh7::::res://textures/star_06.png<>uid://ddijt0714r86u::::res://shield_basic3.tres
+shield_basic2.tres::VisualShader::7060349913755689475::1751047113::0::1::::<><><>0<>0<><>::
+shield_basic3.tres::VisualShader::7386925350783246798::1751047113::0::1::::<><><>0<>0<><>::
+shield_basic.tres::VisualShader::3476334534899087610::1751047113::0::1::::<><><>0<>0<><>::
+shield_ring.tres::VisualShader::805074556110722476::1751047113::0::1::::<><><>0<>0<><>::
+::res://textures/::1751043372
+star_06.png::CompressedTexture2D::6953631218960402634::1573695371::1751050018::1::::<><><>0<>0<>0a44595cf9a85887c2cd1ad43f1053a7<>res://.godot/imported/star_06.png-49e37fe6b7bfecb0d18a4d4a60c5eca7.s3tc.ctex::

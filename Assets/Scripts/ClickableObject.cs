@@ -45,5 +45,8 @@ public class ClickableObject : MonoBehaviour
         spinAxis = Random.onUnitSphere;
         spinSpeed += spinBoostPerClick;
         isSpinning = true; // ✅ Only spin when needed
+
+        // Increase number of click
+        StatsManager.Ins.Add(StatType.Clicks, 1);
     }
 }
