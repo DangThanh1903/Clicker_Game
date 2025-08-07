@@ -1,0 +1,169 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 188188d2be5a7a24aa36e836fc82dfda, type: 3}
+  m_Name: BlockUVDatabase
+  m_EditorClassIdentifier: 
+  blocks:
+  - blockName: Stone
+    atlasIndex: 0
+    health: 30
+    locationCondition: 0
+    timeStateCondition: 2
+    normalWeatherCondition: 0
+    specialWeatherCondition: 0
+    weight: 100
+    drops:
+    - item: {fileID: 11400000, guid: 3e10dd8596918404ea23f9bf65ea5bfd, type: 2}
+      minAmount: 2
+      maxAmount: 5
+      dropChance: 1
+    - item: {fileID: 11400000, guid: a44ea46ddc88ea04f91291e91b25c4c9, type: 2}
+      minAmount: 1
+      maxAmount: 1
+      dropChance: 0.1
+  - blockName: Dirt
+    atlasIndex: 1
+    health: 10
+    locationCondition: 1
+    timeStateCondition: 2
+    normalWeatherCondition: 0
+    specialWeatherCondition: 0
+    weight: 100
+    drops:
+    - item: {fileID: 11400000, guid: 482f34787611f904ba3f929453fcc790, type: 2}
+      minAmount: 2
+      maxAmount: 5
+      dropChance: 1
+    - item: {fileID: 11400000, guid: 151c65a5ce85a5344ad922e22cb86478, type: 2}
+      minAmount: 1
+      maxAmount: 1
+      dropChance: 0.1
+  - blockName: Grass
+    atlasIndex: 2
+    health: 8
+    locationCondition: 1
+    timeStateCondition: 0
+    normalWeatherCondition: 1
+    specialWeatherCondition: 0
+    weight: 20
+    drops:
+    - item: {fileID: 11400000, guid: 2026bf55a3619034d9c667d82addeec4, type: 2}
+      minAmount: 2
+      maxAmount: 5
+      dropChance: 1
+  - blockName: MinimalStone
+    atlasIndex: 3
+    health: 50
+    locationCondition: 2
+    timeStateCondition: 1
+    normalWeatherCondition: 2
+    specialWeatherCondition: 0
+    weight: 20
+    drops:
+    - item: {fileID: 11400000, guid: b8d482ddfb50223418e1b68933f6fc54, type: 2}
+      minAmount: 2
+      maxAmount: 5
+      dropChance: 1
+    - item: {fileID: 11400000, guid: e2b90126cd00ef24db8fc696ba7464ba, type: 2}
+      minAmount: 1
+      maxAmount: 1
+      dropChance: 0.1
+  - blockName: MinimalDirt
+    atlasIndex: 4
+    health: 20
+    locationCondition: 2
+    timeStateCondition: 2
+    normalWeatherCondition: 3
+    specialWeatherCondition: 0
+    weight: 20
+    drops:
+    - item: {fileID: 11400000, guid: 12b1affd20605dd48862cd573d693605, type: 2}
+      minAmount: 2
+      maxAmount: 5
+      dropChance: 1
+    - item: {fileID: 11400000, guid: cfbfd1e375a4d4947b55754d482ee38c, type: 2}
+      minAmount: 1
+      maxAmount: 1
+      dropChance: 0.1
+  - blockName: TNT
+    atlasIndex: 5
+    health: 5
+    locationCondition: 2
+    timeStateCondition: 2
+    normalWeatherCondition: 0
+    specialWeatherCondition: 2
+    weight: 4
+    drops:
+    - item: {fileID: 11400000, guid: 2e0e60f260665be44a943009e0eb980a, type: 2}
+      minAmount: 1
+      maxAmount: 2
+      dropChance: 0.5
+    - item: {fileID: 11400000, guid: 184f4c0ae65876a478958b3eb9b05610, type: 2}
+      minAmount: 1
+      maxAmount: 1
+      dropChance: 0.1
+  - blockName: Brick
+    atlasIndex: 6
+    health: 50
+    locationCondition: 1
+    timeStateCondition: 0
+    normalWeatherCondition: 1
+    specialWeatherCondition: 3
+    weight: 10
+    drops:
+    - item: {fileID: 11400000, guid: fa4a941cde693814e96936ebb50454c5, type: 2}
+      minAmount: 1
+      maxAmount: 3
+      dropChance: 1
+  - blockName: MagicOre
+    atlasIndex: 7
+    health: 80
+    locationCondition: 2
+    timeStateCondition: 1
+    normalWeatherCondition: 3
+    specialWeatherCondition: 2
+    weight: 2
+    drops:
+    - item: {fileID: 11400000, guid: dd51e0f30f2fbf24bb0d1de797df345d, type: 2}
+      minAmount: 1
+      maxAmount: 3
+      dropChance: 1
+    - item: {fileID: 11400000, guid: 55e38ebad567b6742990ce2f39d31ebe, type: 2}
+      minAmount: 1
+      maxAmount: 1
+      dropChance: 0.5
+  - blockName: SkyCrystal
+    atlasIndex: 8
+    health: 100
+    locationCondition: 3
+    timeStateCondition: 1
+    normalWeatherCondition: 1
+    specialWeatherCondition: 3
+    weight: 2
+    drops:
+    - item: {fileID: 11400000, guid: f35ed054cfeaf6f42950cbd19092383f, type: 2}
+      minAmount: 1
+      maxAmount: 10
+      dropChance: 1
+  - blockName: Mud
+    atlasIndex: 9
+    health: 9
+    locationCondition: 2
+    timeStateCondition: 1
+    normalWeatherCondition: 2
+    specialWeatherCondition: 0
+    weight: 20
+    drops:
+    - item: {fileID: 11400000, guid: c9d273da9fab3c341a7849b3e4ddcba6, type: 2}
+      minAmount: 1
+      maxAmount: 3
+      dropChance: 1

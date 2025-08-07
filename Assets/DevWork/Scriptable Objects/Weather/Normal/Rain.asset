@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 91624c818acd06c4da519e895ee116bd, type: 3}
+  m_Name: Rain
+  m_EditorClassIdentifier: 
+  effectPrefab: {fileID: 2802259789098091331, guid: aed9bc7d11e6c314b92c29b0263860ec,
+    type: 3}
+  weight: 10
+  sunLightColor: {r: 1, g: 1, b: 1, a: 1}
+  moonLightColor: {r: 1, g: 1, b: 1, a: 1}
+  temperature: 6500
+  weatherName: 2
+  duration: 60
