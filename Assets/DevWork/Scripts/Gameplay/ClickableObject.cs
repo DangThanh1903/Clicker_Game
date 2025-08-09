@@ -57,11 +57,11 @@ public class ClickableObject : MonoBehaviour
     [SerializeField] GameObject fragmentPrefab;
 
     [Header("Explode anim")]
-    float shrinkScale = 1f;
-    float shrinkTime = 0.3f;
-    float delayBeforeExpand = 0.15f;
-    float expandScale = 4.5f;
-    float expandTime = 0.4f;
+    float shrinkScale = 2f;
+    float shrinkTime = 0.2f;
+    float delayBeforeExpand = 0.1f;
+    float expandScale = 4f;
+    float expandTime = 0.2f;
 
     private bool isSpinning = false;
 

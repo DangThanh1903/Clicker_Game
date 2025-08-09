@@ -1,0 +1,57 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 89975ec83e0db7d40a40a6646976961a, type: 3}
+  m_Name: RecipeDatabase
+  m_EditorClassIdentifier: 
+  recipes:
+  - ingredients:
+    - _itemData: {fileID: 11400000, guid: 482f34787611f904ba3f929453fcc790, type: 2}
+      quantity:
+        value: 1
+    - _itemData: {fileID: 11400000, guid: 482f34787611f904ba3f929453fcc790, type: 2}
+      quantity:
+        value: 1
+    - _itemData: {fileID: 11400000, guid: 482f34787611f904ba3f929453fcc790, type: 2}
+      quantity:
+        value: 1
+    - _itemData: {fileID: 11400000, guid: 482f34787611f904ba3f929453fcc790, type: 2}
+      quantity:
+        value: 1
+    result:
+      _itemData: {fileID: 11400000, guid: 151c65a5ce85a5344ad922e22cb86478, type: 2}
+      quantity:
+        value: 1
+  - ingredients:
+    - _itemData: {fileID: 11400000, guid: 151c65a5ce85a5344ad922e22cb86478, type: 2}
+      quantity:
+        value: 1
+    result:
+      _itemData: {fileID: 11400000, guid: 482f34787611f904ba3f929453fcc790, type: 2}
+      quantity:
+        value: 4
+  - ingredients:
+    - _itemData: {fileID: 11400000, guid: a44ea46ddc88ea04f91291e91b25c4c9, type: 2}
+      quantity:
+        value: 1
+    - _itemData: {fileID: 11400000, guid: 151c65a5ce85a5344ad922e22cb86478, type: 2}
+      quantity:
+        value: 1
+    - _itemData: {fileID: 11400000, guid: 151c65a5ce85a5344ad922e22cb86478, type: 2}
+      quantity:
+        value: 1
+    - _itemData: {fileID: 11400000, guid: 151c65a5ce85a5344ad922e22cb86478, type: 2}
+      quantity:
+        value: 1
+    result:
+      _itemData: {fileID: 11400000, guid: 561e8bf53c57b5c41a0423da4a935abb, type: 2}
+      quantity:
+        value: 1

@@ -10,8 +10,8 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 9620cf68e4443f34983cca4963304778, type: 3}
-  m_Name: Inventory
+  m_Name: CraftingStation
   m_EditorClassIdentifier: 
-  size: 30
+  size: 4
   nullItem: {fileID: 11400000, guid: 51d287ca54e2da64cae6ffd5593d2031, type: 2}
-  inventoryType: 0
+  inventoryType: 3

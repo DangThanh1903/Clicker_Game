@@ -1,19 +1,58 @@
 using Sirenix.OdinInspector;
 using UnityEngine;
 using UniRx;
+using UnityEngine.AddressableAssets;
+using UnityEngine.ResourceManagement.AsyncOperations;
 
 [System.Serializable]
 public class InventoryItem
 {
     [AssetSelector]
     [InlineEditor(InlineEditorModes.GUIAndPreview)]
-    public Item itemData;
+    [SerializeField] private Item _itemData;
+
     public ReactiveProperty<int> quantity;
+
+    // Shared "None" item for all InventoryItems
+    private static Item _none;
+    private static bool _loadingNone = false;
+
+    public static void LoadNoneItem(System.Action onLoaded = null)
+    {
+        if (_none != null)
+        {
+            onLoaded?.Invoke();
+            return;
+        }
+
+        if (_loadingNone) return;
+        _loadingNone = true;
+
+        Addressables.LoadAssetAsync<Item>("None").Completed += handle =>
+        {
+            if (handle.Status == AsyncOperationStatus.Succeeded)
+            {
+                _none = handle.Result;
+                Debug.Log("Loaded 'None' item.");
+                onLoaded?.Invoke();
+            }
+            else
+            {
+                Debug.LogError("Failed to load 'None' item from Addressables.");
+            }
+        };
+    }
+
+    public Item itemData
+    {
+        get => _itemData ?? _none;
+        set => _itemData = value ?? _none;
+    }
 
     public InventoryItem(Item itemData, int quantity)
     {
-        this.itemData = itemData;
-        this.quantity = new ReactiveProperty<int>(quantity);
+        this.itemData = itemData == null ? _none : itemData;
+        this.quantity = new ReactiveProperty<int>((itemData == null || itemData.Type == ItemType.None) ? 0 : quantity);
     }
 
     public bool CanStackWith(InventoryItem other) =>
@@ -30,8 +69,7 @@ public class InventoryItem
 
     public void Use(GameObject user)
     {
-        itemData.Use(user);
+        itemData?.Use(user);
         quantity.Value = Mathf.Max(quantity.Value - 1, 0);
     }
 }
-

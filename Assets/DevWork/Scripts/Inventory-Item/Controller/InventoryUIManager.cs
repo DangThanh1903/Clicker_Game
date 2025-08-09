@@ -1,26 +1,18 @@
 using System;
 using System.Collections.Generic;
-using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.UI;
+using UniRx;
 
 public class InventoryUIManager : MonoBehaviour
 {
-    [Serializable]
-    public class InventorySection
-    {
-        public string name;
-        public InventoryData inventoryData;
-        public Transform slotParent;
-        public GameObject slotPrefab;
-    }
-
     public InventorySection[] inventorySections;
 
     private void Start()
     {
         CreateAllInventorySlots();
     }
+
     public bool AddItemToInventorySection(InventoryItem inventoryItem)
     {
         foreach (var section in inventorySections)
@@ -39,20 +31,29 @@ public class InventoryUIManager : MonoBehaviour
     {
         foreach (var section in inventorySections)
         {
-            CreateInventorySlots(section);
+            InventorySlotFactory.CreateSlots(section);
         }
     }
 
-    public void CreateInventorySlots(InventorySection section)
+    public InventoryData GetInventoryForSlot(InventorySlotUI slotUI)
     {
-        // Clear existing slots
-        foreach (Transform child in section.slotParent)
-            Destroy(child.gameObject);
-
-        for (int i = 0; i < section.inventoryData.Items.Count; i++)
+        foreach (var section in inventorySections)
         {
-            var slot = Instantiate(section.slotPrefab, section.slotParent);
-            slot.GetComponent<InventorySlotUI>().Bind(section.inventoryData, i);
+            if (section.slotUIs.Contains(slotUI))
+                return section.inventoryData;
         }
+        return null;
     }
+}
+
+[Serializable]
+public class InventorySection
+{
+    public string name;
+    public InventoryData inventoryData;
+    public Transform slotParent;
+    public GameObject slotPrefab;
+
+    [NonSerialized] public List<InventorySlotUI> slotUIs = new List<InventorySlotUI>();
+    [NonSerialized] public CompositeDisposable disposables = new CompositeDisposable();
 }

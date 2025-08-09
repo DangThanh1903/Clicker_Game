@@ -7,43 +7,59 @@ using UniRx;
 public class InventorySlotUI : MonoBehaviour, IDropHandler
 {
     [Header("Slot Logic")]
-    public SlotAcceptRuleSO acceptRule;
-    public int slotIndex;
+    [SerializeField] private SlotAcceptRuleSO acceptRule;
+    [SerializeField] private int slotIndex;
+    private InventoryData boundInventory;
 
     [Header("UI References")]
     [SerializeField] private Image icon;
     [SerializeField] private TextMeshProUGUI quantityText;
 
-    private InventoryData boundInventory;
-    private CompositeDisposable disposables = new CompositeDisposable();
+    private CompositeDisposable disposable = new CompositeDisposable();
 
-    public void Bind(InventoryData inventoryData, int index)
+    public void Bind(InventoryData inventory, int index)
     {
-        disposables.Clear();
+        boundInventory = inventory;
         slotIndex = index;
-        boundInventory = inventoryData;
-
-        UpdateSlotUI(boundInventory.Items[slotIndex]);
-
-        boundInventory.Items
-            .ObserveReplace()
-            .Where(x => x.Index == slotIndex)
-            .Subscribe(x => UpdateSlotUI(x.NewValue))
-            .AddTo(disposables);
-
-        boundInventory.Items
-            .ObserveReset()
-            .Subscribe(_ => UpdateSlotUI(boundInventory.Items[slotIndex]))
-            .AddTo(disposables);
     }
 
+    public InventoryData GetBoundInventory() => boundInventory;
+    public int GetSlotIndex() => slotIndex;
+
+    public void UpdateSlotUI(InventoryItem item)
+    {
+        disposable.Clear();
+
+        bool hasItem = item != null && item.itemData != null && item.itemData.Type != ItemType.None;
+
+        icon.enabled = hasItem;
+        icon.sprite = hasItem ? item.itemData.icon : null;
+
+        if (hasItem)
+        {
+            item.quantity
+                .Subscribe(qty =>
+                {
+                    if (quantityText != null)
+                    {
+                        quantityText.text = qty > 1 ? qty.ToString() : "";
+                    }
+                })
+                .AddTo(disposable);
+        }
+        else
+        {
+            if (quantityText != null)
+                quantityText.text = "";
+        }
+    }
 
     public void OnDrop(PointerEventData eventData)
     {
         Debug.Log("Got something dropped in");
         var droppedItem = eventData.pointerDrag.GetComponent<DragableItem>();
-        if (droppedItem == null)
-            return;
+        if (droppedItem == null) return;
+
         var droppedSlot = droppedItem.originSlot.GetComponent<InventorySlotUI>();
         if (droppedSlot == null || acceptRule == null || droppedSlot.acceptRule == null)
         {
@@ -52,29 +68,18 @@ public class InventorySlotUI : MonoBehaviour, IDropHandler
         }
 
         InventoryController.Instance.TrySwap(
-            droppedSlot.boundInventory, droppedSlot.slotIndex,
-            this.boundInventory, this.slotIndex,
-            droppedSlot.acceptRule, this.acceptRule);
-    }
+            fromData: droppedSlot.GetBoundInventory(),
+            fromIndex: droppedSlot.slotIndex,
+            toData: this.GetBoundInventory(),
+            toIndex: this.slotIndex,
+            fromRule: droppedSlot.acceptRule,
+            toRule: this.acceptRule
+        );
 
-    protected void UpdateSlotUI(InventoryItem item)
-    {
-        bool hasItem = item != null && item.itemData != null && item.itemData.Type != ItemType.None;
-
-        icon.enabled = hasItem;
-        icon.sprite = hasItem ? item.itemData.icon : null;
-
-        if (quantityText == null)
-            return;
-
-        if (hasItem && item.quantity.Value > 1)
-            quantityText.text = item.quantity.Value.ToString();
-        else
-            quantityText.text = "";
     }
 
     private void OnDestroy()
     {
-        disposables.Dispose();
+        disposable.Dispose();
     }
 }

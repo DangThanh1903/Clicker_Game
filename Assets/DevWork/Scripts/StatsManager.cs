@@ -42,4 +42,11 @@ public class StatsManager : MonoBehaviour
     {
         stats[type].Add(amount);
     }
+    public void ClearAll()
+    {
+        foreach (var stat in stats.Values)
+        {
+            stat.Set(0f);
+        }
+    }
 }
