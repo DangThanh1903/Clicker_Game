@@ -1,13 +1,19 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
+using UniRx;
 
 public class InventoryController : MonoBehaviour
 {
     public static InventoryController Instance;
     [SerializeField] private InventoryUIManager uiManager;
     [SerializeField] private CraftingController craftingController;
-    [SerializeField] private SplitInventoryController splitInventoryController;
+    [SerializeField] private TMP_Text description;
+    [SerializeField] private Button useButton;
+    [SerializeField] private BuffManager buffManager;
 
     private void Awake()
     {
@@ -21,6 +27,13 @@ public class InventoryController : MonoBehaviour
         {
             Debug.Log("'None' item ready for inventory.");
         });
+
+    }
+
+    void Start()
+    {
+        buffManager.Initialize(StatsManager.Ins);
+        useButton.gameObject.SetActive(false);
     }
 
     // ==============================
@@ -76,19 +89,19 @@ public class InventoryController : MonoBehaviour
             if (totalQuantity <= maxStack)
             {
                 // All can be stacked into the target slot
-                toData.Items[toIndex].quantity.Value = totalQuantity;
-                fromData.RemoveItemAt(fromIndex);
+                toData.SetItem(toIndex, new InventoryItem(itemB.itemData, totalQuantity), true);
+                fromData.RemoveItemAt(fromIndex, true);
             }
             else
             {
                 // Only stack up to max in target
-                toData.Items[toIndex].quantity.Value = maxStack;
+                toData.SetItem(toIndex, new InventoryItem(itemB.itemData, maxStack), true);
 
                 // Calculate remaining amount
                 int remainder = totalQuantity - maxStack;
 
                 // Put the remainder back in the from slot
-                fromData.Items[fromIndex].quantity.Value = remainder;
+                fromData.SetItem(fromIndex, new InventoryItem(itemA.itemData, remainder), true);
             }
 
             return true;
@@ -96,8 +109,8 @@ public class InventoryController : MonoBehaviour
 
 
         // Perform regular swap
-        fromData.SetItem(fromIndex, itemB);
-        toData.SetItem(toIndex, itemA);
+        fromData.SetItem(fromIndex, itemB, true);
+        toData.SetItem(toIndex, itemA, true);
 
         Debug.Log("Swapped items");
 
@@ -107,41 +120,142 @@ public class InventoryController : MonoBehaviour
         }
         return true;
     }
-
-
+    public void SetUseButton(Item item, int index, InventoryData inventoryData)
+    {
+        useButton.gameObject.SetActive(item.Type == ItemType.Consumable || item.Type == ItemType.BossSummoner);
+        useButton.onClick.RemoveAllListeners();
+        if (item is ConsumableItem consumableItem)
+        {
+            useButton.onClick.AddListener(() =>
+            {
+                UseConsumable(consumableItem);
+                if (!inventoryData.SubtractQuantity(index, 1, true))
+                {
+                    useButton.gameObject.SetActive(false);
+                }
+            });
+        }
+        else if (item is BossSummoner bossSummoner)
+        {
+            useButton.onClick.AddListener(() =>
+            {
+                UseSummonBoss(bossSummoner);
+                inventoryData.RemoveItemAt(index);
+                useButton.gameObject.SetActive(false);
+            });
+        }
+    }
+    public void SetDescription(string des)
+    {
+        description.text = des;
+        useButton.gameObject.SetActive(false);
+    }
     // ==============================
     // SECTION: Stat Logic
     // ==============================
 
     void UpdateStat()
     {
+        // Reset stats to base
         StatsManager.Ins.ClearAll();
 
+        // Remove all item buffs (so we can reapply)
+        foreach (var section in uiManager.inventorySections)
+            foreach (var item in section.inventoryData.Items)
+                if (item?.itemData != null)
+                    buffManager.RemoveBuffsFromItem(item.itemData);
+
+        // Apply buffs from equipped items
         foreach (var section in uiManager.inventorySections)
         {
-            // ✅ Only check Pickaxe and Accessory slots
             if (section.inventoryData.inventoryType != InventoryType.Pickaxe &&
                 section.inventoryData.inventoryType != InventoryType.Accessory)
                 continue;
 
             foreach (var item in section.inventoryData.Items)
             {
-                if (item?.itemData == null)
-                    continue;
+                if (item?.itemData == null) continue;
 
+                // Apply stats from IStatProvider
                 if (item.itemData is IStatProvider provider)
-                {
                     foreach (var mod in provider.GetStatModifiers())
-                    {
                         StatsManager.Ins.Add(mod.statType, mod.value);
-                        Debug.Log($"[Stat] {mod.statType}: +{mod.value} from {item.itemData.name}");
-                    }
-                }
+
+                // Apply buffs from accessory / passive items
+                if (item.itemData is Accessory accessory)
+                    buffManager.ApplyItemBuffs(item.itemData, accessory.GetPassiveBuffs());
             }
         }
+
+        // Apply all active buffs (item conditional + consumable)
+        foreach (var buff in buffManager.GetActiveBuffs())
+        {
+            if (buff.SourceItem == null) // only consumables
+            {
+                StatsManager.Ins.Add(
+                    buff.buffData.statType,
+                    buff.buffData.amount * (buff.buffData.isStackable ? buff.StackCount : 1)
+                );
+            }
+        }
+
+
+        // Update UI description
+        UpdateStatDescription();
     }
 
 
 
+    void UpdateStatDescription()
+    {
+        SetDescription(GetStatDescriptionWithBuffs(buffManager.GetActiveBuffs().ToList()));
+    }
 
+    string GetStatDescriptionWithBuffs(List<BuffInstance> buffs)
+    {
+        var desc = GetStatDescription(); // base item stats
+        foreach (var buff in buffs)
+        {
+            if (buff.IsActive)
+                desc += $"\n{buff.buffData.buffName}: +{buff.buffData.amount}";
+        }
+        return desc;
+    }
+
+    string GetStatDescription()
+    {
+        var HP = StatsManager.Ins.Get(StatType.HP);
+        var Mana = StatsManager.Ins.Get(StatType.Mana);
+        var damage = GetDamageByState();
+        var def = StatsManager.Ins.Get(StatType.Def);
+        var crit = StatsManager.Ins.Get(StatType.CritChance);
+
+        return $"Max HP: {HP:F0}\nMana: {Mana}\nDamage: {damage}\nCrit Chance: {crit:F0}%\nDefense: {def:F0}\n";
+    }
+
+    float GetDamageByState()
+    {
+        return PlayerController.Instance.currentState switch
+        {
+            NormalState => StatsManager.Ins.Get(StatType.NormalPower),
+            HoldState => StatsManager.Ins.Get(StatType.HoldPower),
+            IdleState => StatsManager.Ins.Get(StatType.IdlePower),
+            _ => StatsManager.Ins.Get(StatType.NormalPower),
+        };
+    }
+
+    void UseConsumable(ConsumableItem consumable)
+    {
+        if (consumable.buffToApply != null)
+        {
+            buffManager.ApplyBuff(consumable.buffToApply);
+            Debug.Log($"Applied buff: {consumable.buffToApply.buffName}");
+        }
+    }
+
+    void UseSummonBoss(BossSummoner bossSummoner)
+    {
+        BlockManager.Ins.Summon(bossSummoner.bossBase);
+        UIManager.Ins.MoveToMain();
+    }
 }

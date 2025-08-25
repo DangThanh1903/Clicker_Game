@@ -66,10 +66,4 @@ public class InventoryItem
         quantity.Value += toAdd;
         return toAdd;
     }
-
-    public void Use(GameObject user)
-    {
-        itemData?.Use(user);
-        quantity.Value = Mathf.Max(quantity.Value - 1, 0);
-    }
 }

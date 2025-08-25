@@ -3,11 +3,15 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 
-public class DragableItem : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
+public class DragableItem : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler, IPointerClickHandler
 {
     [HideInInspector] public Transform originSlot;
-    public InventoryItem inventoryItem;
     private Image image;
+    private float lastClickTime = 0f;
+    private InventoryItem inventoryItem;
+    private int currenIndex;
+    private InventoryData currentData;
+    private const float doubleClickThreshold = 0.3f;
 
     void Awake()
     {
@@ -22,15 +26,7 @@ public class DragableItem : MonoBehaviour, IBeginDragHandler, IDragHandler, IEnd
     public void OnBeginDrag(PointerEventData eventData)
     {
         originSlot = transform.parent;
-        Transform grandgrandparent = transform.parent.parent.parent;
-        if (grandgrandparent != null)
-        {
-            transform.SetParent(grandgrandparent, worldPositionStays: true);
-        }
-        else
-        {
-            transform.SetParent(transform.root, worldPositionStays: true);
-        }
+        transform.SetParent(transform.root, worldPositionStays: true);
         transform.SetAsLastSibling();
         image.raycastTarget = false;
     }
@@ -45,6 +41,41 @@ public class DragableItem : MonoBehaviour, IBeginDragHandler, IDragHandler, IEnd
         transform.SetParent(originSlot);
         transform.localPosition = Vector3.zero;
         image.raycastTarget = true;
+    }
+
+    public void OnPointerClick(PointerEventData eventData)
+    {
+        float timeSinceLastClick = Time.unscaledTime - lastClickTime;
+
+        if (timeSinceLastClick <= doubleClickThreshold)
+        {
+            OnDoubleTap();
+            lastClickTime = 0f;
+        }
+        else
+        {
+            lastClickTime = Time.unscaledTime;
+            OnSingleTap();
+        }
+    }
+    public void SetInventoryItem(InventoryItem it, int index, InventoryData inventoryData)
+    {
+        inventoryItem = it;
+        currenIndex = index;
+        currentData = inventoryData;
+    }
+
+    private void OnSingleTap()
+    {
+        Debug.Log("Single tap detected");
+        InventoryController.Instance.SetDescription(inventoryItem.itemData.description);
+        InventoryController.Instance.SetUseButton(inventoryItem.itemData, currenIndex, currentData);
+    }
+
+    private void OnDoubleTap()
+    {
+        Debug.Log("Double tap detected!");
+        // Your double tap logic here
     }
 }
 

@@ -5,21 +5,20 @@ using UnityEngine;
 
 public class CraftingController : MonoBehaviour
 {
-    [SerializeField] private InventorySection inputInventoryData; // 3–4 slots
-    [SerializeField] private InventorySection outputInventoryData; // 1 slot
-    [SerializeField] private RecipeDatabase recipeDatabase; // Your SO with all recipes
-    private List<InventoryItem> lastMatchedVariant;
-    private RecipeDatabase.Recipe lastMatchedRecipe;
-    private InventoryItem previousOutputItem;
+    [SerializeField] private InventorySection inputInventoryData;  
+    [SerializeField] private InventorySection outputInventoryData;
+    [SerializeField] private RecipeDatabase recipeDatabase;
 
+    private List<InventoryItem> matchedVariant;
+    private RecipeDatabase.Recipe currentRecipe;
 
     private CompositeDisposable disposables = new CompositeDisposable();
 
     private void Start()
     {
-        CreateAllCraftingSlots();
-        SubscribeToInputChanges();
-        SubscribeToOutputChange();
+        InventorySlotFactory.CreateSlots(inputInventoryData);
+        InventorySlotFactory.CreateSlots(outputInventoryData);
+        SubscribeToInventoryChanges();
     }
 
     private void OnDestroy()
@@ -27,41 +26,40 @@ public class CraftingController : MonoBehaviour
         disposables.Dispose();
     }
 
-    public void CreateAllCraftingSlots()
+    private void SubscribeToInventoryChanges()
     {
-        InventorySlotFactory.CreateSlots(inputInventoryData);
-        InventorySlotFactory.CreateSlots(outputInventoryData);
-    }
+        var inputItems = inputInventoryData.inventoryData.Items;
+        var outputData = outputInventoryData.inventoryData;
 
-    private void SubscribeToInputChanges()
-    {
-        var inventory = inputInventoryData.inventoryData;
-        inventory.Items.ObserveReplace()
-            .Subscribe(_ => CheckAndUpdateOutput())
-            .AddTo(disposables);
-        
-        inventory.Items.ObserveReset()
-            .Subscribe(_ => CheckAndUpdateOutput())
+        // Update output recipe when input changes
+        inputItems.ObserveReplace()
+            .Subscribe(_ => UpdateCraftingOutput())
             .AddTo(disposables);
 
-        // Initial check
-        CheckAndUpdateOutput();
+        inputItems.ObserveReset()
+            .Subscribe(_ => UpdateCraftingOutput())
+            .AddTo(disposables);
+
+        // Subscribe to player-driven SetItem calls on output slot 0 only
+        outputData.OnPlayerSetItem
+            .Where(change => change.index == 0)
+            .Subscribe(_ => RemoveIngredients())
+            .AddTo(disposables);
     }
 
-    private void CheckAndUpdateOutput()
+    private void UpdateCraftingOutput()
     {
-        var currentInputItems = inputInventoryData.inventoryData.Items.ToList();
+        var inputItems = inputInventoryData.inventoryData.Items.ToList();
 
-        var (recipe, matchedVariant) = recipeDatabase.GetRecipeWithMatchedVariant(currentInputItems);
+        // Call updated database method returning flipped variant too
+        var match = recipeDatabase.GetRecipeWithFlippedRecipeIngredients(inputItems);
+        currentRecipe = match.recipe;
+        matchedVariant = match.matchedVariant;
 
-        lastMatchedVariant = matchedVariant;
-        lastMatchedRecipe = recipe;
-
-
-        if (recipe != null)
+        if (currentRecipe != null)
         {
-            var craftedItem = new InventoryItem(recipe.result.itemData, recipe.result.quantity.Value);
-            outputInventoryData.inventoryData.SetItem(0, craftedItem);
+            var crafted = new InventoryItem(currentRecipe.result.itemData, currentRecipe.result.quantity.Value);
+            outputInventoryData.inventoryData.SetItem(0, crafted);
         }
         else
         {
@@ -69,103 +67,43 @@ public class CraftingController : MonoBehaviour
         }
     }
 
-    private void SubscribeToOutputChange()
+    private void RemoveIngredients()
     {
-        var outputInventory = outputInventoryData.inventoryData;
+        if (currentRecipe == null || matchedVariant == null) return;
 
-        outputInventory.Items.ObserveReplace()
-            .Subscribe(change =>
-            {
-                if (change.Index != 0) return;
+        var inputItems = inputInventoryData.inventoryData.Items;
 
-                var currentItem = outputInventory.Items.Count > 0 ? outputInventory.Items[0] : null;
-                var prevItem = previousOutputItem;
+        // Cache removal info: (slotIndex, InventoryItem with new qty)
+        var itemsToSet = new List<(int index, InventoryItem newItem)>();
 
-                bool wasNotEmptyBefore = prevItem != null &&
-                                        prevItem.itemData != null &&
-                                        prevItem.itemData.Type != ItemType.None &&
-                                        prevItem.quantity.Value > 0;
-
-                bool nowEmpty = currentItem == null ||
-                                currentItem.itemData == null ||
-                                currentItem.itemData.Type == ItemType.None ||
-                                currentItem.quantity.Value == 0;
-
-                bool nowNotEmpty = !nowEmpty;
-
-                bool recipeChanged = false;
-                bool quantityDecreased = false;
-
-                if (wasNotEmptyBefore && nowNotEmpty && prevItem != null && currentItem != null)
-                {
-                    // Check if crafted item changed (different itemData)
-                    recipeChanged = prevItem.itemData != currentItem.itemData;
-
-                    // Check if quantity decreased (player took some)
-                    quantityDecreased = currentItem.quantity.Value < prevItem.quantity.Value;
-                }
-
-                Debug.Log($"Output slot changed. Was not empty before? {wasNotEmptyBefore}, Now empty? {nowEmpty}, Recipe changed? {recipeChanged}, Quantity decreased? {quantityDecreased}");
-
-                if ((wasNotEmptyBefore && nowEmpty) || recipeChanged || quantityDecreased)
-                {
-                    Debug.Log("Detected crafted item taken or changed! Removing ingredients...");
-                    RemoveRecipeIngredients();
-                }
-
-                // Update previousOutputItem
-                previousOutputItem = currentItem != null ? new InventoryItem(currentItem.itemData, currentItem.quantity.Value) : null;
-            })
-            .AddTo(disposables);
-    }
-
-
-    // TODO: Fix crafting logic
-
-    public void RemoveRecipeIngredients()
-    {
-        if (lastMatchedVariant == null || lastMatchedRecipe == null)
+        for (int i = 0; i < matchedVariant.Count; i++)
         {
-            Debug.LogWarning("No cached recipe or variant found for removing ingredients.");
-            return;
-        }
-
-        var inventory = inputInventoryData.inventoryData;
-
-        int count = Mathf.Min(inventory.Items.Count, lastMatchedRecipe.ingredients.Count);
-
-        // 1. Cache needed data first to avoid modification during iteration
-        var itemsToRemove = new List<(int slotIndex, Item itemData, int quantityNeeded)>();
-
-        for (int i = 0; i < count; i++)
-        {
-            var recipeItem = lastMatchedRecipe.ingredients[i];
-
-            if (recipeItem == null || recipeItem.itemData == null || recipeItem.itemData.Type == ItemType.None)
+            var recipeIngredient = matchedVariant[i];
+            if (recipeIngredient == null || recipeIngredient.itemData == null || recipeIngredient.quantity.Value <= 0)
                 continue;
 
-            itemsToRemove.Add((i, recipeItem.itemData, recipeItem.quantity.Value));
-        }
+            if (i >= inputItems.Count) continue;
 
-        // 2. Now safely modify inventory based on cached data
-        foreach (var (slotIndex, itemData, quantityNeeded) in itemsToRemove)
-        {
-            var slotItem = inventory.Items[slotIndex];
-
-            if (slotItem != null && slotItem.itemData == itemData)
+            var slotItem = inputItems[i];
+            if (slotItem != null && slotItem.itemData == recipeIngredient.itemData)
             {
-                int newQty = slotItem.quantity.Value - quantityNeeded;
+                int newQty = slotItem.quantity.Value - recipeIngredient.quantity.Value;
 
+                InventoryItem newItem;
                 if (newQty <= 0)
-                    inventory.SetItem(slotIndex, new InventoryItem(null, 0));
+                    newItem = new InventoryItem(null, 0);
                 else
-                    inventory.SetItem(slotIndex, new InventoryItem(slotItem.itemData, newQty));
+                    newItem = new InventoryItem(slotItem.itemData, newQty);
+
+                itemsToSet.Add((i, newItem));
             }
         }
 
-        // 3. Clear cache after removal
-        lastMatchedVariant = null;
-        lastMatchedRecipe = null;
+        // Apply all removals at once
+        foreach (var (index, newItem) in itemsToSet)
+        {
+            inputInventoryData.inventoryData.SetItem(index, newItem);
+        }
     }
 
 }

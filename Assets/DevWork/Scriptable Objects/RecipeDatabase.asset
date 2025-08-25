@@ -14,44 +14,113 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   recipes:
   - ingredients:
-    - _itemData: {fileID: 11400000, guid: 482f34787611f904ba3f929453fcc790, type: 2}
-      quantity:
-        value: 1
-    - _itemData: {fileID: 11400000, guid: 482f34787611f904ba3f929453fcc790, type: 2}
-      quantity:
-        value: 1
-    - _itemData: {fileID: 11400000, guid: 482f34787611f904ba3f929453fcc790, type: 2}
-      quantity:
-        value: 1
-    - _itemData: {fileID: 11400000, guid: 482f34787611f904ba3f929453fcc790, type: 2}
+    - _itemData: {fileID: 11400000, guid: 60b16f0202ef37f41a526bca0b284645, type: 2}
       quantity:
         value: 1
     result:
-      _itemData: {fileID: 11400000, guid: 151c65a5ce85a5344ad922e22cb86478, type: 2}
-      quantity:
-        value: 1
-  - ingredients:
-    - _itemData: {fileID: 11400000, guid: 151c65a5ce85a5344ad922e22cb86478, type: 2}
-      quantity:
-        value: 1
-    result:
-      _itemData: {fileID: 11400000, guid: 482f34787611f904ba3f929453fcc790, type: 2}
+      _itemData: {fileID: 11400000, guid: 15282561daa2fcc4590d4754049134ff, type: 2}
       quantity:
         value: 4
   - ingredients:
-    - _itemData: {fileID: 11400000, guid: a44ea46ddc88ea04f91291e91b25c4c9, type: 2}
+    - _itemData: {fileID: 11400000, guid: 15282561daa2fcc4590d4754049134ff, type: 2}
       quantity:
-        value: 1
-    - _itemData: {fileID: 11400000, guid: 151c65a5ce85a5344ad922e22cb86478, type: 2}
+        value: 5
+    - _itemData: {fileID: 11400000, guid: 5658c337be36c8c4587eeee8cd78bb87, type: 2}
       quantity:
-        value: 1
-    - _itemData: {fileID: 11400000, guid: 151c65a5ce85a5344ad922e22cb86478, type: 2}
-      quantity:
-        value: 1
-    - _itemData: {fileID: 11400000, guid: 151c65a5ce85a5344ad922e22cb86478, type: 2}
-      quantity:
-        value: 1
+        value: 4
     result:
-      _itemData: {fileID: 11400000, guid: 561e8bf53c57b5c41a0423da4a935abb, type: 2}
+      _itemData: {fileID: 11400000, guid: 0476db4275c0dfa4aacb7a319b146ac6, type: 2}
       quantity:
         value: 1
+  - ingredients:
+    - _itemData: {fileID: 11400000, guid: b58c152454d354b47b2cd8650bf8bf45, type: 2}
+      quantity:
+        value: 10
+    - _itemData: {fileID: 11400000, guid: 69c48c737b5a3ef438799fd75b451469, type: 2}
+      quantity:
+        value: 2
+    result:
+      _itemData: {fileID: 11400000, guid: 59fcfa93e31fa0b4c9c1df353d23e163, type: 2}
+      quantity:
+        value: 1
+  - ingredients:
+    - _itemData: {fileID: 11400000, guid: 0476db4275c0dfa4aacb7a319b146ac6, type: 2}
+      quantity:
+        value: 1
+    - _itemData: {fileID: 11400000, guid: 69c48c737b5a3ef438799fd75b451469, type: 2}
+      quantity:
+        value: 3
+    - _itemData: {fileID: 11400000, guid: 43dafd87ea180c740acd40a552af12c9, type: 2}
+      quantity:
+        value: 2
+    result:
+      _itemData: {fileID: 11400000, guid: 568a60f8923e63147a4d886034bf10da, type: 2}
+      quantity:
+        value: 1
+  - ingredients:
+    - _itemData: {fileID: 11400000, guid: 0a4d8afb43ac54745a959c89d524b0cd, type: 2}
+      quantity:
+        value: 5
+    - _itemData: {fileID: 11400000, guid: dac4b888454f57f4daa7ff54d977b870, type: 2}
+      quantity:
+        value: 2
+    result:
+      _itemData: {fileID: 11400000, guid: 4990e9260c2e87d46970ee073d04d54e, type: 2}
+      quantity:
+        value: 1
+  - ingredients:
+    - _itemData: {fileID: 11400000, guid: 4990e9260c2e87d46970ee073d04d54e, type: 2}
+      quantity:
+        value: 2
+    - _itemData: {fileID: 11400000, guid: 0a4d8afb43ac54745a959c89d524b0cd, type: 2}
+      quantity:
+        value: 10
+    - _itemData: {fileID: 11400000, guid: dac4b888454f57f4daa7ff54d977b870, type: 2}
+      quantity:
+        value: 4
+    result:
+      _itemData: {fileID: 11400000, guid: 7ad676cca3fa0f94f98ed13a5af0c39b, type: 2}
+      quantity:
+        value: 1
+  - ingredients:
+    - _itemData: {fileID: 11400000, guid: 7ad676cca3fa0f94f98ed13a5af0c39b, type: 2}
+      quantity:
+        value: 3
+    - _itemData: {fileID: 11400000, guid: 0a4d8afb43ac54745a959c89d524b0cd, type: 2}
+      quantity:
+        value: 20
+    - _itemData: {fileID: 11400000, guid: dac4b888454f57f4daa7ff54d977b870, type: 2}
+      quantity:
+        value: 8
+    result:
+      _itemData: {fileID: 11400000, guid: 9ac4de7e21348e64396ea8c663d0d2ff, type: 2}
+      quantity:
+        value: 1
+  - ingredients:
+    - _itemData: {fileID: 11400000, guid: 65cfc837310bb284e8fbe055ed609c44, type: 2}
+      quantity:
+        value: 3
+    - _itemData: {fileID: 11400000, guid: 0476db4275c0dfa4aacb7a319b146ac6, type: 2}
+      quantity:
+        value: 1
+    - _itemData: {fileID: 11400000, guid: ecf93b30a50f8004da1f06c546509b21, type: 2}
+      quantity:
+        value: 5
+    result:
+      _itemData: {fileID: 11400000, guid: 8e5b45b681b13834f86ab40b23effb6e, type: 2}
+      quantity:
+        value: 1
+  - ingredients:
+    - _itemData: {fileID: 11400000, guid: 59fcfa93e31fa0b4c9c1df353d23e163, type: 2}
+      quantity:
+        value: 1
+    - _itemData: {fileID: 11400000, guid: 0476db4275c0dfa4aacb7a319b146ac6, type: 2}
+      quantity:
+        value: 1
+    - _itemData: {fileID: 11400000, guid: ecf93b30a50f8004da1f06c546509b21, type: 2}
+      quantity:
+        value: 3
+    result:
+      _itemData: {fileID: 11400000, guid: 2d1e2c8cfaf934c4a81de0897d73378f, type: 2}
+      quantity:
+        value: 0

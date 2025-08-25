@@ -7,4 +7,6 @@ public class ConsumableItem : Item
 {
     public override ItemType Type => ItemType.Consumable;
     public override int MaxStack => 16;
+
+    public BuffSO buffToApply;
 }

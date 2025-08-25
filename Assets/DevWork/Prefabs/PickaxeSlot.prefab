@@ -90,9 +90,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   originSlot: {fileID: 0}
-  inventoryItem:
-    itemData: {fileID: 0}
-    quantity: 0
 --- !u!114 &3919482335189036124
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -180,7 +177,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 0}
+  m_Sprite: {fileID: 21300000, guid: f2595b1fe9376bb4491551e97a1deb75, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -204,5 +201,5 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   acceptRule: {fileID: 11400000, guid: 1399dd05ee19eb24ca26e0600647d7f1, type: 2}
   slotIndex: 0
-  icon: {fileID: 5214613682277575718}
+  draggable: {fileID: 19475549461583016}
   quantityText: {fileID: 0}

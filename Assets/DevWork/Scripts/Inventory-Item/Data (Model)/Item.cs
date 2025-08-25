@@ -7,7 +7,20 @@ public enum ItemType
     Pickaxe,
     Consumable,
     Accessory,
-    Material
+    Material,
+    BossSummoner
+}
+
+public enum ItemPrefix
+{
+    Gigachad,
+    Greedy,
+    Overclocked,
+    Mighty,
+    OPM,
+    Bruh,
+    Unlucky,
+    Shit
 }
 
 public abstract class Item : ScriptableObject
@@ -17,9 +30,4 @@ public abstract class Item : ScriptableObject
     public Sprite icon;
     public virtual ItemType Type => ItemType.None;
     public virtual int MaxStack => 1;
-
-    public virtual void Use(GameObject user)
-    {
-        Debug.Log($"Used item: {itemName}");
-    }
 }

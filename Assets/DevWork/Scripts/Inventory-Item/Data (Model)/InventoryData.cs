@@ -2,6 +2,7 @@ using Sirenix.OdinInspector;
 using UniRx;
 using UnityEngine;
 using System.Collections.Generic;
+using System;
 
 public enum InventoryType
 {
@@ -23,6 +24,10 @@ public class InventoryData : ScriptableObject
     [ShowInInspector]
     public ReactiveCollection<InventoryItem> Items { get; private set; } = new ReactiveCollection<InventoryItem>();
 
+    public Subject<(int index, InventoryItem newItem)> OnPlayerSetItem = new Subject<(int, InventoryItem)>();
+
+    public Subject<InventoryItem> InventoryChanged = new Subject<InventoryItem>();
+
     private void OnEnable()
     {
         if (Items.Count == 0)
@@ -33,7 +38,7 @@ public class InventoryData : ScriptableObject
     }
     public int GetSize() => size;
 
-    public void SetItem(int index, InventoryItem item)
+    public void SetItem(int index, InventoryItem item, bool isPlayerAction = false)
     {
         if (item == null || item.quantity.Value == 0)
         {
@@ -42,6 +47,11 @@ public class InventoryData : ScriptableObject
         else
         {
             Items[index] = item;
+            InventoryChanged.OnNext(item);
+        }
+        if (isPlayerAction)
+        {
+            OnPlayerSetItem.OnNext((index, item));
         }
     }
 
@@ -71,35 +81,41 @@ public class InventoryData : ScriptableObject
                 int toAdd = Mathf.Min(item.quantity.Value, item.itemData.MaxStack);
                 Items[i] = new InventoryItem(item.itemData, toAdd);
                 item.quantity.Value -= toAdd;
+                InventoryChanged.OnNext(item);
+                Debug.Log("Try place in empty slot");
                 if (item.quantity.Value <= 0) return true;
             }
         }
         return false;
     }
 
-    public bool RemoveItemAt(int index)
+    public bool RemoveItemAt(int index,  bool isPlayerAction = false)
     {
         if (IsValidSlot(index))
         {
-            Items[index] = new InventoryItem(nullItem, 0);    
+            SetItem(index, new InventoryItem(null, 0), isPlayerAction);
             return true;
         }
         return false;
     }
-
-    public bool RemoveItem(InventoryItem itemToRemove)
+    public bool SubtractQuantity(int index, int amount, bool isPlayerAction = false)
     {
-        foreach (var slot in Items)
+        if (!IsValidSlot(index)) return false;
+
+        var item = Items[index];
+        if (item == null || item.itemData == nullItem || item.quantity.Value <= 1) return false;
+        // careful, i just temporary use <= 1 for buff
+
+        item.quantity.Value -= amount;
+        if (item.quantity.Value <= 0)
         {
-            if (slot?.itemData == itemToRemove.itemData)
-            {
-                slot.quantity.Value -= itemToRemove.quantity.Value;
-                if (slot.quantity.Value <= 0)
-                    ClearSlot(slot);
-                return true;
-            }
+            SetItem(index, new InventoryItem(nullItem, 0), isPlayerAction);
         }
-        return false;
+        else
+        {
+            SetItem(index, item, isPlayerAction);
+        }
+        return true;
     }
 
     public bool HasItem(Item targetItem, int requiredQuantity)
@@ -119,10 +135,4 @@ public class InventoryData : ScriptableObject
     public InventoryItem GetItem(int index) => Items[index];
 
     private bool IsValidSlot(int index) => index >= 0 && index < Items.Count && Items[index] != null;
-
-    private void ClearSlot(InventoryItem slot)
-    {
-        slot.itemData = null;
-        slot.quantity.Value = 0;
-    }
 }

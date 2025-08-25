@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using UnityEngine;
 
@@ -8,15 +9,15 @@ public class RecipeDatabase : ScriptableObject
     [System.Serializable]
     public class Recipe
     {
-        public List<InventoryItem> ingredients;
+        public List<InventoryItem> ingredients; // Always 4 for 2x2 grid
         public InventoryItem result;
     }
 
     [SerializeField] private List<Recipe> recipes = new();
 
-    // Key: item-only key (ignores quantities)
-    // Value: list of recipes that share this item layout
+    // Lookup dictionary for quick recipe search by item layout key (ignores quantities)
     private Dictionary<string, List<Recipe>> recipeLookupByItems;
+    private Dictionary<Item, List<Recipe>> recipeLookupByResult;
 
     public void Initialize()
     {
@@ -36,12 +37,34 @@ public class RecipeDatabase : ScriptableObject
                     list.Add(recipe);
             }
         }
+
+        recipeLookupByResult = new Dictionary<Item, List<Recipe>>();
+        foreach (var r in recipes)
+        {
+            var item = r?.result?.itemData;
+            if (item == null) continue;
+            if (!recipeLookupByResult.TryGetValue(item, out var list))
+            {
+                list = new List<Recipe>();
+                recipeLookupByResult[item] = list;
+            }
+            list.Add(r);
+        }
     }
 
-    // Generates key ignoring quantity (only item names & positions)
+    public List<Recipe> GetRecipesByResultItem(Item itemData)
+    {
+        if (recipeLookupByResult == null) Initialize();
+        if (itemData == null) return new List<Recipe>();
+        return recipeLookupByResult.TryGetValue(itemData, out var list)
+            ? list
+            : new List<Recipe>();
+    }
+
+    // Generate a unique key string based on item types and their positions, ignoring quantities
     private string GenerateKeyIgnoringQuantity(List<InventoryItem> ingredients)
     {
-        StringBuilder sb = new();
+        var sb = new StringBuilder();
         for (int i = 0; i < ingredients.Count; i++)
         {
             var ingredient = ingredients[i];
@@ -53,7 +76,7 @@ public class RecipeDatabase : ScriptableObject
         return sb.ToString();
     }
 
-    // Normalize to 4 slots for 2x2 crafting grid
+    // Normalize ingredients list to exactly 4 slots (2x2)
     public static List<InventoryItem> NormalizeIngredients(List<InventoryItem> originalIngredients)
     {
         var normalized = new List<InventoryItem>(4);
@@ -69,50 +92,63 @@ public class RecipeDatabase : ScriptableObject
         return normalized;
     }
 
-    // Flips and rotations (for 2x2)
-    private List<InventoryItem> FlipHorizontal(List<InventoryItem> ingredients)
-    {
-        if (ingredients.Count != 4) return ingredients;
-        return new List<InventoryItem> { ingredients[1], ingredients[0], ingredients[3], ingredients[2] };
-    }
-    private List<InventoryItem> FlipVertical(List<InventoryItem> ingredients)
-    {
-        if (ingredients.Count != 4) return ingredients;
-        return new List<InventoryItem> { ingredients[2], ingredients[3], ingredients[0], ingredients[1] };
-    }
-    private List<InventoryItem> FlipHorizontalVertical(List<InventoryItem> ingredients)
-    {
-        if (ingredients.Count != 4) return ingredients;
-        return new List<InventoryItem> { ingredients[3], ingredients[2], ingredients[1], ingredients[0] };
-    }
-
+    // Generate all unique permutations of the normalized ingredients
     private IEnumerable<List<InventoryItem>> GenerateAllVariants(List<InventoryItem> ingredients)
     {
         var normalized = NormalizeIngredients(ingredients);
-        yield return normalized;
-        yield return FlipHorizontal(normalized);
-        yield return FlipVertical(normalized);
-        yield return FlipHorizontalVertical(normalized);
-        // You can add rotations if needed
+        var indices = Enumerable.Range(0, normalized.Count).ToList();
+        var seen = new HashSet<string>();
+
+        foreach (var perm in GetPermutations(indices))
+        {
+            var permList = perm.Select(i => normalized[i]).ToList();
+
+            // Avoid duplicates when same item appears in multiple slots
+            string key = string.Join(",", permList.Select(x => x?.itemData?.name ?? "None"));
+            if (seen.Add(key))
+                yield return permList;
+        }
     }
 
-    // Returns the first matching recipe where input quantities are enough
-    public (Recipe recipe, List<InventoryItem> matchedVariant) GetRecipeWithMatchedVariant(List<InventoryItem> inputIngredients)
+    private IEnumerable<List<int>> GetPermutations(List<int> items)
+    {
+        if (items.Count == 1)
+        {
+            yield return new List<int> { items[0] };
+            yield break;
+        }
+
+        for (int i = 0; i < items.Count; i++)
+        {
+            int current = items[i];
+            var remaining = new List<int>(items);
+            remaining.RemoveAt(i);
+
+            foreach (var perm in GetPermutations(remaining))
+            {
+                perm.Insert(0, current);
+                yield return perm;
+            }
+        }
+    }
+
+    // Try to find the first recipe matching the input ingredients layout and sufficient quantities
+    public (Recipe recipe, List<InventoryItem> matchedVariant) GetRecipeWithFlippedRecipeIngredients(List<InventoryItem> inputIngredients)
     {
         if (recipeLookupByItems == null)
             Initialize();
 
         var normalizedInput = NormalizeIngredients(inputIngredients);
+        string inputKey = GenerateKeyIgnoringQuantity(normalizedInput);
 
-        foreach (var variant in GenerateAllVariants(normalizedInput))
+        if (recipeLookupByItems.TryGetValue(inputKey, out var possibleRecipes))
         {
-            string keyIgnoringQuantity = GenerateKeyIgnoringQuantity(variant);
-
-            if (recipeLookupByItems.TryGetValue(keyIgnoringQuantity, out var candidateRecipes))
+            foreach (var recipe in possibleRecipes)
             {
-                foreach (var recipe in candidateRecipes)
+                foreach (var variant in GenerateAllVariants(recipe.ingredients))
                 {
-                    if (IsQuantityEnough(variant, recipe.ingredients))
+                    if (GenerateKeyIgnoringQuantity(variant) == inputKey &&
+                        IsQuantityEnough(normalizedInput, variant))
                     {
                         return (recipe, variant);
                     }
@@ -123,8 +159,6 @@ public class RecipeDatabase : ScriptableObject
         return (null, null);
     }
 
-
-    // Checks if input quantities cover recipe quantities (input >= recipe)
     private bool IsQuantityEnough(List<InventoryItem> input, List<InventoryItem> recipe)
     {
         for (int i = 0; i < recipe.Count; i++)

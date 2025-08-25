@@ -34,6 +34,10 @@ public static class InventorySlotFactory
                 if (index >= 0 && index < section.slotUIs.Count)
                 {
                     section.slotUIs[index].UpdateSlotUI(x.NewValue);
+                    if (section.name == "pickaxe")
+                    {
+                        HandlePickaxeState(x.NewValue.itemData as Pickaxe ?? ScriptableObject.CreateInstance<Pickaxe>());
+                    }
                 }
             })
             .AddTo(section.disposables);
@@ -50,5 +54,36 @@ public static class InventorySlotFactory
                 }
             })
             .AddTo(section.disposables);
+    }
+
+    private static void HandlePickaxeState(Item item)
+    {
+        if (item is not Pickaxe pickaxe)
+        {
+            PlayerController.Instance.SetState(new NormalState());
+            Debug.Log("Pickaxe state is Normal");
+        }
+        else
+        {
+            switch (pickaxe.currentState)
+            {
+                case PickaxeType.Normal:
+                    PlayerController.Instance.SetState(new NormalState());
+                    Debug.Log("Pickaxe state is Normal");
+                    break;
+                case PickaxeType.Hold:
+                    PlayerController.Instance.SetState(new HoldState());
+                    Debug.Log("Pickaxe state is Hold");
+                    break;
+                case PickaxeType.Idle:
+                    PlayerController.Instance.SetState(new IdleState());
+                    Debug.Log("Pickaxe state is Idle");
+                    break;
+                default:
+                    PlayerController.Instance.SetState(new NormalState());
+                    Debug.Log("Pickaxe state is Normal");
+                    break;
+            }
+        }
     }
 }

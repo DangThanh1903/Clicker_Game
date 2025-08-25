@@ -1,0 +1,42 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe17a05fc8cb3e541a2088afee18966c, type: 3}
+  m_Name: BossBase
+  m_EditorClassIdentifier: 
+  statsList:
+  - statType: 6
+    value:
+      value: 200
+  - statType: 7
+    value:
+      value: 200
+  - statType: 3
+    value:
+      value: 10
+  - statType: 8
+    value:
+      value: 0
+  baseStats:
+  - statType: 6
+    value:
+      value: 200
+  - statType: 7
+    value:
+      value: 200
+  - statType: 3
+    value:
+      value: 10
+  - statType: 8
+    value:
+      value: 0
+  starterBuff:
+  - {fileID: 11400000, guid: 590c5b0a4f24f204c81a5878186fecdd, type: 2}

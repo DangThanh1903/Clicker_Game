@@ -16,5 +16,11 @@ MonoBehaviour:
   description: 
   icon: {fileID: 10901, guid: 0000000000000000f000000000000000, type: 0}
   modifiers:
-  - statType: 3
+  - statType: 4
     value: 5
+  - statType: 8
+    value: 50
+  - statType: 10
+    value: 3
+  currentState: 1
+  itemPrefix: 0

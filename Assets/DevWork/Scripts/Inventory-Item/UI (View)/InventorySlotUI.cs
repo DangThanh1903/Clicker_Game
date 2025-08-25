@@ -12,7 +12,7 @@ public class InventorySlotUI : MonoBehaviour, IDropHandler
     private InventoryData boundInventory;
 
     [Header("UI References")]
-    [SerializeField] private Image icon;
+    [SerializeField] private GameObject draggable;
     [SerializeField] private TextMeshProUGUI quantityText;
 
     private CompositeDisposable disposable = new CompositeDisposable();
@@ -31,9 +31,10 @@ public class InventorySlotUI : MonoBehaviour, IDropHandler
         disposable.Clear();
 
         bool hasItem = item != null && item.itemData != null && item.itemData.Type != ItemType.None;
-
+        var icon = draggable.GetComponent<Image>();
         icon.enabled = hasItem;
         icon.sprite = hasItem ? item.itemData.icon : null;
+        draggable.GetComponent<DragableItem>().SetInventoryItem(item, slotIndex, boundInventory);
 
         if (hasItem)
         {

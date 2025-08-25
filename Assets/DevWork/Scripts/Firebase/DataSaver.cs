@@ -12,7 +12,7 @@ public class DataSaver : MonoBehaviour
     public static DataSaver Ins { get; private set; }
     public string currentBlock;
     public BlockSpawnLocation? currentLocation;
-    public List<InventoryData> inventoryDatas = new List<InventoryData>();
+    [SerializeField] private List<InventoryData> inventoryDatas = new List<InventoryData>();
     private DatabaseReference dbRef;
 
     void Awake()
@@ -24,9 +24,8 @@ public class DataSaver : MonoBehaviour
             return;
         }
         Ins = this;
-        DontDestroyOnLoad(gameObject);
+        // DontDestroyOnLoad(gameObject);
     }
-
     public void SaveDataFn()
     {
         string storedId = PlayerPrefs.GetString("UserID", "");
@@ -129,6 +128,7 @@ public class DataSaver : MonoBehaviour
         if (!snapshot.Exists || string.IsNullOrEmpty(snapshot.Value.ToString()))
         {
             Debug.LogWarning("⚠️ No currentBlock saved.");
+            currentBlock = "Dirt"; // For not null
             yield break;
         }
 
