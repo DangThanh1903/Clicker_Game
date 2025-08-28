@@ -43,7 +43,10 @@ public class CraftingController : MonoBehaviour
         // Subscribe to player-driven SetItem calls on output slot 0 only
         outputData.OnPlayerSetItem
             .Where(change => change.index == 0)
-            .Subscribe(_ => RemoveIngredients())
+            .Subscribe(_ =>
+            {
+                RemoveIngredients();
+            })
             .AddTo(disposables);
     }
 
@@ -104,6 +107,8 @@ public class CraftingController : MonoBehaviour
         {
             inputInventoryData.inventoryData.SetItem(index, newItem);
         }
+
+        DataSaver.Ins.SaveDataFn();
     }
 
 }

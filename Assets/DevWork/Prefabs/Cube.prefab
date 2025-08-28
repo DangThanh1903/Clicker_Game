@@ -118,7 +118,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 97573c795b39b25468005a5fef20fdc7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  duration: 1
-  arcHeight: 1
-  radius: 2
-  endY: -2
+  scatterRadius: {x: 0.6, y: 2.5}
+  maxDrop: 1.6
+  extraDropRange: {x: 0.5, y: 2}
+  baseArc: 0.5
+  arcPerMeter: 0.5
+  minDuration: 0.45
+  maxDuration: 0.75
+  startJitter: 0.12
+  snapToGround: 1
+  groundMask:
+    serializedVersion: 2
+    m_Bits: 119
+  rayStartUp: 1.5
+  rayDownDist: 6
+  groundOffsetY: 0.02

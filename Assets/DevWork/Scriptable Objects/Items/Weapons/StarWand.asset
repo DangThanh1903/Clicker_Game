@@ -13,8 +13,10 @@ MonoBehaviour:
   m_Name: StarWand
   m_EditorClassIdentifier: 
   itemName: StarWand
-  description: 
+  description: StarWand
   icon: {fileID: 21300000, guid: 7af662603de22de469a4737d2f467a86, type: 3}
-  modifiers: []
+  modifiers:
+  - statType: 4
+    value: 25
   currentState: 2
   itemPrefix: 0

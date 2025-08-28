@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ac9bd7ba1ca6e134d9a6bf4df12b84d6, type: 3}
+  m_Name: DruidCharm
+  m_EditorClassIdentifier: 
+  itemName: DruidCharm
+  description: DruidCharm
+  icon: {fileID: 21300000, guid: 67cfa77b0c4bf00468b32040af56d3e0, type: 3}
+  modifiers:
+  - statType: 9
+    value: 50
+  - statType: 11
+    value: 2
+  passiveBuffs:
+  - {fileID: 11400000, guid: 6e7dcb109955f40498cfae8bc345785a, type: 2}

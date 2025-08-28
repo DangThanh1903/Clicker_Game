@@ -1,4 +1,5 @@
 using System;
+using Sirenix.OdinInspector;
 using UniRx;
 using UnityEngine;
 
@@ -7,8 +8,10 @@ public class PlayerController : MonoBehaviour
     private static PlayerController _instance;
     public static PlayerController Instance => _instance;
     private float manaRegenTimer = 0f;
+    private float manaUsageTimer = 0f;
     private readonly float timeManaReset = 0.1f;
-    public ClickerState currentState;
+
+    public ClickerState currentState = new NormalState();
     public event Action OnDied;
     public bool IsDead { get; private set; }
 
@@ -18,13 +21,16 @@ public class PlayerController : MonoBehaviour
     IDisposable regenSub;
     IDisposable deathSub;
 
+    [Header("Pickaxe")]
+    [SerializeField] InventoryData pickaxeData;
+
     // Health and state setup
     private void Awake()
     {
         if (_instance == null) _instance = this;
         else Destroy(gameObject);
 
-        currentState = new NormalState();
+        SetUpCurrentStateItem();  
     }
 
     private void Start()
@@ -56,7 +62,7 @@ public class PlayerController : MonoBehaviour
             .AddTo(this);
 
         // Death detection (fires once)
-        deathSub = StatsManager.Ins.GetReactive(StatType.CurrentHP)
+        deathSub = StatsManager.Ins?.GetReactive(StatType.CurrentHP)
             .Where(hp => hp <= 0f)
             .Take(1)
             .Subscribe(_ => Die())
@@ -68,8 +74,37 @@ public class PlayerController : MonoBehaviour
         regenSub?.Dispose(); regenSub = null;
         deathSub?.Dispose(); deathSub = null;
     }
-
-
+    void SetUpCurrentStateItem()
+    {
+        var item = pickaxeData.GetItem(0).itemData;
+        if (item == null || item.Type == ItemType.None)
+        {
+            SetState(new NormalState());
+        }
+        else
+        {
+            var temp = item as Pickaxe;
+            SetStateByType(temp.currentState);
+        }
+    }
+    public void SetStateByType(PickaxeType pickaxeType)
+    {
+        switch (pickaxeType)
+        {
+            case PickaxeType.Normal:
+                SetState(new NormalState());
+                return;
+            case PickaxeType.Hold:
+                SetState(new HoldState());
+                return;
+            case PickaxeType.Idle:
+                SetState(new IdleState());
+                return;
+            default:
+                SetState(new NormalState());
+                return;
+        }
+    }
     public void SetState(ClickerState newState)
     {
         currentState.OnExit(this);
@@ -112,15 +147,15 @@ public class PlayerController : MonoBehaviour
     }
     public void UseMana()
     {
-        manaRegenTimer += Time.deltaTime;
+        manaUsageTimer += Time.deltaTime;
 
-        if (manaRegenTimer >= timeManaReset)
+        if (manaUsageTimer >= timeManaReset)
         {
             float manaLostPerSecond = 10f * timeManaReset;
             StatsManager.Ins.Set(
                 StatType.CurrentMana,
                 Mathf.Max(StatsManager.Ins.Get(StatType.CurrentMana) - manaLostPerSecond, 0));
-            manaRegenTimer = 0f;
+            manaUsageTimer = 0f;
         }
     }
     public void RegenMana()

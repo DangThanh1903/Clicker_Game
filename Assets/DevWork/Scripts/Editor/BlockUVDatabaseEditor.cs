@@ -50,6 +50,7 @@ public class BlockUVDatabaseEditor : Editor
                     blockName = tokens[0],
                     atlasIndex = int.Parse(tokens[1]),
                     health = int.Parse(tokens[2]),
+                    BreakingSound = tokens[0] + "Breaking",
                     locationCondition = (BlockSpawnLocation)Enum.Parse(typeof(BlockSpawnLocation), tokens[3]),
                     timeStateCondition = (TimeState)Enum.Parse(typeof(TimeState), tokens[4]),
                     normalWeatherCondition = (NormalWeatherName)Enum.Parse(typeof(NormalWeatherName), tokens[5]),

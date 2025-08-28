@@ -114,7 +114,7 @@ public class PerObjectPixelizer : MonoBehaviour
 
     void OnDestroy()
     {
-        if (rt != null)
+        if (rt != null && pixCam != null)
         {
             pixCam.targetTexture = null;
             rt.Release();

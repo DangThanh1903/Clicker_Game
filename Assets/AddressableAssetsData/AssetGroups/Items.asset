@@ -258,7 +258,82 @@ MonoBehaviour:
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: abec4b4184d5c6f409e819b42d43a0d9
-    m_Address: Boss01
+    m_Address: SunIdol
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: eb7b1fa61acfc9c46b6443064427c89f
+    m_Address: SunBrew
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 96e4b7967bd7cb14d88fe81290f5b6d3
+    m_Address: LeafAmulet
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 0bd9bce6e90f6ec44a9c50b63a53e714
+    m_Address: ClayRing
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: b94e0583a78ef384596d38f245c178ae
+    m_Address: SunflowerCrown
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: cd27079e9e9206d4aaf916b922763984
+    m_Address: AppleCharm
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 61137f480cfbbb141a3487e8f8051be1
+    m_Address: SunTalisman
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 4afe8fca97b42a04c8729488e0489e62
+    m_Address: WoodenPendant
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 5a5ca31805fe9fe46b139f6c0bb3927c
+    m_Address: NatureSigil
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: ed38cc3c6dee8c74bb988496567eaafa
+    m_Address: SunstoneRing
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 41a0bbb654b0c0e45b2b2ac1ed4ec5ab
+    m_Address: BarkBracelet
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 557912c212c70c74ab1ed705b2877c43
+    m_Address: DruidCharm
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: cac053a078dbbab4f8719ba3c209847a
+    m_Address: ResinGlue
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 42f37d51a53698544a6e81103f143f9c
+    m_Address: MegaHammer
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 11321575b32e2f14e913f3c8d97ab368
+    m_Address: UltimateHammer
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: d109241e29491604a96df3d1fdacf06f
+    m_Address: StarStaff
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0

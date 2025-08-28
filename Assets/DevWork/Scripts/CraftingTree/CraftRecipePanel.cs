@@ -56,8 +56,8 @@ public class CraftRecipePanel : MonoBehaviour
 
             if (ingIcons != null && i < ingIcons.Length && ingIcons[i])
             {
-                ingIcons[i].sprite = data ? data.icon : null;
-                ingIcons[i].color = data ? Color.white : new Color(1,1,1,0); // ẩn nếu null
+                ingIcons[i].sprite = data != null && data.Type != ItemType.None ? data.icon : null;
+                ingIcons[i].color = data != null && data.Type != ItemType.None ? Color.white : new Color(1,1,1,0); // ẩn nếu null
             }
 
             if (ingQtyTexts != null && i < ingQtyTexts.Length && ingQtyTexts[i])

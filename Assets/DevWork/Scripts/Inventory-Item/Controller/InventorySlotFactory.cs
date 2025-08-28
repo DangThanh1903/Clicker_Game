@@ -56,34 +56,15 @@ public static class InventorySlotFactory
             .AddTo(section.disposables);
     }
 
-    private static void HandlePickaxeState(Item item)
+    public static void HandlePickaxeState(Item item)
     {
-        if (item is not Pickaxe pickaxe)
+        if (item is not Pickaxe pickaxe || item == null || item.Type == ItemType.None)
         {
             PlayerController.Instance.SetState(new NormalState());
-            Debug.Log("Pickaxe state is Normal");
         }
         else
         {
-            switch (pickaxe.currentState)
-            {
-                case PickaxeType.Normal:
-                    PlayerController.Instance.SetState(new NormalState());
-                    Debug.Log("Pickaxe state is Normal");
-                    break;
-                case PickaxeType.Hold:
-                    PlayerController.Instance.SetState(new HoldState());
-                    Debug.Log("Pickaxe state is Hold");
-                    break;
-                case PickaxeType.Idle:
-                    PlayerController.Instance.SetState(new IdleState());
-                    Debug.Log("Pickaxe state is Idle");
-                    break;
-                default:
-                    PlayerController.Instance.SetState(new NormalState());
-                    Debug.Log("Pickaxe state is Normal");
-                    break;
-            }
+            PlayerController.Instance.SetStateByType(pickaxe.currentState);
         }
     }
 }

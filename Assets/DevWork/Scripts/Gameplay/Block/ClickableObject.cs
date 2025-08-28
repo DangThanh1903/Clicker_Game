@@ -18,6 +18,7 @@ public class ClickableObject : MonoBehaviour, IDamagable
     private string blockName;
     public float MaxHealth { get; private set; }
     public ReactiveProperty<float> CurrentHealth { get; private set;} = new ReactiveProperty<float>();
+    public float BlockWeight;
     private static readonly int CrackIndexID = Shader.PropertyToID("_CrackIndex");
     private MeshRenderer cubeRenderer;
     private float accumulatedHoldTime = 0f;
@@ -115,9 +116,10 @@ public class ClickableObject : MonoBehaviour, IDamagable
             .Subscribe(newHealth =>
             {
                 UpdateCrackVisual(newHealth);
-
+                if (newHealth < MaxHealth)
+                    PlayHittingSound();
                 if (newHealth <= 0f)
-                    OnDisappear();
+                        OnDisappear();
             })
             .AddTo(this);
     }
@@ -128,6 +130,9 @@ public class ClickableObject : MonoBehaviour, IDamagable
         DataSaver.Ins.currentBlock = name;
         MaxHealth = blockUVDatabase.GetHealth(name);
         CurrentHealth.Value = blockUVDatabase.GetHealth(name);
+        BlockWeight = blockUVDatabase.GetWeight(name);
+        if (BlockWeight <= BlockManager.Ins.rareWeightCap)
+            DataSaver.Ins.SaveDataFn();
         GenerateCube();
         OnAppear();
     }
@@ -278,7 +283,7 @@ public class ClickableObject : MonoBehaviour, IDamagable
                 continue;
             }
             InventoryController.Instance.AddItemToInventory(new InventoryItem(item, amount));
-            dropName += (countTemp == 0) ? item.itemName : ", " + item.itemName;
+            dropName += (countTemp == 0) ? amount + " " + item.itemName : ", " + amount + " " + item.itemName;
             countTemp++;
         }
         GameDebugHandler.LogStaticAfter(blockName + " drops " + dropName + "!", 1f);
@@ -297,16 +302,31 @@ public class ClickableObject : MonoBehaviour, IDamagable
                for (int i = 0; i < numberOfFragment; i++)
                {
                    cubeRenderer.enabled = false;
-                   var go   = LeanPool.Spawn(fragmentPrefab, transform.position, Quaternion.identity, transform);
-                    var frag = go.GetComponent<BlockFragment>();
-                    if (frag)
-                    {
-                        Vector2Int baseTile = SetMapByName(blockName);
-                        frag.SetupTile(textureAtlas, atlasColumns, atlasRows, baseTile, flipY);
-                    }
+                   var go = LeanPool.Spawn(fragmentPrefab, transform.position, Quaternion.identity, transform);
+                   var frag = go.GetComponent<BlockFragment>();
+                   if (frag)
+                   {
+                       Vector2Int baseTile = SetMapByName(blockName);
+                       frag.SetupTile(textureAtlas, atlasColumns, atlasRows, baseTile, flipY);
+                   }
 
                }
+
+               PlayBreakedSound();
            });
+    }
+    void PlayHittingSound()
+    {
+        if (!SoundEffectController.Ins.PlaySFX(blockName + "Breaking"))
+            SoundEffectController.Ins.PlaySFX("Hit");
+    }
+    void PlayBreakedSound()
+    {
+        float value = UnityEngine.Random.Range(0f, 1f);
+        if (value <= 0.98)
+            SoundEffectController.Ins.PlaySFX("Break");
+        else
+            SoundEffectController.Ins.PlaySFX("Fart");
     }
     // Crack animation
     void UpdateCrackVisual(float currentHP)

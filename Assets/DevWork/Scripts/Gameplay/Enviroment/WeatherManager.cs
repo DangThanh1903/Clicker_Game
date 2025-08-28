@@ -42,12 +42,12 @@ public class WeatherManager : MonoBehaviour
             TimeSystem.Instance.CurrentTimeState
         );
 
-        if (CurrentNormalWeather.Value == nextWeather) return;
+        if (nextWeather == null || CurrentNormalWeather.Value == nextWeather) return;
 
         CurrentNormalWeather.Value = nextWeather;
         var name = (nextWeather as NormalWeatherData)?.weatherName.ToString() ?? "Cleared";
         Debug.Log($"[Normal Weather] {name}");
-
+        GameDebugHandler.LogStatic($"Weather set {name}!");
 
         normalWeatherTimer?.Dispose();
         if (nextWeather != null)
@@ -84,7 +84,7 @@ public class WeatherManager : MonoBehaviour
             TimeSystem.Instance.CurrentTimeState
         );
 
-        if (CurrentSpecialWeather.Value == nextWeather) return;
+        if (nextWeather == null || CurrentSpecialWeather.Value == nextWeather) return;
 
         CurrentSpecialWeather.Value = nextWeather;
         var name = nextWeather?.weatherName.ToString() ?? "Cleared";

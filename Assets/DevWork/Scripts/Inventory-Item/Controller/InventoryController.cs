@@ -34,6 +34,7 @@ public class InventoryController : MonoBehaviour
     {
         buffManager.Initialize(StatsManager.Ins);
         useButton.gameObject.SetActive(false);
+        UpdateStat();
     }
 
     // ==============================
@@ -257,5 +258,10 @@ public class InventoryController : MonoBehaviour
     {
         BlockManager.Ins.Summon(bossSummoner.bossBase);
         UIManager.Ins.MoveToMain();
+    }
+
+    public InventoryItem GetPickaxe()
+    {
+        return uiManager.GetPickaxe();
     }
 }

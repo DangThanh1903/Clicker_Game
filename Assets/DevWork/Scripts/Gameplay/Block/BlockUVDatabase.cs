@@ -38,7 +38,8 @@ public class BlockUVDatabase : ScriptableObject
     public int GetHealth(string name) =>
         blocks.Find(b => b.blockName == name)?.health ?? 0;
 
-
+    public float GetWeight(string name) =>
+        blocks.Find(b => b.blockName == name)?.weight ?? 0;
     BlockUVEntry GetBlockByRarity(List<BlockUVEntry> entries)
     {
         float totalWeight = entries.Sum(e => e.weight);
@@ -117,6 +118,7 @@ public class BlockUVEntry
     public string blockName;
     public int atlasIndex;
     public int health;
+    public string BreakingSound;
     [Header("Spawn Settings")]
     public BlockSpawnLocation locationCondition;
     public TimeState timeStateCondition;

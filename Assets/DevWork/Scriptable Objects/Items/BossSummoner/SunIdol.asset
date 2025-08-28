@@ -10,9 +10,9 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 6303891034d9eb44a8094e35c8a3df0b, type: 3}
-  m_Name: Boss01
+  m_Name: SunIdol
   m_EditorClassIdentifier: 
-  itemName: Boss01
+  itemName: SunIdol
   description: Summon miniboss
-  icon: {fileID: 21300000, guid: b8a53b3eba0a3f741a17c13377e8c87d, type: 3}
+  icon: {fileID: 21300000, guid: eab030d91f9a5274e9611ea3a67964b1, type: 3}
   bossBase: {fileID: 11400000, guid: ccac14db0d023af479d5f4283f64d89a, type: 2}

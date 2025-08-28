@@ -13,8 +13,14 @@ MonoBehaviour:
   m_Name: ClayStaff
   m_EditorClassIdentifier: 
   itemName: ClayStaff
-  description: 
+  description: ClayStaff
   icon: {fileID: 21300000, guid: 204032e901a60e64696615bea31adcf0, type: 3}
-  modifiers: []
+  modifiers:
+  - statType: 9
+    value: 50
+  - statType: 11
+    value: 2
+  - statType: 4
+    value: 2
   currentState: 1
   itemPrefix: 0

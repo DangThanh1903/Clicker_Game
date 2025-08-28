@@ -65,7 +65,7 @@ public class TimeSystem : MonoBehaviour
         CurrentTimeState = TimeState.Day;
         CurrentTime.Value = 0;
         Debug.Log("Switched to Day");
-
+        GameDebugHandler.LogStatic("It's Day!");
         WeatherManager.Instance?.ClearSpecialWeatherAndTriggerNext();
     }
 
@@ -73,6 +73,7 @@ public class TimeSystem : MonoBehaviour
     {
         CurrentTimeState = TimeState.Night;
         Debug.Log("Switched to Night");
+        GameDebugHandler.LogStatic("It's Night!");
 
         WeatherManager.Instance?.ClearSpecialWeatherAndTriggerNext();
     }

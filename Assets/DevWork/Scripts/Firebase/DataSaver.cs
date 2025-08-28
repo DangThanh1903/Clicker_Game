@@ -5,6 +5,7 @@ using UnityEngine.AddressableAssets;
 using UnityEngine.ResourceManagement.AsyncOperations;
 using System.Collections;
 using System;
+using UniRx;
 using Sirenix.OdinInspector;
 
 public class DataSaver : MonoBehaviour
@@ -12,6 +13,8 @@ public class DataSaver : MonoBehaviour
     public static DataSaver Ins { get; private set; }
     public string currentBlock;
     public BlockSpawnLocation? currentLocation;
+    private IntReactiveProperty blockBreakCounter = new IntReactiveProperty(0);
+    private const int SaveThreshold = 10;
     [SerializeField] private List<InventoryData> inventoryDatas = new List<InventoryData>();
     private DatabaseReference dbRef;
 
@@ -24,10 +27,26 @@ public class DataSaver : MonoBehaviour
             return;
         }
         Ins = this;
-        // DontDestroyOnLoad(gameObject);
+        DontDestroyOnLoad(gameObject);
+    }
+    private void Start()
+    {
+        // Subscribe once at Start
+        blockBreakCounter
+            .Where(count => count >= SaveThreshold) 
+            .Subscribe(_ =>
+            {
+                SaveDataFn();
+            })
+            .AddTo(this);
+    }
+    public void OnBlockBreak()
+    {
+        blockBreakCounter.Value++;
     }
     public void SaveDataFn()
     {
+        blockBreakCounter.Value = 0;
         string storedId = PlayerPrefs.GetString("UserID", "");
         string userId = string.IsNullOrEmpty(storedId) ? null : storedId;
         if (userId == null)

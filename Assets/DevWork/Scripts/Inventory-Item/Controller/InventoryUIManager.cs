@@ -44,6 +44,15 @@ public class InventoryUIManager : MonoBehaviour
         }
         return null;
     }
+    public InventoryItem GetPickaxe()
+    {
+        foreach (var section in inventorySections)
+        {
+            if (section.inventoryData.inventoryType == InventoryType.Pickaxe)
+                return section.inventoryData.Items[0];
+        }
+        return null;
+    }
 }
 
 [Serializable]

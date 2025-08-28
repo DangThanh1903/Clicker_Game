@@ -11,6 +11,7 @@ public class BlockManager : MonoBehaviour
     [SerializeField] private LocationLoader locationLoader;
     [SerializeField] GameObject bossPrefab;
     [SerializeField] Transform  spawnPos;
+    public float rareWeightCap = 10;
     private GameObject activeBoss;
     Boss activeBossComp;
     void Awake()
@@ -102,13 +103,19 @@ public class BlockManager : MonoBehaviour
         SpecialWeatherName specialName =
             (WeatherManager.Instance.CurrentSpecialWeather.Value as SpecialWeatherData)?.weatherName
             ?? SpecialWeatherName.Any;
-
+        if (currentBlock.BlockWeight <= rareWeightCap)
+        {
+            DataSaver.Ins.SaveDataFn();
+        }
+        else
+        {
+            DataSaver.Ins.OnBlockBreak();    
+        }
         currentBlock.SetClickableBlockByCondition(
             locationLoader.currentLocation,
             TimeSystem.Instance.CurrentTimeState,
             normalName,
             specialName
         );
-
     }
 }
