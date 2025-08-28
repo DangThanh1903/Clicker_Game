@@ -9,11 +9,9 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ac9bd7ba1ca6e134d9a6bf4df12b84d6, type: 3}
+  m_Script: {fileID: 11500000, guid: 602175215b9c5ab4ca919894f7c8517c, type: 3}
   m_Name: ResinGlue
   m_EditorClassIdentifier: 
   itemName: ResinGlue
-  description: ResinGlue
+  description: 
   icon: {fileID: 21300000, guid: 1e04b6c2317afba49b04f5f3fd6782ca, type: 3}
-  modifiers: []
-  passiveBuffs: []
