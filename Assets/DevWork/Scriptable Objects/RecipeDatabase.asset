@@ -20,10 +20,10 @@ MonoBehaviour:
     - _itemData: {fileID: 11400000, guid: 5658c337be36c8c4587eeee8cd78bb87, type: 2}
       quantity:
         value: 4
-    - _itemData: {fileID: 11400000, guid: 51d287ca54e2da64cae6ffd5593d2031, type: 2}
+    - _itemData: {fileID: 0}
       quantity:
         value: 0
-    - _itemData: {fileID: 11400000, guid: 51d287ca54e2da64cae6ffd5593d2031, type: 2}
+    - _itemData: {fileID: 0}
       quantity:
         value: 0
     result:
@@ -37,10 +37,10 @@ MonoBehaviour:
     - _itemData: {fileID: 11400000, guid: 69c48c737b5a3ef438799fd75b451469, type: 2}
       quantity:
         value: 2
-    - _itemData: {fileID: 11400000, guid: 51d287ca54e2da64cae6ffd5593d2031, type: 2}
+    - _itemData: {fileID: 0}
       quantity:
         value: 0
-    - _itemData: {fileID: 11400000, guid: 51d287ca54e2da64cae6ffd5593d2031, type: 2}
+    - _itemData: {fileID: 0}
       quantity:
         value: 0
     result:
@@ -57,7 +57,7 @@ MonoBehaviour:
     - _itemData: {fileID: 11400000, guid: 43dafd87ea180c740acd40a552af12c9, type: 2}
       quantity:
         value: 2
-    - _itemData: {fileID: 11400000, guid: 51d287ca54e2da64cae6ffd5593d2031, type: 2}
+    - _itemData: {fileID: 0}
       quantity:
         value: 0
     result:
@@ -74,7 +74,7 @@ MonoBehaviour:
     - _itemData: {fileID: 11400000, guid: ecf93b30a50f8004da1f06c546509b21, type: 2}
       quantity:
         value: 3
-    - _itemData: {fileID: 11400000, guid: 51d287ca54e2da64cae6ffd5593d2031, type: 2}
+    - _itemData: {fileID: 0}
       quantity:
         value: 0
     result:
@@ -88,10 +88,10 @@ MonoBehaviour:
     - _itemData: {fileID: 11400000, guid: dac4b888454f57f4daa7ff54d977b870, type: 2}
       quantity:
         value: 2
-    - _itemData: {fileID: 11400000, guid: 51d287ca54e2da64cae6ffd5593d2031, type: 2}
+    - _itemData: {fileID: 0}
       quantity:
         value: 0
-    - _itemData: {fileID: 11400000, guid: 51d287ca54e2da64cae6ffd5593d2031, type: 2}
+    - _itemData: {fileID: 0}
       quantity:
         value: 0
     result:
@@ -108,7 +108,7 @@ MonoBehaviour:
     - _itemData: {fileID: 11400000, guid: dac4b888454f57f4daa7ff54d977b870, type: 2}
       quantity:
         value: 4
-    - _itemData: {fileID: 11400000, guid: 51d287ca54e2da64cae6ffd5593d2031, type: 2}
+    - _itemData: {fileID: 0}
       quantity:
         value: 0
     result:
@@ -142,7 +142,7 @@ MonoBehaviour:
     - _itemData: {fileID: 11400000, guid: ecf93b30a50f8004da1f06c546509b21, type: 2}
       quantity:
         value: 5
-    - _itemData: {fileID: 11400000, guid: 51d287ca54e2da64cae6ffd5593d2031, type: 2}
+    - _itemData: {fileID: 0}
       quantity:
         value: 0
     result:
@@ -159,7 +159,7 @@ MonoBehaviour:
     - _itemData: {fileID: 11400000, guid: 43dafd87ea180c740acd40a552af12c9, type: 2}
       quantity:
         value: 4
-    - _itemData: {fileID: 11400000, guid: 51d287ca54e2da64cae6ffd5593d2031, type: 2}
+    - _itemData: {fileID: 0}
       quantity:
         value: 0
     result:
@@ -193,7 +193,7 @@ MonoBehaviour:
     - _itemData: {fileID: 11400000, guid: ffcfaa219e050ef4bb4596f678a66cc2, type: 2}
       quantity:
         value: 3
-    - _itemData: {fileID: 11400000, guid: 51d287ca54e2da64cae6ffd5593d2031, type: 2}
+    - _itemData: {fileID: 0}
       quantity:
         value: 0
     result:
@@ -204,13 +204,13 @@ MonoBehaviour:
     - _itemData: {fileID: 11400000, guid: 60b16f0202ef37f41a526bca0b284645, type: 2}
       quantity:
         value: 1
-    - _itemData: {fileID: 11400000, guid: 51d287ca54e2da64cae6ffd5593d2031, type: 2}
+    - _itemData: {fileID: 0}
       quantity:
         value: 0
-    - _itemData: {fileID: 11400000, guid: 51d287ca54e2da64cae6ffd5593d2031, type: 2}
+    - _itemData: {fileID: 0}
       quantity:
         value: 0
-    - _itemData: {fileID: 11400000, guid: 51d287ca54e2da64cae6ffd5593d2031, type: 2}
+    - _itemData: {fileID: 0}
       quantity:
         value: 0
     result:
@@ -221,13 +221,13 @@ MonoBehaviour:
     - _itemData: {fileID: 11400000, guid: 15282561daa2fcc4590d4754049134ff, type: 2}
       quantity:
         value: 2
-    - _itemData: {fileID: 11400000, guid: 51d287ca54e2da64cae6ffd5593d2031, type: 2}
+    - _itemData: {fileID: 0}
       quantity:
         value: 0
-    - _itemData: {fileID: 11400000, guid: 51d287ca54e2da64cae6ffd5593d2031, type: 2}
+    - _itemData: {fileID: 0}
       quantity:
         value: 0
-    - _itemData: {fileID: 11400000, guid: 51d287ca54e2da64cae6ffd5593d2031, type: 2}
+    - _itemData: {fileID: 0}
       quantity:
         value: 0
     result:
@@ -244,7 +244,7 @@ MonoBehaviour:
     - _itemData: {fileID: 11400000, guid: ffcfaa219e050ef4bb4596f678a66cc2, type: 2}
       quantity:
         value: 1
-    - _itemData: {fileID: 11400000, guid: 51d287ca54e2da64cae6ffd5593d2031, type: 2}
+    - _itemData: {fileID: 0}
       quantity:
         value: 0
     result:
@@ -258,10 +258,10 @@ MonoBehaviour:
     - _itemData: {fileID: 11400000, guid: bf496e75ff78eed4fb67fa288495f97d, type: 2}
       quantity:
         value: 1
-    - _itemData: {fileID: 11400000, guid: 51d287ca54e2da64cae6ffd5593d2031, type: 2}
+    - _itemData: {fileID: 0}
       quantity:
         value: 0
-    - _itemData: {fileID: 11400000, guid: 51d287ca54e2da64cae6ffd5593d2031, type: 2}
+    - _itemData: {fileID: 0}
       quantity:
         value: 0
     result:
@@ -295,7 +295,7 @@ MonoBehaviour:
     - _itemData: {fileID: 11400000, guid: bf496e75ff78eed4fb67fa288495f97d, type: 2}
       quantity:
         value: 3
-    - _itemData: {fileID: 11400000, guid: 51d287ca54e2da64cae6ffd5593d2031, type: 2}
+    - _itemData: {fileID: 0}
       quantity:
         value: 0
     result:
@@ -312,7 +312,7 @@ MonoBehaviour:
     - _itemData: {fileID: 11400000, guid: af90eb75736662849aad659d1f498689, type: 2}
       quantity:
         value: 1
-    - _itemData: {fileID: 11400000, guid: 51d287ca54e2da64cae6ffd5593d2031, type: 2}
+    - _itemData: {fileID: 0}
       quantity:
         value: 0
     result:
@@ -329,7 +329,7 @@ MonoBehaviour:
     - _itemData: {fileID: 11400000, guid: ffcfaa219e050ef4bb4596f678a66cc2, type: 2}
       quantity:
         value: 1
-    - _itemData: {fileID: 11400000, guid: 51d287ca54e2da64cae6ffd5593d2031, type: 2}
+    - _itemData: {fileID: 0}
       quantity:
         value: 0
     result:
@@ -346,7 +346,7 @@ MonoBehaviour:
     - _itemData: {fileID: 11400000, guid: ffcfaa219e050ef4bb4596f678a66cc2, type: 2}
       quantity:
         value: 1
-    - _itemData: {fileID: 11400000, guid: 51d287ca54e2da64cae6ffd5593d2031, type: 2}
+    - _itemData: {fileID: 0}
       quantity:
         value: 0
     result:
@@ -363,7 +363,7 @@ MonoBehaviour:
     - _itemData: {fileID: 11400000, guid: 0476db4275c0dfa4aacb7a319b146ac6, type: 2}
       quantity:
         value: 1
-    - _itemData: {fileID: 11400000, guid: 51d287ca54e2da64cae6ffd5593d2031, type: 2}
+    - _itemData: {fileID: 0}
       quantity:
         value: 0
     result:
@@ -380,7 +380,7 @@ MonoBehaviour:
     - _itemData: {fileID: 11400000, guid: ffcfaa219e050ef4bb4596f678a66cc2, type: 2}
       quantity:
         value: 1
-    - _itemData: {fileID: 11400000, guid: 51d287ca54e2da64cae6ffd5593d2031, type: 2}
+    - _itemData: {fileID: 0}
       quantity:
         value: 0
     result:
@@ -397,7 +397,7 @@ MonoBehaviour:
     - _itemData: {fileID: 11400000, guid: dac4b888454f57f4daa7ff54d977b870, type: 2}
       quantity:
         value: 5
-    - _itemData: {fileID: 11400000, guid: 51d287ca54e2da64cae6ffd5593d2031, type: 2}
+    - _itemData: {fileID: 0}
       quantity:
         value: 0
     result:
@@ -414,7 +414,7 @@ MonoBehaviour:
     - _itemData: {fileID: 11400000, guid: bf496e75ff78eed4fb67fa288495f97d, type: 2}
       quantity:
         value: 2
-    - _itemData: {fileID: 11400000, guid: 51d287ca54e2da64cae6ffd5593d2031, type: 2}
+    - _itemData: {fileID: 0}
       quantity:
         value: 0
     result:
@@ -431,7 +431,7 @@ MonoBehaviour:
     - _itemData: {fileID: 11400000, guid: 0a4d8afb43ac54745a959c89d524b0cd, type: 2}
       quantity:
         value: 5
-    - _itemData: {fileID: 11400000, guid: 51d287ca54e2da64cae6ffd5593d2031, type: 2}
+    - _itemData: {fileID: 0}
       quantity:
         value: 0
     result:
@@ -459,16 +459,33 @@ MonoBehaviour:
     - _itemData: {fileID: 11400000, guid: 65cfc837310bb284e8fbe055ed609c44, type: 2}
       quantity:
         value: 1
-    - _itemData: {fileID: 11400000, guid: 51d287ca54e2da64cae6ffd5593d2031, type: 2}
+    - _itemData: {fileID: 0}
       quantity:
         value: 0
-    - _itemData: {fileID: 11400000, guid: 51d287ca54e2da64cae6ffd5593d2031, type: 2}
+    - _itemData: {fileID: 0}
       quantity:
         value: 0
-    - _itemData: {fileID: 11400000, guid: 51d287ca54e2da64cae6ffd5593d2031, type: 2}
+    - _itemData: {fileID: 0}
       quantity:
         value: 0
     result:
       _itemData: {fileID: 11400000, guid: ecf93b30a50f8004da1f06c546509b21, type: 2}
       quantity:
         value: 2
+  - ingredients:
+    - _itemData: {fileID: 11400000, guid: 1e1abd19b7618de4fb588cc991792acf, type: 2}
+      quantity:
+        value: 2
+    - _itemData: {fileID: 11400000, guid: 0a4d8afb43ac54745a959c89d524b0cd, type: 2}
+      quantity:
+        value: 8
+    - _itemData: {fileID: 0}
+      quantity:
+        value: 0
+    - _itemData: {fileID: 0}
+      quantity:
+        value: 0
+    result:
+      _itemData: {fileID: 11400000, guid: bf496e75ff78eed4fb67fa288495f97d, type: 2}
+      quantity:
+        value: 1

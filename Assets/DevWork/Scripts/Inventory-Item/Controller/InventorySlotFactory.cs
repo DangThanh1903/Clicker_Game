@@ -34,7 +34,7 @@ public static class InventorySlotFactory
                 if (index >= 0 && index < section.slotUIs.Count)
                 {
                     section.slotUIs[index].UpdateSlotUI(x.NewValue);
-                    if (section.name == "pickaxe")
+                    if (section.inventoryData.inventoryType == InventoryType.Pickaxe)
                     {
                         HandlePickaxeState(x.NewValue.itemData as Pickaxe ?? ScriptableObject.CreateInstance<Pickaxe>());
                     }

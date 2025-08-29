@@ -47,6 +47,8 @@ public class Login : MonoBehaviour
         yield return StartCoroutine(DataSaver.Ins.LoadAllInventories(userId));
         yield return StartCoroutine(DataSaver.Ins.LoadCurrentBlock(userId));
         yield return StartCoroutine(DataSaver.Ins.LoadCurrentLocation(userId));
+        yield return StartCoroutine(DataSaver.Ins.LoadSomeStat(userId));
+
 
         yield return new WaitForSeconds(2f); // optional delay
 

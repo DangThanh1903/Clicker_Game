@@ -104,6 +104,7 @@ public class UIManager : MonoBehaviour
     public void MoveToMain()
     {
         SlideTo(startIndex);
+        BottomButtonAnim(startIndex);
     }
     void ActivateOnly(int idx, bool snap)
     {

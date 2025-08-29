@@ -323,10 +323,14 @@ public class ClickableObject : MonoBehaviour, IDamagable
     void PlayBreakedSound()
     {
         float value = UnityEngine.Random.Range(0f, 1f);
-        if (value <= 0.98)
+        if (value <= 0.9)
             SoundEffectController.Ins.PlaySFX("Break");
-        else
+        else if (value <= 0.95)
             SoundEffectController.Ins.PlaySFX("Fart");
+        else
+        {
+            SoundEffectController.Ins.PlaySFX("Ack");
+        }
     }
     // Crack animation
     void UpdateCrackVisual(float currentHP)

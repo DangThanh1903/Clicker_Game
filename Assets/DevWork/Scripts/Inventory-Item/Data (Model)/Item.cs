@@ -29,5 +29,6 @@ public abstract class Item : ScriptableObject
     [TextArea] public string description;
     public Sprite icon;
     public virtual ItemType Type => ItemType.None;
+    public BlockSpawnLocation Location;
     public virtual int MaxStack => 1;
 }

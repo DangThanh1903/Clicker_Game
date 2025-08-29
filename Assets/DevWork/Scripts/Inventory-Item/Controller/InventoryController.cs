@@ -14,6 +14,7 @@ public class InventoryController : MonoBehaviour
     [SerializeField] private TMP_Text description;
     [SerializeField] private Button useButton;
     [SerializeField] private BuffManager buffManager;
+    [SerializeField] private Button sortInventoryButton;
 
     private void Awake()
     {
@@ -35,6 +36,11 @@ public class InventoryController : MonoBehaviour
         buffManager.Initialize(StatsManager.Ins);
         useButton.gameObject.SetActive(false);
         UpdateStat();
+
+        sortInventoryButton.onClick.AddListener(() =>
+        {
+            uiManager.SortInventory();
+        });
     }
 
     // ==============================

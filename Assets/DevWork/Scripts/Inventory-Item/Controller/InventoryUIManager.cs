@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using UniRx;
+using System.Linq;
 
 public class InventoryUIManager : MonoBehaviour
 {
@@ -26,6 +27,13 @@ public class InventoryUIManager : MonoBehaviour
         Debug.LogWarning("No Inventory section found with type 'Inventory'.");
         return false;
     }
+    public void SortInventory()
+    {
+        var section = inventorySections.FirstOrDefault(s => s.inventoryData.inventoryType == InventoryType.Inventory);
+        if (section != null)
+            section.inventoryData.SortAndRepack_UsingAddItem();
+    }
+
 
     public void CreateAllInventorySlots()
     {

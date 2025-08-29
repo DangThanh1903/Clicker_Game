@@ -3,6 +3,7 @@ using UniRx;
 using UnityEngine;
 using System.Collections.Generic;
 using System;
+using System.Linq;
 
 public enum InventoryType
 {
@@ -11,6 +12,7 @@ public enum InventoryType
     Pickaxe,
     CraftingStation,
     CraftingOut,
+    TrashCan,
     Split
 }
 
@@ -88,8 +90,60 @@ public class InventoryData : ScriptableObject
         }
         return false;
     }
+    public void SortAndRepack_UsingAddItem()
+    {
+        if (inventoryType != InventoryType.Inventory) return; // only sort main inventory
 
-    public bool RemoveItemAt(int index,  bool isPlayerAction = false)
+        bool IsEmpty(InventoryItem it) =>
+            it == null || it.itemData == null || it.itemData == nullItem ||
+            it.itemData.Type == ItemType.None || it.quantity.Value <= 0;
+
+        // 1) Snapshot non-empty items
+        var nonEmpty = Items.Where(it => !IsEmpty(it)).ToList();
+
+        // 2) Group by stack key (assumes CanStackWith primarily checks itemData).
+        // If your CanStackWith has more rules, replace key with a composite key matching those rules.
+        var groups = nonEmpty
+            .GroupBy(it => it.itemData)
+            .Select(g => new
+            {
+                Item = g.Key,
+                TotalQty = g.Sum(x => Mathf.Max(0, x.quantity.Value))
+            })
+            .OrderBy(g => (int)g.Item.Type)                                   // Type first
+            .ThenBy(g => g.Item.name, StringComparer.OrdinalIgnoreCase)       // then Name
+            .ToList();
+
+        // 3) Clear to true empties (pad with your None item)
+        for (int i = 0; i < Items.Count; i++)
+            Items[i] = new InventoryItem(nullItem, 0);
+
+        // 4) Re-add in order using your existing AddItem (stacks then places)
+        foreach (var g in groups)
+        {
+            int max = (g.Item.MaxStack <= 0) ? int.MaxValue : g.Item.MaxStack;
+            int remaining = g.TotalQty;
+
+            while (remaining > 0)
+            {
+                int take = Mathf.Min(remaining, max);
+                var stack = new InventoryItem(g.Item, take);
+                // AddItem will first try stacking (no-op on empty), then place into first empty slot
+                bool ok = AddItem(stack);
+                if (!ok)
+                {
+                    // Inventory full (shouldn't happen because we cleared), but guard anyway
+                    Debug.LogWarning($"SortAndRepack: Not enough slots for {g.Item.name} (left {remaining}).");
+                    break;
+                }
+                remaining -= take;
+            }
+        }
+    }
+
+
+
+    public bool RemoveItemAt(int index, bool isPlayerAction = false)
     {
         if (IsValidSlot(index))
         {

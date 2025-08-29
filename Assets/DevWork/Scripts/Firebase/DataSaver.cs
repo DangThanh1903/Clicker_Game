@@ -13,6 +13,8 @@ public class DataSaver : MonoBehaviour
     public static DataSaver Ins { get; private set; }
     public string currentBlock;
     public BlockSpawnLocation? currentLocation;
+    public BlockSpawnLocation? PeakLocation;
+    public float StartTime;
     private IntReactiveProperty blockBreakCounter = new IntReactiveProperty(0);
     private const int SaveThreshold = 10;
     [SerializeField] private List<InventoryData> inventoryDatas = new List<InventoryData>();
@@ -33,7 +35,7 @@ public class DataSaver : MonoBehaviour
     {
         // Subscribe once at Start
         blockBreakCounter
-            .Where(count => count >= SaveThreshold) 
+            .Where(count => count >= SaveThreshold)
             .Subscribe(_ =>
             {
                 SaveDataFn();
@@ -82,6 +84,25 @@ public class DataSaver : MonoBehaviour
         // For location
         string locationValue = currentLocation.ToString();
         dbRef.Child("user").Child(userId).Child("Gameplay").Child("currentLocation").SetValueAsync(locationValue);
+
+        // For peak location
+        string peakLoc = PeakLocation.ToString();
+        dbRef.Child("user").Child(userId).Child("Gameplay").Child("PeakLocation").SetValueAsync(peakLoc);
+
+        // For clicks
+        string clicks = StatsManager.Ins.Get(StatType.Clicks).ToString();
+        dbRef.Child("user").Child(userId).Child("Gameplay").Child("Clicks").SetValueAsync(clicks);
+
+        // For diamond
+        string diamonds = StatsManager.Ins.Get(StatType.Diamond).ToString();
+        dbRef.Child("user").Child(userId).Child("Gameplay").Child("Diamonds").SetValueAsync(diamonds);
+
+        // For time
+        if (TimeSystem.Instance != null)
+        {
+            string time = TimeSystem.Instance.CurrentTime.ToString();
+            dbRef.Child("user").Child(userId).Child("Gameplay").Child("CurrentTime").SetValueAsync(time);
+        }
     }
     public IEnumerator LoadAllInventories(string userId)
     {
@@ -166,9 +187,18 @@ public class DataSaver : MonoBehaviour
         var dataTask = dbRef.Child("user").Child(userId).Child("Gameplay").Child("currentLocation").GetValueAsync();
         yield return new WaitUntil(() => dataTask.IsCompleted);
 
+        var dataTask2 = dbRef.Child("user").Child(userId).Child("Gameplay").Child("PeakLocation").GetValueAsync();
+        yield return new WaitUntil(() => dataTask2.IsCompleted);
+
         if (dataTask.Exception != null)
         {
             Debug.LogError($"❌ Failed to load currentLocation: {dataTask.Exception}");
+            yield break;
+        }
+
+        if (dataTask2.Exception != null)
+        {
+            Debug.LogError($"❌ Failed to load PeakLocation: {dataTask2.Exception}");
             yield break;
         }
 
@@ -177,6 +207,15 @@ public class DataSaver : MonoBehaviour
         {
             Debug.LogWarning("⚠️ No currentLocation saved.");
             currentLocation = null;
+            onComplete?.Invoke(null);
+            yield break;
+        }
+
+        var snapshot2 = dataTask2.Result;
+        if (!snapshot2.Exists || string.IsNullOrEmpty(snapshot2.Value.ToString()))
+        {
+            Debug.LogWarning("⚠️ No PeakLocation saved.");
+            PeakLocation = null;
             onComplete?.Invoke(null);
             yield break;
         }
@@ -195,6 +234,101 @@ public class DataSaver : MonoBehaviour
             currentLocation = null;
             onComplete?.Invoke(null);
         }
+
+        string peakString = snapshot2.Value.ToString();
+        Debug.Log($"✅ Loaded peakLocation: {peakString}");
+
+        if (Enum.TryParse(peakString, out BlockSpawnLocation parsedPeakLocation))
+        {
+            PeakLocation = parsedPeakLocation;
+            onComplete?.Invoke(parsedPeakLocation);
+        }
+        else
+        {
+            Debug.LogWarning($"⚠️ Unknown location: {peakString}");
+            PeakLocation = null;
+            onComplete?.Invoke(null);
+        }
+    }
+    public IEnumerator LoadTime(string userId, Action<string> onComplete = null)
+    {
+        var dataTask = dbRef.Child("user").Child(userId).Child("Gameplay").Child("CurrentTime").GetValueAsync();
+        yield return new WaitUntil(() => dataTask.IsCompleted);
+
+        if (dataTask.Exception != null)
+        {
+            Debug.LogError($"❌ Failed to load Time: {dataTask.Exception}");
+            yield break;
+        }
+        var snapshot = dataTask.Result;
+        if (!snapshot.Exists || string.IsNullOrEmpty(snapshot.Value.ToString()))
+        {
+            Debug.LogWarning("⚠️ No Time saved.");
+            onComplete?.Invoke(null);
+            yield break;
+        }
+
+        float StartTime = Convert.ToSingle(snapshot.Value);
+        Debug.Log($"✅ Loaded Time: {StartTime}");
     }
 
+    public IEnumerator LoadSomeStat(string userId, Action<string> onComplete = null)
+    {
+        var dataTask = dbRef.Child("user").Child(userId).Child("Gameplay").Child("Clicks").GetValueAsync();
+        yield return new WaitUntil(() => dataTask.IsCompleted);
+
+        var dataTask2 = dbRef.Child("user").Child(userId).Child("Gameplay").Child("Diamonds").GetValueAsync();
+        yield return new WaitUntil(() => dataTask2.IsCompleted);
+
+        if (dataTask.Exception != null)
+        {
+            Debug.LogError($"❌ Failed to load Clicks: {dataTask.Exception}");
+            yield break;
+        }
+
+        var snapshot = dataTask.Result;
+        if (!snapshot.Exists || string.IsNullOrEmpty(snapshot.Value.ToString()))
+        {
+            Debug.LogWarning("⚠️ No Clicks saved.");
+            onComplete?.Invoke(null);
+            yield break;
+        }
+
+        if (dataTask2.Exception != null)
+        {
+            Debug.LogError($"❌ Failed to load Diamonds: {dataTask.Exception}");
+            yield break;
+        }
+
+        var snapshot2 = dataTask2.Result;
+        if (!snapshot2.Exists || string.IsNullOrEmpty(snapshot2.Value.ToString()))
+        {
+            Debug.LogWarning("⚠️ No Diamonds saved.");
+            onComplete?.Invoke(null);
+            yield break;
+        }
+
+        float clicks = Convert.ToSingle(snapshot.Value);
+        Debug.Log($"✅ Loaded Clicks: {clicks}");
+
+        float diamonds = Convert.ToSingle(snapshot2.Value);
+        Debug.Log($"✅ Loaded Diamonds: {diamonds}");
+
+        StatsManager.Ins.Set(StatType.Clicks, clicks);
+        StatsManager.Ins.Set(StatType.Diamond, diamonds);
+    }
+    void OnApplicationPause(bool paused)
+    {
+        if (paused) SaveDataFn(); // app going background
+    }
+
+    void OnApplicationFocus(bool hasFocus)
+    {
+        if (!hasFocus) SaveDataFn(); // lost focus (alt-tab etc.)
+    }
+
+    void OnApplicationQuit()
+    {
+        SaveDataFn(); // good to call, but not your only save
+    }
 }
