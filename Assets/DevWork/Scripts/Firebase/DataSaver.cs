@@ -14,7 +14,7 @@ public class DataSaver : MonoBehaviour
     public string currentBlock;
     public BlockSpawnLocation? currentLocation;
     public BlockSpawnLocation? PeakLocation;
-    public float StartTime;
+    public float CurrentTime;
     private IntReactiveProperty blockBreakCounter = new IntReactiveProperty(0);
     private const int SaveThreshold = 10;
     [SerializeField] private List<InventoryData> inventoryDatas = new List<InventoryData>();
@@ -268,8 +268,8 @@ public class DataSaver : MonoBehaviour
             yield break;
         }
 
-        float StartTime = Convert.ToSingle(snapshot.Value);
-        Debug.Log($"✅ Loaded Time: {StartTime}");
+        CurrentTime = Convert.ToSingle(snapshot.Value);
+        Debug.Log($"✅ Loaded Time: {CurrentTime}");
     }
 
     public IEnumerator LoadSomeStat(string userId, Action<string> onComplete = null)

@@ -13,5 +13,7 @@ MonoBehaviour:
   m_Name: Stick
   m_EditorClassIdentifier: 
   itemName: Stick
-  description: 
+  description: Yes it is stick
   icon: {fileID: 21300000, guid: 3feb921ec3966c64bbca2abb00c6c646, type: 3}
+  Location: 0
+  rarity: 0

@@ -107,7 +107,7 @@ public class Boss : MonoBehaviour, IDamagable
     {
         PlayerController.Instance.OnUpdate(this);
 
-        if (!UIManager.Ins.IsMenuPanel()) return;
+        if (!UIManager.Ins.IsBlockCanClick()) return;
 
         if (Input.GetMouseButtonDown(0))
         {

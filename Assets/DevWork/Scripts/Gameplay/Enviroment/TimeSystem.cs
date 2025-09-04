@@ -63,7 +63,7 @@ public class TimeSystem : MonoBehaviour
         DontDestroyOnLoad(this);
 
         // If you persist startTime externally, assign it here (optional):
-        // startTime = DataSaver.Ins.StartTime;
+        startTime = DataSaver.Ins.CurrentTime;
     }
 
     private void Start()
@@ -244,7 +244,7 @@ public class TimeSystem : MonoBehaviour
     {
         CurrentTimeState = TimeState.Day;
         Debug.Log("Switched to Day");
-        GameDebugHandler.LogStatic("It's Day!");
+        GameDebugHandler.LogStatic("It's <color=#FFD700>Day</color>!");
         WeatherManager.Instance?.ClearSpecialWeatherAndTriggerNext();
     }
 
@@ -252,7 +252,7 @@ public class TimeSystem : MonoBehaviour
     {
         CurrentTimeState = TimeState.Night;
         Debug.Log("Switched to Night");
-        GameDebugHandler.LogStatic("It's Night!");
+        GameDebugHandler.LogStatic("It's <color=#3399FF>Night</color>!");
         WeatherManager.Instance?.ClearSpecialWeatherAndTriggerNext();
     }
 }

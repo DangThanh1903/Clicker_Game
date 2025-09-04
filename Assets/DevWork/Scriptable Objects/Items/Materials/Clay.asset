@@ -13,5 +13,7 @@ MonoBehaviour:
   m_Name: Clay
   m_EditorClassIdentifier: 
   itemName: Clay
-  description: 
+  description: Taste like dirt
   icon: {fileID: 21300000, guid: 94b026226a3a99545ae14371e64c7d35, type: 3}
+  Location: 0
+  rarity: 0

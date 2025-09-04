@@ -1,74 +1,154 @@
+// Assets/Editor/ToolbarSceneSwitcher.cs
 #if UNITY_EDITOR
+using System;
+using System.Linq;
+using System.Reflection;
 using UnityEditor;
-using UnityEngine;
-using Sirenix.OdinInspector;
-using Sirenix.OdinInspector.Editor;
-using System.Collections.Generic;
-using System.IO;
 using UnityEditor.SceneManagement;
+using UnityEngine;
+using UnityEngine.UIElements;
 
-public class ShortcutManagerTool : OdinEditorWindow
+[InitializeOnLoad]
+public static class ToolbarSceneSwitcher
 {
-    [MenuItem("Tools/Shortcut Manager %#m")] // Ctrl + Shift + M
-    private static void OpenWindow()
+    private static VisualElement _rightZone;
+    private static IMGUIContainer _imguiContainer;
+
+    private static string[] _scenePaths = Array.Empty<string>();
+    private static string[] _sceneNames = Array.Empty<string>();
+    private static int _selectedIndex;
+
+    static ToolbarSceneSwitcher()
     {
-        GetWindow<ShortcutManagerTool>("Shortcut Manager").Show();
+        EditorApplication.update += TryInstallOnce;
+        RefreshScenes();
     }
 
-    [InfoBox("Click any button to load the scene. This auto-lists all scenes inside 'Assets/Scenes/'.")]
-    [ListDrawerSettings(ShowFoldout = true, ShowPaging = false)]
-    [PropertyOrder(1)]
-    public List<SceneEntry> sceneButtons = new();
-
-    [Button("Refresh Scene List"), GUIColor(1f, 0.7f, 0.2f)]
-    private void RefreshSceneList()
+    private static void TryInstallOnce()
     {
-        sceneButtons.Clear();
+        // Find the internal UnityEditor.Toolbar object
+        var toolbarType = typeof(Editor).Assembly.GetType("UnityEditor.Toolbar");
+        if (toolbarType == null) return;
 
-        string[] sceneGuids = AssetDatabase.FindAssets("t:Scene", new[] { "Assets/Scenes" });
+        var toolbars = Resources.FindObjectsOfTypeAll(toolbarType);
+        if (toolbars == null || toolbars.Length == 0) return;
 
-        foreach (string guid in sceneGuids)
+        // Get UIElements root
+        var rootField = toolbarType.GetField("m_Root", BindingFlags.NonPublic | BindingFlags.Instance);
+        if (rootField == null) return;
+
+        var root = rootField.GetValue(toolbars[0]) as VisualElement;
+        if (root == null) return;
+
+        // Find the right-aligned container: "ToolbarZoneRightAlign"
+        _rightZone = root.Q("ToolbarZoneRightAlign");
+        if (_rightZone == null)
         {
-            string path = AssetDatabase.GUIDToAssetPath(guid);
-            string name = Path.GetFileNameWithoutExtension(path);
-
-            sceneButtons.Add(new SceneEntry(name, path));
+            // Fallbacks (older editor versions)
+            _rightZone = root.Q("RightAlign") ?? root;
         }
 
-        Debug.Log($"[ShortcutManager] Found {sceneButtons.Count} scenes.");
+        if (_imguiContainer != null || _rightZone == null) return;
+
+        _imguiContainer = new IMGUIContainer(DrawToolbarGUI)
+        {
+            style =
+            {
+                marginLeft = 6,
+                marginRight = 6
+            }
+        };
+        _rightZone.Add(_imguiContainer);
+
+        // Installed; stop polling
+        EditorApplication.update -= TryInstallOnce;
     }
 
-    [System.Serializable]
-    public class SceneEntry
+    private static void RefreshScenes()
     {
-        [ReadOnly]
-        public string sceneName;
+        var guids = AssetDatabase.FindAssets("t:Scene", new[] { "Assets/Scenes" });
+        _scenePaths = guids.Select(g => AssetDatabase.GUIDToAssetPath(g)).ToArray();
+        _sceneNames = _scenePaths.Select(p => System.IO.Path.GetFileNameWithoutExtension(p)).ToArray();
 
-        [ReadOnly]
-        public string scenePath;
+        // Keep selected index valid
+        if (_sceneNames.Length == 0) _selectedIndex = 0;
+        else _selectedIndex = Mathf.Clamp(_selectedIndex, 0, _sceneNames.Length - 1);
+    }
 
-        [Button("Load"), GUIColor(0.3f, 0.9f, 1f)]
-        private void Load()
+    private static void DrawToolbarGUI()
+    {
+        if (_sceneNames == null || _sceneNames.Length == 0)
         {
-            if (EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
+            if (GUILayout.Button(new GUIContent("↻ Scenes"), ToolbarButtonStyle()))
             {
-                EditorSceneManager.OpenScene(scenePath);
-                Debug.Log($"[ShortcutManager] Loaded scene: {sceneName}");
+                RefreshScenes();
+                ShowTempNotification("Scene list refreshed");
+            }
+            return;
+        }
+
+        using (new EditorGUILayout.HorizontalScope())
+        {
+            if (GUILayout.Button(new GUIContent("↻", "Refresh scene list"), ToolbarMiniButtonStyle(), GUILayout.Width(24)))
+            {
+                RefreshScenes();
+                ShowTempNotification("Scene list refreshed");
+            }
+
+            _selectedIndex = EditorGUILayout.Popup(_selectedIndex, _sceneNames, ToolbarPopupStyle(), GUILayout.MaxWidth(220));
+
+            using (new EditorGUI.DisabledScope(EditorApplication.isPlaying))
+            {
+                if (GUILayout.Button(new GUIContent("Load", "Open selected scene"), ToolbarButtonStyle(), GUILayout.Width(60)))
+                {
+                    LoadSelectedScene();
+                }
             }
         }
+    }
 
-        public SceneEntry(string name, string path)
+    private static void LoadSelectedScene()
+    {
+        if (_scenePaths == null || _scenePaths.Length == 0) return;
+        var path = _scenePaths[_selectedIndex];
+        if (string.IsNullOrEmpty(path)) return;
+
+        if (EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
         {
-            sceneName = name;
-            scenePath = path;
+            EditorSceneManager.OpenScene(path);
+            ShowTempNotification($"Loaded: {_sceneNames[_selectedIndex]}");
         }
     }
 
-    protected override void OnEnable()
+    private static GUIStyle ToolbarButtonStyle()
     {
-        base.OnEnable();
-        if (sceneButtons.Count == 0)
-            RefreshSceneList();
+        var s = new GUIStyle("Button");
+        s.fixedHeight = 20;
+        s.margin = new RectOffset(2, 2, 2, 2);
+        return s;
+    }
+
+    private static GUIStyle ToolbarMiniButtonStyle()
+    {
+        var s = new GUIStyle("Button");
+        s.fixedHeight = 20;
+        s.margin = new RectOffset(2, 2, 2, 2);
+        s.fontSize = 11;
+        return s;
+    }
+
+    private static GUIStyle ToolbarPopupStyle()
+    {
+        var s = new GUIStyle(EditorStyles.popup);
+        s.fixedHeight = 20;
+        s.margin = new RectOffset(4, 4, 2, 2);
+        return s;
+    }
+
+    private static void ShowTempNotification(string text)
+    {
+        // Show a quick notification in the SceneView
+        SceneView.lastActiveSceneView?.ShowNotification(new GUIContent(text));
     }
 }
 #endif

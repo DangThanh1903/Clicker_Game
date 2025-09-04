@@ -13,5 +13,7 @@ MonoBehaviour:
   m_Name: WoodPlank
   m_EditorClassIdentifier: 
   itemName: WoodPlank
-  description: 
+  description: From log i thing?
   icon: {fileID: 21300000, guid: fa1114bfd7786ee44801195d89c33431, type: 3}
+  Location: 0
+  rarity: 0

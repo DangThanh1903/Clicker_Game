@@ -24,6 +24,14 @@ public class UIManager : MonoBehaviour
     private Tween moveTween;
     private bool isTweening;
 
+    [Header("Setting button")]
+    private bool isOpenSetting;
+    [SerializeField] private Button settingButton;
+
+    [Header("Location")]
+    [SerializeField] private Image[] locationBackground;
+    [SerializeField] private Sprite[] locationTexture2D;
+
     void Awake()
     {
         if (Ins != null && Ins != this) { Destroy(gameObject); return; }
@@ -147,5 +155,13 @@ public class UIManager : MonoBehaviour
         }
     }
 
-    public bool IsMenuPanel() => startIndex == currentIndex;
+    public bool IsBlockCanClick() => startIndex == currentIndex && !isOpenSetting;
+
+    public void SetLocationBackground(int index)
+    {
+        foreach (var image in locationBackground)
+        {
+            image.sprite = locationTexture2D[index];
+        }
+    }
 }

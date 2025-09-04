@@ -13,5 +13,7 @@ MonoBehaviour:
   m_Name: Star
   m_EditorClassIdentifier: 
   itemName: Star
-  description: 
+  description: I wish...
   icon: {fileID: 21300000, guid: 5210f51f2c3c51d49a127caebae2a0c2, type: 3}
+  Location: 0
+  rarity: 0

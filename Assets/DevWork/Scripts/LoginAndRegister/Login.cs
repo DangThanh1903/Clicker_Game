@@ -1,28 +1,55 @@
 using System.Collections;
 using UnityEngine;
 using Firebase.Auth;
-using UnityEngine.UI;
-using System.Threading.Tasks;
 using UnityEngine.SceneManagement;
+using System.Threading.Tasks;
 
 public class Login : MonoBehaviour
 {
-    [SerializeField] private Button guestLogin;
-    [SerializeField] private GameObject loginPanel;
+    private FirebaseAuth auth;
 
     void Awake()
     {
-        guestLogin.onClick.AddListener(() => _ = GuestLoginAsync());
+        auth = FirebaseAuth.DefaultInstance;
     }
+
     void Start()
     {
-        RememberLogin();
+        _ = CheckOrGuestLoginAsync();
+    }
+
+    private async Task CheckOrGuestLoginAsync()
+    {
+        // 1. Already signed in? (Firebase persists sessions)
+        if (auth.CurrentUser != null)
+        {
+            string userId = auth.CurrentUser.UserId;
+            Debug.Log($"Found current Firebase user: {userId}");
+
+            PlayerPrefs.SetString("UserID", userId);
+            PlayerPrefs.Save();
+
+            StartCoroutine(LoadSceneAfterData(userId));
+            return;
+        }
+
+        // 2. If we stored an ID locally, use it (only makes sense if still valid)
+        if (PlayerPrefs.HasKey("UserID"))
+        {
+            string userId = PlayerPrefs.GetString("UserID");
+            Debug.Log($"Found UserID in PlayerPrefs: {userId}");
+
+            StartCoroutine(LoadSceneAfterData(userId));
+            return;
+        }
+
+        // 3. Otherwise → guest login immediately
+        Debug.Log("No account found. Logging in as Guest...");
+        await GuestLoginAsync();
     }
 
     private async Task GuestLoginAsync()
     {
-        FirebaseAuth auth = FirebaseAuth.DefaultInstance;
-
         var loginResult = await auth.SignInAnonymouslyAsync();
 
         if (loginResult == null || loginResult.User == null)
@@ -32,41 +59,26 @@ public class Login : MonoBehaviour
         }
 
         string userId = loginResult.User.UserId;
+        Debug.Log($"Guest login success: {userId}");
 
         PlayerPrefs.SetString("UserID", userId);
         PlayerPrefs.Save();
 
-        // After async login, move back to Unity main thread
         StartCoroutine(LoadSceneAfterData(userId));
     }
 
     private IEnumerator LoadSceneAfterData(string userId)
     {
-
-        // Coroutine to load data
+        // Load your data
         yield return StartCoroutine(DataSaver.Ins.LoadAllInventories(userId));
         yield return StartCoroutine(DataSaver.Ins.LoadCurrentBlock(userId));
         yield return StartCoroutine(DataSaver.Ins.LoadCurrentLocation(userId));
         yield return StartCoroutine(DataSaver.Ins.LoadSomeStat(userId));
+        yield return StartCoroutine(DataSaver.Ins.LoadTime(userId));
 
-
-        yield return new WaitForSeconds(2f); // optional delay
+        // Optional delay
+        yield return new WaitForSeconds(1f);
 
         SceneManager.LoadScene("SampleScene");
-    }
-    
-    void RememberLogin()
-    {
-        if (PlayerPrefs.HasKey("UserID"))
-        {
-            string userId = PlayerPrefs.GetString("UserID");
-            Debug.Log("UserID found: " + userId);
-            StartCoroutine(LoadSceneAfterData(userId));
-        }
-        else
-        {
-            Debug.Log("No UserID found.");
-            loginPanel.SetActive(true);
-        }
     }
 }

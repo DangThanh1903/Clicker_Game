@@ -1,8 +1,6 @@
-// CraftRecipePanel.cs
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
-using System.Collections.Generic;
 
 public class CraftRecipePanel : MonoBehaviour
 {
@@ -19,6 +17,8 @@ public class CraftRecipePanel : MonoBehaviour
 
     [Header("Panel Root")]
     public GameObject root;
+    [Header("Panel Root")]
+    public TMP_Text Description;
 
     public void ShowForItem(Item targetItem)
     {
@@ -29,6 +29,12 @@ public class CraftRecipePanel : MonoBehaviour
         }
 
         var list = recipeDB.GetRecipesByResultItem(targetItem);
+
+        if (Description)
+        {
+            Description.text = targetItem.GetFormattedDescription();
+        }
+        
         if (list.Count == 0)
         {
             ShowEmpty("No recipe found");
@@ -81,7 +87,7 @@ public class CraftRecipePanel : MonoBehaviour
         }
 
         if (root) root.SetActive(true);
-        else gameObject.SetActive(true);
+            else gameObject.SetActive(true);
     }
 
     public void ShowEmpty(string reason = "")

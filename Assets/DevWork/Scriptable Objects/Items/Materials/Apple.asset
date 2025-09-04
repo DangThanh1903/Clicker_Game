@@ -13,5 +13,7 @@ MonoBehaviour:
   m_Name: Apple
   m_EditorClassIdentifier: 
   itemName: Apple
-  description: 
+  description: Num num
   icon: {fileID: 21300000, guid: 50eb53bd4b3aa194bbd6d5a51875addc, type: 3}
+  Location: 0
+  rarity: 0

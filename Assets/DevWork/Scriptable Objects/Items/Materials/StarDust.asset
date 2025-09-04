@@ -13,5 +13,7 @@ MonoBehaviour:
   m_Name: StarDust
   m_EditorClassIdentifier: 
   itemName: StarDust
-  description: 
+  description: Not anymore...
   icon: {fileID: 21300000, guid: 9edcb5d23de8f4e4ba8d8b6b2e242510, type: 3}
+  Location: 0
+  rarity: 0

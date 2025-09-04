@@ -6,14 +6,11 @@ using System;
 using System.Collections.Generic;
 using DG.Tweening;
 using Lean.Pool;
+using Unity.Mathematics;
 
 public class ClickableObject : MonoBehaviour, IDamagable
 {
     [Header("Information")]
-    private Vector3 spinAxis;
-
-    [ReadOnly, SerializeField]
-    private float spinSpeed;
     [ReadOnly, SerializeField]
     private string blockName;
     public float MaxHealth { get; private set; }
@@ -24,13 +21,11 @@ public class ClickableObject : MonoBehaviour, IDamagable
     private float accumulatedHoldTime = 0f;
     private readonly float timeHoldReset = 0.1f;
     private readonly float timeIdleReset = 1f;
+    bool isDyingEffect;
 
     private bool isMouseHeld = false;
 
     [Header("Settings")]
-    [SerializeField] private float spinBoostPerClick = 100f;
-    [SerializeField, Range(0f, 1f)] private float decayPercentPerSecond = 0.95f;
-    [SerializeField] private float stopThreshold = 0.1f;
     [SerializeField] private int crackLevels = 9;
     [SerializeField] private int numberOfFragment = 5;
 
@@ -59,14 +54,33 @@ public class ClickableObject : MonoBehaviour, IDamagable
     private MaterialPropertyBlock propertyBlock;
     [SerializeField] GameObject fragmentPrefab;
 
-    [Header("Explode anim")]
+    // Idle FX params
+    [Header("Idle FX")]
+    [SerializeField] private float idleRotateDegPerSec = 20f;
+    [SerializeField] private float idleBobAmplitude = 0.08f;
+    [SerializeField] private float idleBobPeriod = 1.0f;
+
+    // Click squash params
+    [Header("Click FX")]
+    [SerializeField] private float clickSquashScale = 0.9f;
+    [SerializeField] private float clickSquashDuration = 0.15f;
+
+    // Explode anim
+    [Header("Explode FX")]
     float shrinkScale = 2f;
     float shrinkTime = 0.2f;
     float delayBeforeExpand = 0.1f;
     float expandScale = 4f;
     float expandTime = 0.2f;
 
-    private bool isSpinning = false;
+    // tween handles
+    private Tween idleRotateTween;
+    private Tween idleBobTween;
+    private Tween clickScaleTween;
+    private Tween clickTwistTween;
+
+    private Vector3 baseLocalPos = new Vector3(0, 1, 30);
+    private Vector3 baseLocalScale = new Vector3(2.5f, 2.5f, 2.5f);
 
     // 📦 Internal click buffer and stream
     private readonly Subject<long> clickStream = new Subject<long>();
@@ -84,7 +98,6 @@ public class ClickableObject : MonoBehaviour, IDamagable
 
     void Update()
     {
-        HandleSpinDecay();
         HandleClickDetection();
     }
     #region SETUP ---------------------------------------------------------------------------------------------
@@ -153,7 +166,9 @@ public class ClickableObject : MonoBehaviour, IDamagable
     {
         PlayerController.Instance.OnUpdate(this);
 
-        if (!UIManager.Ins.IsMenuPanel()) return;
+        if (!UIManager.Ins.IsBlockCanClick()) return;
+
+        if (isDyingEffect) return;
         
         if (Input.GetMouseButtonDown(0))
         {
@@ -188,10 +203,6 @@ public class ClickableObject : MonoBehaviour, IDamagable
 
     public void HandleClick()
     {
-        spinAxis = UnityEngine.Random.onUnitSphere;
-        spinSpeed += spinBoostPerClick;
-        isSpinning = true;
-
         float power = StatsManager.Ins.Get(StatType.NormalPower);
 
         StatsManager.Ins.Add(StatType.Clicks, power);
@@ -228,19 +239,29 @@ public class ClickableObject : MonoBehaviour, IDamagable
             clickStream.OnNext(time);
         }
     }
-
-    private void HandleSpinDecay()
+    void HandleItemDrop()
     {
-        if (!isSpinning) return;
-
-        transform.Rotate(spinAxis, spinSpeed * Time.deltaTime, Space.World);
-        spinSpeed *= Mathf.Pow(decayPercentPerSecond, Time.deltaTime);
-
-        if (spinSpeed < stopThreshold)
+        var items = blockUVDatabase.GetDroppedItemsByName(blockName);
+        string dropName = "";
+        int countTemp = 0;
+        if (items.Count == 0)
         {
-            spinSpeed = 0f;
-            isSpinning = false;
+            Debug.Log("There is no item drop");
+            GameDebugHandler.LogStaticAfter($"<color=#00FF7F>{blockName}</color>" + " drops nothing!", 1f);
+            return;
         }
+        foreach (var (item, amount) in items)
+        {
+            if (item == null)
+            {
+                Debug.LogWarning($"⚠️ Null item in drop list for block: {blockName}");
+                continue;
+            }
+            InventoryController.Instance.AddItemToInventory(new InventoryItem(item, amount));
+            dropName += (countTemp == 0) ? amount + " " + item.GetColoredName() : ", " + amount + " " + item.itemName;
+            countTemp++;
+        }
+        GameDebugHandler.LogStaticAfter($"<color=#00FF7F>{blockName}</color>" + " drops " + dropName + "!", 1f);
     }
 
     #endregion
@@ -252,10 +273,21 @@ public class ClickableObject : MonoBehaviour, IDamagable
     }
     void OnAppear()
     {
-        float duration = 2f;
+        float duration = 0.35f; // vào nhanh hơn cho đã tay
         transform.localScale = Vector3.zero;
-        cubeRenderer.enabled = true;
-        transform.DOScale(Vector3.one * 2.5f, duration).SetEase(Ease.OutBack);
+        if (cubeRenderer != null) cubeRenderer.enabled = true;
+
+        // Intro pop-in
+        transform.DOScale(baseLocalScale, duration).SetEase(Ease.OutBack).SetLink(gameObject);
+
+        // Bắt đầu idle xoay + nhún
+        StartIdleTweens();
+
+        // Subscribe clickStream để phát squash mỗi lần click/hold/idle-damage (đã có trong class)
+        // Không sửa các hàm click khác, chỉ nghe stream ở đây.
+        clickStream
+            .Subscribe(_ => PlayClickSquash())
+            .AddTo(this);
     }
 
     void OnDisappear()
@@ -263,34 +295,60 @@ public class ClickableObject : MonoBehaviour, IDamagable
         PlayExplodeEffect();
         HandleItemDrop();
     }
-
-    void HandleItemDrop()
+     // Idle motion: tự xoay quanh Y + nhún Y
+    private void StartIdleTweens()
     {
-        var items = blockUVDatabase.GetDroppedItemsByName(blockName);
-        string dropName = "";
-        int countTemp = 0;
-        if (items.Count == 0)
+        // Xoay đều quanh Y (360 độ theo thời gian), loop vô hạn
+        float oneTurnTime = Mathf.Abs(360f / Mathf.Max(1f, idleRotateDegPerSec));
+        idleRotateTween = transform
+            .DORotate(new Vector3(0f, 360f, 0f), oneTurnTime, RotateMode.FastBeyond360)
+            .SetEase(Ease.Linear)
+            .SetLoops(-1)
+            .SetLink(gameObject);
+
+        // Nhún Y: yoyo quanh vị trí gốc
+        if (idleBobAmplitude > 0f)
         {
-            Debug.Log("There is no item drop");
-            GameDebugHandler.LogStaticAfter(blockName + " drops nothing!", 1f);
-            return;
+            idleBobTween = transform.DOLocalMoveY(baseLocalPos.y + idleBobAmplitude, idleBobPeriod * 0.5f)
+                .SetEase(Ease.InOutSine)
+                .SetLoops(-1, LoopType.Yoyo)
+                .SetLink(gameObject);
         }
-        foreach (var (item, amount) in items)
-        {
-            if (item == null)
-            {
-                Debug.LogWarning($"⚠️ Null item in drop list for block: {blockName}");
-                continue;
-            }
-            InventoryController.Instance.AddItemToInventory(new InventoryItem(item, amount));
-            dropName += (countTemp == 0) ? amount + " " + item.itemName : ", " + amount + " " + item.itemName;
-            countTemp++;
-        }
-        GameDebugHandler.LogStaticAfter(blockName + " drops " + dropName + "!", 1f);
     }
+
+    private void KillIdleTweens()
+    {
+        if (idleRotateTween != null && idleRotateTween.IsActive()) idleRotateTween.Kill();
+        if (idleBobTween != null && idleBobTween.IsActive()) idleBobTween.Kill();
+
+        transform.localPosition = baseLocalPos;
+    }
+
+    // Hiệu ứng khi click/hold/idle gây damage: squash & twist nhẹ rồi trở lại
+    private void PlayClickSquash()
+    {
+        // Scale: 1 -> squash -> 1
+        transform.localScale = baseLocalScale; // reset trước khi tween
+        clickScaleTween = transform
+            .DOScale(baseLocalScale * clickSquashScale, clickSquashDuration * 0.5f)
+            .SetEase(Ease.InQuad)
+            .OnComplete(() =>
+            {
+                transform.DOScale(baseLocalScale, clickSquashDuration * 0.5f).SetEase(Ease.OutBack).SetLink(gameObject);
+            })
+            .SetLink(gameObject);
+    }
+
+    private void KillClickTweens()
+    {
+        if (clickScaleTween != null && clickScaleTween.IsActive()) clickScaleTween.Kill();
+        if (clickTwistTween != null && clickTwistTween.IsActive()) clickTwistTween.Kill();
+    }
+
 
     public void PlayExplodeEffect()
     {
+        isDyingEffect = true;
         Sequence seq = DOTween.Sequence();
 
         seq.Append(transform.DOScale(shrinkScale, shrinkTime))           // Shrink
@@ -311,7 +369,7 @@ public class ClickableObject : MonoBehaviour, IDamagable
                    }
 
                }
-
+               isDyingEffect = false;
                PlayBreakedSound();
            });
     }

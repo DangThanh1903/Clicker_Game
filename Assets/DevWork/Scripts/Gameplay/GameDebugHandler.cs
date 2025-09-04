@@ -92,7 +92,7 @@ public class GameDebugHandler : MonoBehaviour
     }
 
     // handy static helper
-    public static void LogStaticAfter(string message, float delaySeconds, bool unscaledTime = true)
+    public static void LogStaticAfter(string message, float delaySeconds = 1f, bool unscaledTime = true)
         => Ins?.LogAfter(message, delaySeconds, unscaledTime);
 
 }

@@ -13,5 +13,7 @@ MonoBehaviour:
   m_Name: Log
   m_EditorClassIdentifier: 
   itemName: Log
-  description: 
+  description: This is useful
   icon: {fileID: 21300000, guid: 6a080d6cb0718164f8ee64d2ff1fc37a, type: 3}
+  Location: 0
+  rarity: 0

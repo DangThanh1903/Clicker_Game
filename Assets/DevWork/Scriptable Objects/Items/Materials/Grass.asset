@@ -13,5 +13,7 @@ MonoBehaviour:
   m_Name: Grass
   m_EditorClassIdentifier: 
   itemName: Grass
-  description: 
+  description: yummy
   icon: {fileID: 21300000, guid: 494b5fe6487390a4c8d1ae2c33a4611d, type: 3}
+  Location: 0
+  rarity: 0

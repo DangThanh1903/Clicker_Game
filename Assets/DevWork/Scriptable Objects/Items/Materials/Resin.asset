@@ -13,5 +13,7 @@ MonoBehaviour:
   m_Name: Resin
   m_EditorClassIdentifier: 
   itemName: Resin
-  description: 
+  description: Wood blood!
   icon: {fileID: 21300000, guid: 6592c412db49eb849b065e60ca4bbd57, type: 3}
+  Location: 0
+  rarity: 0

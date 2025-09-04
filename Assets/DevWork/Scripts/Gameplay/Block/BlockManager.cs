@@ -24,10 +24,7 @@ public class BlockManager : MonoBehaviour
         DontDestroyOnLoad(gameObject);
         currentBlock.SetClickableBlock(
             DataSaver.Ins.currentBlock ?? "Dirt");
-        locationLoader.SetLocation(
-            DataSaver.Ins.currentLocation == null ?
-            BlockSpawnLocation.Plain :
-            (BlockSpawnLocation)DataSaver.Ins.currentLocation);
+        locationLoader.SetLocation((int?)DataSaver.Ins.currentLocation ?? 1);
     }
     void Start()
     {

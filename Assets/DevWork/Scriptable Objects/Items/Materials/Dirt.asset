@@ -13,5 +13,7 @@ MonoBehaviour:
   m_Name: Dirt
   m_EditorClassIdentifier: 
   itemName: Dirt
-  description: Dirt
+  description: It's dirt
   icon: {fileID: 21300000, guid: e713db2c30cae3949ac4bb60a6d1c156, type: 3}
+  Location: 0
+  rarity: 0

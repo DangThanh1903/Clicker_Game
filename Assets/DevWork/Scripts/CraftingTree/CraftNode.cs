@@ -49,7 +49,7 @@ public class CraftNode : MonoBehaviour, IPointerClickHandler
             inv.InventoryChanged
                .Where(item => requiredItems.Contains(item.itemData))
                .ThrottleFrame(1) // reduce update frequency
-               .Subscribe(_ => CheckState())
+               .Subscribe(_ => CheckState(false))
                .AddTo(disposables);
         }
 
@@ -57,12 +57,12 @@ public class CraftNode : MonoBehaviour, IPointerClickHandler
         {
             reqNode.OnNodeFinished
                 .ThrottleFrame(1)
-                .Subscribe(_ => CheckState())  // automatically recheck state
+                .Subscribe(_ => CheckState(false))  // automatically recheck state
                 .AddTo(disposables);
         }
 
         // Check state initially
-        CheckState();
+        CheckState(true);
     }
     public void OnPointerClick(PointerEventData eventData)
     {
@@ -87,7 +87,7 @@ public class CraftNode : MonoBehaviour, IPointerClickHandler
         );
     }
 
-    private void CheckState()
+    private void CheckState(bool isInitial)
     {
         if (State == CraftNodeState.Finished)
             return;
@@ -104,6 +104,8 @@ public class CraftNode : MonoBehaviour, IPointerClickHandler
         else
         {
             State = CraftNodeState.Unlocked;
+            if (!isInitial)
+                GameDebugHandler.LogStaticAfter($"Unlocked {requiredItems[0].GetColoredName()}'s recipe!");
         }
 
         UpdateVisual();

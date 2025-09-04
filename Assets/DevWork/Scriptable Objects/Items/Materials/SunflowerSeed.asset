@@ -13,5 +13,7 @@ MonoBehaviour:
   m_Name: SunflowerSeed
   m_EditorClassIdentifier: 
   itemName: SunflowerSeed
-  description: 
+  description: Can we eat this?
   icon: {fileID: 21300000, guid: 3773a8c14e1cd3b4c982f0fa3282312b, type: 3}
+  Location: 0
+  rarity: 0

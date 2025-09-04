@@ -26,7 +26,7 @@ public class LocationLoader : MonoBehaviour
                     GameDebugHandler.LogStatic($"You have already in {((BlockSpawnLocation)cachedIndex).ToString()}!");
                     return;
                 }
-                SetLocation((BlockSpawnLocation)cachedIndex);
+                SetLocation(cachedIndex);
                 GameDebugHandler.LogStatic($"Moving to {((BlockSpawnLocation)cachedIndex).ToString()}!");
             });
 
@@ -34,11 +34,12 @@ public class LocationLoader : MonoBehaviour
         }
     }
 
-    public void SetLocation(BlockSpawnLocation blockSpawnLocation)
+    public void SetLocation(int index)
     {
+        BlockSpawnLocation blockSpawnLocation = (BlockSpawnLocation)index;
+        UIManager.Ins.SetLocationBackground(index - 1);
         currentLocation = blockSpawnLocation;
         DataSaver.Ins.currentLocation = blockSpawnLocation;
-
         if (DataSaver.Ins.PeakLocation < blockSpawnLocation || DataSaver.Ins.PeakLocation == null)
         {
             DataSaver.Ins.PeakLocation = blockSpawnLocation;

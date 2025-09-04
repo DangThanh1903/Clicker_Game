@@ -15,3 +15,5 @@ MonoBehaviour:
   itemName: Amber
   description: 
   icon: {fileID: 21300000, guid: 59165e0810271644eaff3c04334bfa7e, type: 3}
+  Location: 0
+  rarity: 0

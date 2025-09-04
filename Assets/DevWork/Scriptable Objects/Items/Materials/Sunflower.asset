@@ -13,5 +13,7 @@ MonoBehaviour:
   m_Name: Sunflower
   m_EditorClassIdentifier: 
   itemName: Sunflower
-  description: 
+  description: Give me sun!
   icon: {fileID: 21300000, guid: 2801ae48992706c47b33dbd025b6c853, type: 3}
+  Location: 0
+  rarity: 1
