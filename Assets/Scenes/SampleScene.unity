@@ -1548,12 +1548,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bff9adb1c4afc3248b503ffaa9dda81c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  spinSpeed: 0
   blockName: 0
   BlockWeight: 0
-  spinBoostPerClick: 10
-  decayPercentPerSecond: 0.5
-  stopThreshold: 5
   crackLevels: 9
   numberOfFragment: 5
   atlasColumns: 9
@@ -1566,6 +1562,11 @@ MonoBehaviour:
   crackMeshRenderer: {fileID: 1981963211}
   fragmentPrefab: {fileID: 1593840380464966771, guid: 6b26467b597428847ab47d066f7dc0ae,
     type: 3}
+  idleRotateDegPerSec: 20
+  idleBobAmplitude: 0.08
+  idleBobPeriod: 1
+  clickSquashScale: 0.9
+  clickSquashDuration: 0.15
 --- !u!65 &323473843
 BoxCollider:
   m_ObjectHideFlags: 0

@@ -1,8 +1,8 @@
 using System.Collections;
+using System.Threading.Tasks;
 using UnityEngine;
 using Firebase.Auth;
 using UnityEngine.SceneManagement;
-using System.Threading.Tasks;
 
 public class Login : MonoBehaviour
 {
@@ -15,60 +15,61 @@ public class Login : MonoBehaviour
 
     void Start()
     {
-        _ = CheckOrGuestLoginAsync();
+        _ = EnsureSignedInThenLoadAsync();
     }
 
-    private async Task CheckOrGuestLoginAsync()
+    private async Task EnsureSignedInThenLoadAsync()
     {
-        // 1. Already signed in? (Firebase persists sessions)
+        // If Firebase previously persisted a session, CurrentUser will be non-null.
+        // Reload to ensure token/session is still valid (optional but safer).
         if (auth.CurrentUser != null)
         {
-            string userId = auth.CurrentUser.UserId;
-            Debug.Log($"Found current Firebase user: {userId}");
-
-            PlayerPrefs.SetString("UserID", userId);
-            PlayerPrefs.Save();
-
-            StartCoroutine(LoadSceneAfterData(userId));
-            return;
+            try
+            {
+                await auth.CurrentUser.ReloadAsync();
+            }
+            catch { /* ignore reload errors; we'll re-auth if needed */ }
         }
 
-        // 2. If we stored an ID locally, use it (only makes sense if still valid)
-        if (PlayerPrefs.HasKey("UserID"))
+        if (auth.CurrentUser == null)
         {
-            string userId = PlayerPrefs.GetString("UserID");
-            Debug.Log($"Found UserID in PlayerPrefs: {userId}");
-
-            StartCoroutine(LoadSceneAfterData(userId));
-            return;
+            Debug.Log("No Firebase session. Signing in anonymously...");
+            var user = await GuestLoginAsync();
+            if (user == null)
+            {
+                Debug.LogError("Failed to sign in anonymously.");
+                return;
+            }
+            Debug.Log($"Anonymous sign-in success: {user.UserId}");
+        }
+        else
+        {
+            Debug.Log($"Found Firebase user: {auth.CurrentUser.UserId}");
         }
 
-        // 3. Otherwise → guest login immediately
-        Debug.Log("No account found. Logging in as Guest...");
-        await GuestLoginAsync();
+        // Proceed to load game data
+        StartCoroutine(LoadSceneAfterData(auth.CurrentUser.UserId));
     }
 
-    private async Task GuestLoginAsync()
+    private async Task<FirebaseUser> GuestLoginAsync()
     {
-        var loginResult = await auth.SignInAnonymouslyAsync();
-
-        if (loginResult == null || loginResult.User == null)
+        try
         {
-            Debug.LogError("Anonymous login failed.");
-            return;
+            var result = await auth.SignInAnonymouslyAsync();
+            return result?.User;
         }
-
-        string userId = loginResult.User.UserId;
-        Debug.Log($"Guest login success: {userId}");
-
-        PlayerPrefs.SetString("UserID", userId);
-        PlayerPrefs.Save();
-
-        StartCoroutine(LoadSceneAfterData(userId));
+        catch (System.Exception e)
+        {
+            Debug.LogError($"Anonymous login failed: {e}");
+            return null;
+        }
     }
 
     private IEnumerator LoadSceneAfterData(string userId)
     {
+        // Ensure DataSaver exists before using it
+        yield return new WaitUntil(() => DataSaver.Ins != null);
+
         // Load your data
         yield return StartCoroutine(DataSaver.Ins.LoadAllInventories(userId));
         yield return StartCoroutine(DataSaver.Ins.LoadCurrentBlock(userId));
@@ -76,8 +77,8 @@ public class Login : MonoBehaviour
         yield return StartCoroutine(DataSaver.Ins.LoadSomeStat(userId));
         yield return StartCoroutine(DataSaver.Ins.LoadTime(userId));
 
-        // Optional delay
-        yield return new WaitForSeconds(1f);
+        // Optional delay for UX
+        yield return new WaitForSeconds(0.5f);
 
         SceneManager.LoadScene("SampleScene");
     }

@@ -319,16 +319,16 @@ public class DataSaver : MonoBehaviour
     }
     void OnApplicationPause(bool paused)
     {
-        if (paused) SaveDataFn(); // app going background
+        if (paused) SaveDataFn();
     }
 
     void OnApplicationFocus(bool hasFocus)
     {
-        if (!hasFocus) SaveDataFn(); // lost focus (alt-tab etc.)
+        if (!hasFocus) SaveDataFn();
     }
 
     void OnApplicationQuit()
     {
-        SaveDataFn(); // good to call, but not your only save
+        SaveDataFn();
     }
 }

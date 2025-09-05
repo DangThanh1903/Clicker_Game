@@ -298,10 +298,11 @@ public class ClickableObject : MonoBehaviour, IDamagable
      // Idle motion: tự xoay quanh Y + nhún Y
     private void StartIdleTweens()
     {
+        KillIdleTweens();
         // Xoay đều quanh Y (360 độ theo thời gian), loop vô hạn
         float oneTurnTime = Mathf.Abs(360f / Mathf.Max(1f, idleRotateDegPerSec));
         idleRotateTween = transform
-            .DORotate(new Vector3(0f, 360f, 0f), oneTurnTime, RotateMode.FastBeyond360)
+            .DOLocalRotate(new Vector3(0f, 360f, 0f), oneTurnTime, RotateMode.FastBeyond360)
             .SetEase(Ease.Linear)
             .SetLoops(-1)
             .SetLink(gameObject);
@@ -327,6 +328,7 @@ public class ClickableObject : MonoBehaviour, IDamagable
     // Hiệu ứng khi click/hold/idle gây damage: squash & twist nhẹ rồi trở lại
     private void PlayClickSquash()
     {
+        KillClickTweens();
         // Scale: 1 -> squash -> 1
         transform.localScale = baseLocalScale; // reset trước khi tween
         clickScaleTween = transform
