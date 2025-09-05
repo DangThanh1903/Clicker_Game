@@ -263,6 +263,7 @@ public class DataSaver : MonoBehaviour
         var snapshot = dataTask.Result;
         if (!snapshot.Exists || string.IsNullOrEmpty(snapshot.Value.ToString()))
         {
+            CurrentTime = 0;
             Debug.LogWarning("⚠️ No Time saved.");
             onComplete?.Invoke(null);
             yield break;
@@ -289,6 +290,7 @@ public class DataSaver : MonoBehaviour
         var snapshot = dataTask.Result;
         if (!snapshot.Exists || string.IsNullOrEmpty(snapshot.Value.ToString()))
         {
+            StatsManager.Ins.Set(StatType.Clicks, 0);
             Debug.LogWarning("⚠️ No Clicks saved.");
             onComplete?.Invoke(null);
             yield break;
@@ -303,6 +305,7 @@ public class DataSaver : MonoBehaviour
         var snapshot2 = dataTask2.Result;
         if (!snapshot2.Exists || string.IsNullOrEmpty(snapshot2.Value.ToString()))
         {
+            StatsManager.Ins.Set(StatType.Diamond, 0);
             Debug.LogWarning("⚠️ No Diamonds saved.");
             onComplete?.Invoke(null);
             yield break;

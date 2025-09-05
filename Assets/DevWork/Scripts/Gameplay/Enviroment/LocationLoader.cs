@@ -1,48 +1,145 @@
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using Lean.Pool; // <- Lean Pool
+using System;
 
 public class LocationLoader : MonoBehaviour
 {
     public BlockSpawnLocation currentLocation;
+
+    [Header("UI")]
     [SerializeField] private Button[] LocationButton;
     [SerializeField] private TMP_Text[] LocationText;
 
-    void Start()
+    [Header("Data")]
+    [SerializeField] private LocationSO locationSO;
+
+    [Header("Spawn Settings")]
+    [SerializeField] private Transform locationParent;
+
+    // runtime
+    private GameObject currentInstance;
+
+    private void Start()
     {
         InitializeLocationButton();
-    } 
-    void InitializeLocationButton()
+        InitialLocation();
+    }
+
+    private void OnDisable()
     {
-        for (int i = 1; i < LocationButton.Length; i++)
+        // đảm bảo thu hồi instance khi object bị disable (tuỳ nhu cầu)
+        DespawnCurrentLocation();
+    }
+
+    private void InitialLocation()
+    {
+        var loc = locationSO.GetByEnum(currentLocation);
+        if (loc.HasValue == false)
+        {
+            Debug.Log($"No LocationData for {currentLocation}");
+            return;
+        }
+
+        SpawnLocation(loc.Value);
+    }
+
+    private void InitializeLocationButton()
+    {
+        // giả định enum có giá trị 0 là None/Invalid và bạn muốn bỏ qua 0
+        // Button/Text mảng tương ứng các location từ 1..N
+        for (int i = 1; i < LocationButton.Length + 1; i++)
         {
             int cachedIndex = i;
 
-            LocationButton[i - 1].onClick.AddListener(() =>
-            {
-                UIManager.Ins.MoveToMain();
-                if (currentLocation == (BlockSpawnLocation)cachedIndex)
-                {
-                    GameDebugHandler.LogStatic($"You have already in {((BlockSpawnLocation)cachedIndex).ToString()}!");
-                    return;
-                }
-                SetLocation(cachedIndex);
-                GameDebugHandler.LogStatic($"Moving to {((BlockSpawnLocation)cachedIndex).ToString()}!");
-            });
+            // bảo vệ index hợp lệ với enum
+            if (!Enum.IsDefined(typeof(BlockSpawnLocation), cachedIndex))
+                continue;
 
-            LocationText[i - 1].text = ((BlockSpawnLocation)cachedIndex).ToString();
+            // gán text
+            if (cachedIndex - 1 < LocationText.Length)
+                LocationText[cachedIndex - 1].text = ((BlockSpawnLocation)cachedIndex).ToString();
+
+            // gán listener
+            if (cachedIndex - 1 < LocationButton.Length)
+            {
+                LocationButton[cachedIndex - 1].onClick.AddListener(() =>
+                {
+                    UIManager.Ins.MoveToMain();
+
+                    if (currentLocation == (BlockSpawnLocation)cachedIndex)
+                    {
+                        GameDebugHandler.LogStatic($"You are already in {((BlockSpawnLocation)cachedIndex)}!");
+                        return;
+                    }
+
+                    SetLocation(cachedIndex);
+                    GameDebugHandler.LogStatic($"Moving to {((BlockSpawnLocation)cachedIndex)}!");
+                });
+            }
         }
     }
 
     public void SetLocation(int index)
     {
-        BlockSpawnLocation blockSpawnLocation = (BlockSpawnLocation)index;
-        UIManager.Ins.SetLocationBackground(index - 1);
-        currentLocation = blockSpawnLocation;
-        DataSaver.Ins.currentLocation = blockSpawnLocation;
-        if (DataSaver.Ins.PeakLocation < blockSpawnLocation || DataSaver.Ins.PeakLocation == null)
+        if (!Enum.IsDefined(typeof(BlockSpawnLocation), index))
         {
-            DataSaver.Ins.PeakLocation = blockSpawnLocation;
+            Debug.Log($"Invalid location index: {index}");
+            return;
         }
+
+        BlockSpawnLocation newLoc = (BlockSpawnLocation)index;
+
+        // cập nhật UI nền (giữ logic cũ)
+        UIManager.Ins.SetLocationBackground(index - 1);
+
+        // cập nhật state
+        currentLocation = newLoc;
+        DataSaver.Ins.currentLocation = newLoc;
+        if (DataSaver.Ins.PeakLocation == null || DataSaver.Ins.PeakLocation < newLoc)
+            DataSaver.Ins.PeakLocation = newLoc;
+
+        // spawn/despawn qua LeanPool
+        var data = locationSO.GetByEnum(newLoc);
+        if (data.HasValue == false)
+        {
+            Debug.Log($"No LocationData for {newLoc}");
+            return;
+        }
+
+        SpawnLocation(data.Value);
+    }
+
+    // ================= LeanPool helpers =================
+
+    private void SpawnLocation(LocationSO.LocationData data)
+    {
+        DespawnCurrentLocation();
+
+        if (data.prefab == null)
+        {
+            Debug.Log($"Prefab is null for {data.location}");
+            return;
+        }
+
+        var rot = Quaternion.Euler(data.spawnRotationEuler);
+        currentInstance = Lean.Pool.LeanPool.Spawn(
+            data.prefab,
+            data.spawnPosition,
+            rot,
+            locationParent
+        );
+    }
+
+
+    private void DespawnCurrentLocation()
+    {
+        if (currentInstance == null) return;
+        if (currentInstance.activeInHierarchy)
+            LeanPool.Despawn(currentInstance);
+        else
+            LeanPool.Despawn(currentInstance); // an toàn dù inactive
+        currentInstance = null;
     }
 }
