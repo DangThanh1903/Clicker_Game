@@ -67,15 +67,27 @@ public class LocationLoader : MonoBehaviour
                 LocationButton[cachedIndex - 1].onClick.AddListener(() =>
                 {
                     UIManager.Ins.MoveToMain();
+                    BlockSpawnLocation target = (BlockSpawnLocation)cachedIndex;
+                    var locEnum = target.ToLocalized();
+                    var handle = locEnum.GetLocalizedStringAsync();
 
                     if (currentLocation == (BlockSpawnLocation)cachedIndex)
                     {
-                        GameDebugHandler.LogStatic($"You are already in {((BlockSpawnLocation)cachedIndex)}!");
+                        handle.Completed += h =>
+                        {
+                            GameDebugHandler.LogStaticKey("UI_Debug", "block_already_in", new { loc = h.Result });
+                            UnityEngine.AddressableAssets.Addressables.Release(h);
+                        };
                         return;
                     }
 
                     SetLocation(cachedIndex);
-                    GameDebugHandler.LogStatic($"Moving to {((BlockSpawnLocation)cachedIndex)}!");
+
+                    handle.Completed += h =>
+                    {
+                        GameDebugHandler.LogStaticKey("UI_Debug", "block_move_to", new { loc = h.Result });
+                        UnityEngine.AddressableAssets.Addressables.Release(h);
+                    };
                 });
             }
         }

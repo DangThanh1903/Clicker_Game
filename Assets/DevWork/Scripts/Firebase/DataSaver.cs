@@ -6,12 +6,12 @@ using UnityEngine.ResourceManagement.AsyncOperations;
 using System.Collections;
 using System;
 using UniRx;
-using Sirenix.OdinInspector;
 
 public class DataSaver : MonoBehaviour
 {
     public static DataSaver Ins { get; private set; }
     public string currentBlock;
+    public string currentUserID;
     public BlockSpawnLocation? currentLocation;
     public BlockSpawnLocation? PeakLocation;
     public float CurrentTime;
@@ -42,14 +42,10 @@ public class DataSaver : MonoBehaviour
             })
             .AddTo(this);
     }
-    public void OnBlockBreak()
-    {
-        blockBreakCounter.Value++;
-    }
     public void SaveDataFn()
     {
         blockBreakCounter.Value = 0;
-        string storedId = PlayerPrefs.GetString("UserID", "");
+        string storedId = currentUserID;
         string userId = string.IsNullOrEmpty(storedId) ? null : storedId;
         if (userId == null)
         {

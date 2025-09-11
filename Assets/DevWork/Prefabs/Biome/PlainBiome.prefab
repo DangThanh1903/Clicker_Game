@@ -176,6 +176,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 7395756190249421471}
+  - component: {fileID: 5895381229722262548}
   m_Layer: 0
   m_Name: PlainBiome
   m_TagString: Untagged
@@ -201,6 +202,22 @@ Transform:
   - {fileID: 5018199413202415372}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &5895381229722262548
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7518712295697615944}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ef4b86988334a9f469992261cf224e29, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  lightSource:
+  - {fileID: 2780357658763440652}
+  - {fileID: 1208651165672064324}
+  - {fileID: 4397037492750902031}
 --- !u!1001 &2163255622985355584
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -319,6 +336,24 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 7ab85a542bb14fe45b851e261db8406c, type: 3}
+--- !u!1 &1208651165672064324 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 1063008201661109252, guid: 7ab85a542bb14fe45b851e261db8406c,
+    type: 3}
+  m_PrefabInstance: {fileID: 2163255622985355584}
+  m_PrefabAsset: {fileID: 0}
+--- !u!1 &2780357658763440652 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 4075965506191434572, guid: 7ab85a542bb14fe45b851e261db8406c,
+    type: 3}
+  m_PrefabInstance: {fileID: 2163255622985355584}
+  m_PrefabAsset: {fileID: 0}
+--- !u!1 &4397037492750902031 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 2522024357859258959, guid: 7ab85a542bb14fe45b851e261db8406c,
+    type: 3}
+  m_PrefabInstance: {fileID: 2163255622985355584}
+  m_PrefabAsset: {fileID: 0}
 --- !u!4 &5018199413202415372 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 6602651163804859980, guid: 7ab85a542bb14fe45b851e261db8406c,

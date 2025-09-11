@@ -1,0 +1,121 @@
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using DG.Tweening;
+using Lean.Pool;
+using UnityEngine;
+using UnityEngine.UI;
+
+public class PopupController : MonoBehaviour
+{
+    public static PopupController Instance { get; private set; }
+
+    [Header("Popup Root (Canvas or Panel)")]
+    [SerializeField] private Transform popupRoot;
+
+    [Header("Backdrop")]
+    [SerializeField] private Image backdrop;
+    [SerializeField] private float backdropFade = 0.18f;
+    [SerializeField] private bool closeOnBackdropClick = true;
+
+    readonly Stack<PopupView> stack = new Stack<PopupView>();
+    Tween backdropTween;
+
+    void Awake()
+    {
+        if (Instance && Instance != this) { Destroy(gameObject); return; }
+        Instance = this;
+
+        // Optional across scenes:
+        // DontDestroyOnLoad(gameObject);
+
+        if (!popupRoot)
+            Debug.LogWarning("PopupController: popupRoot is not assigned. Assign your popup Canvas/Panel.");
+
+        // Backdrop setup
+        if (backdrop)
+        {
+            var cg = GetOrAddCanvasGroup(backdrop.gameObject);
+            cg.alpha = 0f;
+            cg.blocksRaycasts = false;
+            backdrop.gameObject.SetActive(true);
+
+            if (closeOnBackdropClick)
+            {
+                var btn = backdrop.GetComponent<Button>();
+                if (!btn) btn = backdrop.gameObject.AddComponent<Button>();
+                btn.onClick.AddListener(() => CloseTop());
+            }
+        }
+    }
+
+    // Show by spawning from pool into popupRoot
+    public async Task Show(PopupView popupPrefab)
+    {
+        if (popupPrefab == null) return;
+
+        // UI-safe spawn — parented under popupRoot
+        var go = LeanPool.Spawn(popupPrefab.gameObject, popupRoot);
+        var popup = go.GetComponent<PopupView>();
+
+        // Ensure on top of other UI
+        go.transform.SetAsLastSibling();
+
+        // For UI layout: center by default (optional)
+        var rt = go.transform as RectTransform;
+        if (rt) { rt.anchoredPosition = Vector2.zero; rt.localScale = Vector3.one; }
+
+        stack.Push(popup);
+
+        await FadeBackdropTo(1f, enableRaycast: true);
+        await popup.OpenAsync();
+    }
+
+    public async void CloseTop()
+    {
+        if (stack.Count == 0) return;
+
+        var top = stack.Pop();
+        await top.CloseAsync();              // wait for close animation
+        LeanPool.Despawn(top.gameObject);    // then return to pool
+
+        if (stack.Count == 0)
+            await FadeBackdropTo(0f, enableRaycast: false);
+        else
+            await FadeBackdropTo(1f, enableRaycast: true);
+    }
+
+    public async Task CloseAll()
+    {
+        while (stack.Count > 0)
+        {
+            var p = stack.Pop();
+            await p.CloseAsync();
+            LeanPool.Despawn(p.gameObject);
+        }
+        await FadeBackdropTo(0f, enableRaycast: false);
+    }
+
+    async Task FadeBackdropTo(float targetAlpha, bool enableRaycast)
+    {
+        if (!backdrop) return;
+
+        var cg = GetOrAddCanvasGroup(backdrop.gameObject);
+        cg.blocksRaycasts = enableRaycast;
+
+        backdropTween?.Kill(false);
+        backdropTween = cg.DOFade(targetAlpha, backdropFade).SetUpdate(true);
+        await backdropTween.AsyncWaitForCompletion();
+        backdropTween = null;
+    }
+
+    static CanvasGroup GetOrAddCanvasGroup(GameObject go)
+    {
+        var cg = go.GetComponent<CanvasGroup>();
+        if (!cg) cg = go.AddComponent<CanvasGroup>();
+        return cg;
+    }
+    public bool IsAnyPopupOpen()
+    {
+        return stack.Count > 0;
+    }
+}

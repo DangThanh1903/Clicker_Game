@@ -1,0 +1,72 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e9620f8c34305754d8cc9a7e49e852d9, type: 3}
+  m_Name: UI_Debug_vi-VN
+  m_EditorClassIdentifier: 
+  m_LocaleId:
+    m_Code: vi-VN
+  m_SharedData: {fileID: 11400000, guid: abc9fc2b9cb75924bb363135159587de, type: 2}
+  m_Metadata:
+    m_Items:
+    - rid: 5192650572667551773
+  m_TableData:
+  - m_Id: 50885246976
+    m_Localized: "Th\u1EDDi ti\u1EBFt \u0111\u01B0\u1EE3c \u0111\u1EB7t th\xE0nh
+      {name}!"
+    m_Metadata:
+      m_Items:
+      - rid: 5192650572667551773
+  - m_Id: 1825272971264
+    m_Localized: "<color=#00FF7F>{block}</color> kh\xF4ng r\u01A1i ra g\xEC c\u1EA3!"
+    m_Metadata:
+      m_Items:
+      - rid: 5192650572667551773
+  - m_Id: 1786433716224
+    m_Localized: "<color=#00FF7F>{block}</color> r\u01A1i ra {items}!"
+    m_Metadata:
+      m_Items:
+      - rid: 5192650572667551773
+  - m_Id: 2155276615680
+    m_Localized: "B\xE2y gi\u1EDD l\xE0 <color=#FFD700>Ban ng\xE0y</color>!"
+    m_Metadata:
+      m_Items:
+      - rid: 5192650572667551773
+  - m_Id: 2188902350848
+    m_Localized: "B\xE2y gi\u1EDD l\xE0 <color=#3399FF>Ban \u0111\xEAm</color>!"
+    m_Metadata:
+      m_Items:
+      - rid: 5192650572667551773
+  - m_Id: 11981457145856
+    m_Localized: "\u0110ang di chuy\u1EC3n t\u1EDBi {loc}!"
+    m_Metadata:
+      m_Items:
+      - rid: 5192650572667551773
+  - m_Id: 11984342827008
+    m_Localized: "B\u1EA1n \u0111\xE3 \u1EDF trong {loc}!"
+    m_Metadata:
+      m_Items:
+      - rid: 5192650572667551773
+  references:
+    version: 2
+    RefIds:
+    - rid: 5192650572667551773
+      type: {class: SmartFormatTag, ns: UnityEngine.Localization.Metadata, asm: Unity.Localization}
+      data:
+        m_Entries: 
+        m_SharedEntries:
+        - id: 50885246976
+        - id: 1786433716224
+        - id: 1825272971264
+        - id: 2155276615680
+        - id: 2188902350848
+        - id: 11981457145856
+        - id: 11984342827008

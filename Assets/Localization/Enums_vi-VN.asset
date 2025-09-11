@@ -1,0 +1,95 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e9620f8c34305754d8cc9a7e49e852d9, type: 3}
+  m_Name: Enums_vi-VN
+  m_EditorClassIdentifier: 
+  m_LocaleId:
+    m_Code: vi-VN
+  m_SharedData: {fileID: 11400000, guid: 127343a30618242478c79927947c2680, type: 2}
+  m_Metadata:
+    m_Items: []
+  m_TableData:
+  - m_Id: 6425624576
+    m_Localized: "B\u1EA5t k\u1EF3"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 46183432192
+    m_Localized: "B\xECnh th\u01B0\u1EDDng"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 48435773440
+    m_Localized: "M\u01B0a"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 50176409600
+    m_Localized: "S\u01B0\u01A1ng m\xF9"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 1860681285632
+    m_Localized: "B\u1EA5t k\u1EF3"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 1865706061824
+    m_Localized: "\u0110\u1ED3ng b\u1EB1ng"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 1867249565696
+    m_Localized: "B\u0103ng gi\xE1"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 1867924848640
+    m_Localized: "D\u01B0\u1EDBi l\xF2ng \u0111\u1EA5t"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 1868562382848
+    m_Localized: "\u0110\u1EA3o tr\u1EDDi"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 1870474985472
+    m_Localized: "Sa m\u1EA1c"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 1871645196288
+    m_Localized: "Hang \u0111\u1ED9ng"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 18533182291968
+    m_Localized: "M\xE1u t\u1ED1i \u0111a"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 18549602992128
+    m_Localized: "N\u0103ng l\u01B0\u1EE3ng"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 18550613819392
+    m_Localized: "S\xE1t th\u01B0\u01A1ng"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 18552086020096
+    m_Localized: "Ph\xF2ng th\u1EE7"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 18595337682944
+    m_Localized: "T\u1EC9 l\u1EC7 ch\xED m\u1EA1ng"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 19448966627328
+    m_Localized: "S\xE1t th\u01B0\u01A1ng"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 19452015886336
+    m_Localized: "S\xE1t th\u01B0\u01A1ng"
+    m_Metadata:
+      m_Items: []
+  references:
+    version: 2
+    RefIds: []

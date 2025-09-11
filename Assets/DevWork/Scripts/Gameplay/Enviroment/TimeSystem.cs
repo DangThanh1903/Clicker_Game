@@ -51,7 +51,7 @@ public class TimeSystem : MonoBehaviour
     [SerializeField, Range(0f, 720f)]
     private float fullCycleDegrees = 360f;       // full sweep per cycle
 
-    [ReadOnly] public TimeState CurrentTimeState;
+    [ReadOnly] public ReactiveProperty<TimeState> CurrentTimeState;
     public ReactiveProperty<float> CurrentTime { get; private set; } = new ReactiveProperty<float>(); // seconds
 
     private float CycleLength => dayDuration + nightDuration;
@@ -71,7 +71,7 @@ public class TimeSystem : MonoBehaviour
         // Clamp & apply initial time/state
         startTime = Mathf.Repeat(startTime, CycleLength);
         CurrentTime.Value = startTime;
-        CurrentTimeState = (startTime < dayDuration) ? TimeState.Day : TimeState.Night;
+        CurrentTimeState.Value = (startTime < dayDuration) ? TimeState.Day : TimeState.Night;
 
         // Build curves/gradients so keys align to sunrise/sunset/next sunrise
         EnsureCurvesMatchDurations();
@@ -91,9 +91,9 @@ public class TimeSystem : MonoBehaviour
                 float t = time / CycleLength;
                 ApplyLighting(t);
 
-                if (CurrentTimeState == TimeState.Day && time >= dayDuration)
+                if (CurrentTimeState.Value == TimeState.Day && time >= dayDuration)
                     SwitchToNight();
-                else if (CurrentTimeState == TimeState.Night && time < dayDuration)
+                else if (CurrentTimeState.Value == TimeState.Night && time < dayDuration)
                     SwitchToDay();
             })
             .AddTo(this);
@@ -242,17 +242,18 @@ public class TimeSystem : MonoBehaviour
 
     private void SwitchToDay()
     {
-        CurrentTimeState = TimeState.Day;
+        CurrentTimeState.Value = TimeState.Day;
         Debug.Log("Switched to Day");
-        GameDebugHandler.LogStatic("It's <color=#FFD700>Day</color>!");
+        GameDebugHandler.LogStaticKey("UI_Debug", "time_day");
         WeatherManager.Instance?.ClearSpecialWeatherAndTriggerNext();
     }
 
     private void SwitchToNight()
     {
-        CurrentTimeState = TimeState.Night;
+        CurrentTimeState.Value = TimeState.Night;
         Debug.Log("Switched to Night");
-        GameDebugHandler.LogStatic("It's <color=#3399FF>Night</color>!");
+        GameDebugHandler.LogStaticKey("UI_Debug", "time_night");
         WeatherManager.Instance?.ClearSpecialWeatherAndTriggerNext();
     }
+
 }

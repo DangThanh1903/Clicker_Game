@@ -4,6 +4,7 @@ using UnityEngine;
 using System;
 using Sirenix.OdinInspector;
 using System.Linq;
+using UnityEngine.Localization;
 
 public class WeatherManager : MonoBehaviour
 {
@@ -39,15 +40,28 @@ public class WeatherManager : MonoBehaviour
         var nextWeather = GetRandomWeightedWeather(
             normalWeatherList,
             CurrentNormalWeather.Value as NormalWeatherData,
-            TimeSystem.Instance.CurrentTimeState
+            TimeSystem.Instance.CurrentTimeState.Value
         );
 
         if (nextWeather == null || CurrentNormalWeather.Value == nextWeather) return;
 
         CurrentNormalWeather.Value = nextWeather;
-        var name = (nextWeather as NormalWeatherData)?.weatherName.ToString() ?? "Cleared";
-        Debug.Log($"[Normal Weather] {name}");
-        GameDebugHandler.LogStatic($"Weather set {name}!");
+
+        // get enum value
+        NormalWeatherName enumName = (nextWeather as NormalWeatherData)?.weatherName ?? NormalWeatherName.Any;
+
+        // build a LocalizedString from the enum
+        var locName = enumName.ToLocalized(); // e.g. ("Enums", "normalweathername_rain")
+
+        // resolve it and feed into your Smart String log
+        var handle = locName.GetLocalizedStringAsync();
+        handle.Completed += h =>
+        {
+            // weather_set: "Weather set {name}!"
+            //              "Thời tiết được đặt thành {name}!"
+            GameDebugHandler.LogStaticKey("UI_Debug", "weather_set", new { name = h.Result });
+            UnityEngine.AddressableAssets.Addressables.Release(h);
+        };
 
         normalWeatherTimer?.Dispose();
         if (nextWeather != null)
@@ -81,7 +95,7 @@ public class WeatherManager : MonoBehaviour
         var nextWeather = GetRandomWeightedWeather(
             specialWeatherList,
             CurrentSpecialWeather.Value as SpecialWeatherData,
-            TimeSystem.Instance.CurrentTimeState
+            TimeSystem.Instance.CurrentTimeState.Value
         );
 
         if (nextWeather == null || CurrentSpecialWeather.Value == nextWeather) return;

@@ -8,7 +8,8 @@ public enum ItemType
     Consumable,
     Accessory,
     Material,
-    BossSummoner
+    BossSummoner,
+    Lootbox
 }
 
 public enum ItemPrefix

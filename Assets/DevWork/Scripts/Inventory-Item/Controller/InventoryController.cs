@@ -5,6 +5,10 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 using UniRx;
+using System.Threading.Tasks;
+using System.Text;
+using UnityEngine.AddressableAssets;
+using UnityEngine.ResourceManagement.AsyncOperations;
 
 public class InventoryController : MonoBehaviour
 {
@@ -213,31 +217,65 @@ public class InventoryController : MonoBehaviour
 
 
 
-    void UpdateStatDescription()
+    async void UpdateStatDescription()
     {
-        SetDescription(GetStatDescriptionWithBuffs(buffManager.GetActiveBuffs().ToList()));
+        string text = await GetStatDescriptionWithBuffs(buffManager.GetActiveBuffs().ToList());
+        SetDescription(text);
     }
 
-    string GetStatDescriptionWithBuffs(List<BuffInstance> buffs)
+    public async Task<string> GetStatDescriptionWithBuffs(List<BuffInstance> buffs)
     {
-        var desc = GetStatDescription(); // base item stats
+        // wait for base description
+        string desc = await GetStatDescriptionAsync();
+
+        var sb = new StringBuilder(desc);
+
         foreach (var buff in buffs)
         {
             if (buff.IsActive)
-                desc += $"\n{buff.buffData.buffName}: +{buff.buffData.amount}";
+            {
+                // if buffName is LocalizedString, resolve it here:
+                string buffName = buff.buffData.buffName;
+                sb.AppendLine($"{buffName}: +{buff.buffData.amount}");
+            }
         }
-        return desc;
+
+        return sb.ToString();
     }
 
-    string GetStatDescription()
+    public async Task<string> GetStatDescriptionAsync()
     {
-        var HP = StatsManager.Ins.Get(StatType.HP);
-        var Mana = StatsManager.Ins.Get(StatType.Mana);
-        var damage = GetDamageByState();
-        var def = StatsManager.Ins.Get(StatType.Def);
-        var crit = StatsManager.Ins.Get(StatType.CritChance);
+        var HP    = StatsManager.Ins.Get(StatType.HP);
+        var Mana  = StatsManager.Ins.Get(StatType.Mana);
+        var dmg   = GetDamageByState();
+        var def   = StatsManager.Ins.Get(StatType.Def);
+        var crit  = StatsManager.Ins.Get(StatType.CritChance);
 
-        return $"Max HP: {HP:F0}\nMana: {Mana}\nDamage: {damage}\nCrit Chance: {crit:F0}%\nDefense: {def:F0}\n";
+        var sb = new StringBuilder();
+
+        // Resolve từng LocalizedString 1 lần
+        async Task<string> L(StatType type)
+        {
+            var handle = type.ToLocalized().GetLocalizedStringAsync();
+            await handle.Task;
+            string result = handle.Status == AsyncOperationStatus.Succeeded ? handle.Result : type.ToString();
+            Addressables.Release(handle);
+            return result;
+        }
+
+        string hpLabel   = await L(StatType.HP);
+        string manaLabel = await L(StatType.Mana);
+        string dmgLabel  = await L(StatType.NormalPower); // hoặc key riêng "stat_damage"
+        string defLabel  = await L(StatType.Def);
+        string critLabel = await L(StatType.CritChance);
+
+        sb.AppendLine($"{hpLabel}: {HP:F0}");
+        sb.AppendLine($"{manaLabel}: {Mana}");
+        sb.AppendLine($"{dmgLabel}: {dmg}");
+        sb.AppendLine($"{critLabel}: {crit:F0}%");
+        sb.AppendLine($"{defLabel}: {def:F0}");
+
+        return sb.ToString();
     }
 
     float GetDamageByState()

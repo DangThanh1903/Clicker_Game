@@ -1,0 +1,57 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5b11a58205ec3474ca216360e9fa74a8, type: 3}
+  m_Name: UI_Debug Shared Data
+  m_EditorClassIdentifier: 
+  m_TableCollectionName: UI_Debug
+  m_TableCollectionNameGuidString: abc9fc2b9cb75924bb363135159587de
+  m_Entries:
+  - m_Id: 50885246976
+    m_Key: weather_set
+    m_Metadata:
+      m_Items: []
+  - m_Id: 1786433716224
+    m_Key: block_drops
+    m_Metadata:
+      m_Items: []
+  - m_Id: 1825272971264
+    m_Key: block_drops_none
+    m_Metadata:
+      m_Items: []
+  - m_Id: 2155276615680
+    m_Key: time_day
+    m_Metadata:
+      m_Items: []
+  - m_Id: 2188902350848
+    m_Key: time_night
+    m_Metadata:
+      m_Items: []
+  - m_Id: 11981457145856
+    m_Key: block_move_to
+    m_Metadata:
+      m_Items: []
+  - m_Id: 11984342827008
+    m_Key: block_already_in
+    m_Metadata:
+      m_Items: []
+  m_Metadata:
+    m_Items: []
+  m_KeyGenerator:
+    rid: 5192650572667551768
+  references:
+    version: 2
+    RefIds:
+    - rid: 5192650572667551768
+      type: {class: DistributedUIDGenerator, ns: UnityEngine.Localization.Tables,
+        asm: Unity.Localization}
+      data:
+        m_CustomEpoch: 1757370333657

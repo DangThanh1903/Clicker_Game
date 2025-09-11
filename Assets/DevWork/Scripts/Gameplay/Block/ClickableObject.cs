@@ -14,7 +14,7 @@ public class ClickableObject : MonoBehaviour, IDamagable
     [ReadOnly, SerializeField]
     private string blockName;
     public float MaxHealth { get; private set; }
-    public ReactiveProperty<float> CurrentHealth { get; private set;} = new ReactiveProperty<float>();
+    public ReactiveProperty<float> CurrentHealth { get; private set; } = new ReactiveProperty<float>();
     public float BlockWeight;
     private static readonly int CrackIndexID = Shader.PropertyToID("_CrackIndex");
     private MeshRenderer cubeRenderer;
@@ -27,7 +27,6 @@ public class ClickableObject : MonoBehaviour, IDamagable
 
     [Header("Settings")]
     [SerializeField] private int crackLevels = 9;
-    [SerializeField] private int numberOfFragment = 5;
 
     [Header("Atlas Settings")]
     [SerializeField] private int atlasColumns = 6;
@@ -52,35 +51,8 @@ public class ClickableObject : MonoBehaviour, IDamagable
     [Header("Cracking layer")]
     [SerializeField] private MeshRenderer crackMeshRenderer;
     private MaterialPropertyBlock propertyBlock;
-    [SerializeField] GameObject fragmentPrefab;
-
-    // Idle FX params
-    [Header("Idle FX")]
-    [SerializeField] private float idleRotateDegPerSec = 20f;
-    [SerializeField] private float idleBobAmplitude = 0.08f;
-    [SerializeField] private float idleBobPeriod = 1.0f;
-
-    // Click squash params
-    [Header("Click FX")]
-    [SerializeField] private float clickSquashScale = 0.9f;
-    [SerializeField] private float clickSquashDuration = 0.15f;
-
-    // Explode anim
-    [Header("Explode FX")]
-    float shrinkScale = 2f;
-    float shrinkTime = 0.2f;
-    float delayBeforeExpand = 0.1f;
-    float expandScale = 4f;
-    float expandTime = 0.2f;
-
-    // tween handles
-    private Tween idleRotateTween;
-    private Tween idleBobTween;
-    private Tween clickScaleTween;
-    private Tween clickTwistTween;
-
-    private Vector3 baseLocalPos = new Vector3(0, 1, 30);
-    private Vector3 baseLocalScale = new Vector3(2.5f, 2.5f, 2.5f);
+    [Header("Animation")]
+    [SerializeField] private BlockAnimationController animCtrl;
 
     // 📦 Internal click buffer and stream
     private readonly Subject<long> clickStream = new Subject<long>();
@@ -89,6 +61,7 @@ public class ClickableObject : MonoBehaviour, IDamagable
     {
         propertyBlock = new MaterialPropertyBlock();
         cubeRenderer = GetComponent<MeshRenderer>();
+        if (animCtrl == null) animCtrl = GetComponent<BlockAnimationController>();
     }
 
     void Start()
@@ -132,7 +105,7 @@ public class ClickableObject : MonoBehaviour, IDamagable
                 if (newHealth < MaxHealth)
                     PlayHittingSound();
                 if (newHealth <= 0f)
-                        OnDisappear();
+                    OnDisappear();
             })
             .AddTo(this);
     }
@@ -144,8 +117,6 @@ public class ClickableObject : MonoBehaviour, IDamagable
         MaxHealth = blockUVDatabase.GetHealth(name);
         CurrentHealth.Value = blockUVDatabase.GetHealth(name);
         BlockWeight = blockUVDatabase.GetWeight(name);
-        if (BlockWeight <= BlockManager.Ins.rareWeightCap)
-            DataSaver.Ins.SaveDataFn();
         GenerateCube();
         OnAppear();
     }
@@ -169,7 +140,9 @@ public class ClickableObject : MonoBehaviour, IDamagable
         if (!UIManager.Ins.IsBlockCanClick()) return;
 
         if (isDyingEffect) return;
-        
+
+        if (PopupController.Instance.IsAnyPopupOpen()) return;
+
         if (Input.GetMouseButtonDown(0))
         {
             Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
@@ -179,11 +152,11 @@ public class ClickableObject : MonoBehaviour, IDamagable
             }
         }
 
-        if (Input.GetMouseButton(0)) 
+        if (Input.GetMouseButton(0))
         {
             if (!isMouseHeld)
             {
-                isMouseHeld = true;  
+                isMouseHeld = true;
             }
 
             Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
@@ -192,11 +165,11 @@ public class ClickableObject : MonoBehaviour, IDamagable
                 PlayerController.Instance.OnHold(this);
             }
         }
-        else if (Input.GetMouseButtonUp(0)) 
+        else if (Input.GetMouseButtonUp(0))
         {
             if (isMouseHeld)
             {
-                isMouseHeld = false; 
+                isMouseHeld = false;
             }
         }
     }
@@ -211,6 +184,8 @@ public class ClickableObject : MonoBehaviour, IDamagable
 
         long time = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         clickStream.OnNext(time);
+
+        animCtrl?.PlayClick();
     }
     public void HandleHold()
     {
@@ -223,6 +198,8 @@ public class ClickableObject : MonoBehaviour, IDamagable
             StatsManager.Ins.Add(StatType.Clicks, power);
             long time = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             clickStream.OnNext(time);
+
+            animCtrl?.PlayClick();
         }
     }
 
@@ -237,6 +214,8 @@ public class ClickableObject : MonoBehaviour, IDamagable
             StatsManager.Ins.Add(StatType.Clicks, power);
             long time = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             clickStream.OnNext(time);
+
+            animCtrl?.PlayClick();
         }
     }
     void HandleItemDrop()
@@ -247,7 +226,11 @@ public class ClickableObject : MonoBehaviour, IDamagable
         if (items.Count == 0)
         {
             Debug.Log("There is no item drop");
-            GameDebugHandler.LogStaticAfter($"<color=#00FF7F>{blockName}</color>" + " drops nothing!", 1f);
+            GameDebugHandler.LogStaticKey(
+                "UI_Debug",
+                "block_drops_none",
+                new { block = blockName }
+            );
             return;
         }
         foreach (var (item, amount) in items)
@@ -261,120 +244,60 @@ public class ClickableObject : MonoBehaviour, IDamagable
             dropName += (countTemp == 0) ? amount + " " + item.GetColoredName() : ", " + amount + " " + item.itemName;
             countTemp++;
         }
-        GameDebugHandler.LogStaticAfter($"<color=#00FF7F>{blockName}</color>" + " drops " + dropName + "!", 1f);
+        GameDebugHandler.LogStaticKey(
+            "UI_Debug",
+            "block_drops",
+            new { block = blockName, items = dropName }
+        );
+
     }
 
     #endregion
 
     #region CUBE_ANIM -------------------------------------------------------------------------------------
-    void OnEnable()
-    {
-        OnAppear();
-    }
     void OnAppear()
     {
-        float duration = 0.35f; // vào nhanh hơn cho đã tay
-        transform.localScale = Vector3.zero;
-        if (cubeRenderer != null) cubeRenderer.enabled = true;
-
-        // Intro pop-in
-        transform.DOScale(baseLocalScale, duration).SetEase(Ease.OutBack).SetLink(gameObject);
-
-        // Bắt đầu idle xoay + nhún
-        StartIdleTweens();
-
-        // Subscribe clickStream để phát squash mỗi lần click/hold/idle-damage (đã có trong class)
-        // Không sửa các hàm click khác, chỉ nghe stream ở đây.
-        clickStream
-            .Subscribe(_ => PlayClickSquash())
-            .AddTo(this);
+        animCtrl?.PlaySpawn(() =>
+        {
+            animCtrl.TryPlayIdle();
+        });
     }
+
 
     void OnDisappear()
     {
-        PlayExplodeEffect();
-        HandleItemDrop();
-    }
-     // Idle motion: tự xoay quanh Y + nhún Y
-    private void StartIdleTweens()
-    {
-        KillIdleTweens();
-        // Xoay đều quanh Y (360 độ theo thời gian), loop vô hạn
-        float oneTurnTime = Mathf.Abs(360f / Mathf.Max(1f, idleRotateDegPerSec));
-        idleRotateTween = transform
-            .DOLocalRotate(new Vector3(0f, 360f, 0f), oneTurnTime, RotateMode.FastBeyond360)
-            .SetEase(Ease.Linear)
-            .SetLoops(-1)
-            .SetLink(gameObject);
-
-        // Nhún Y: yoyo quanh vị trí gốc
-        if (idleBobAmplitude > 0f)
-        {
-            idleBobTween = transform.DOLocalMoveY(baseLocalPos.y + idleBobAmplitude, idleBobPeriod * 0.5f)
-                .SetEase(Ease.InOutSine)
-                .SetLoops(-1, LoopType.Yoyo)
-                .SetLink(gameObject);
-        }
-    }
-
-    private void KillIdleTweens()
-    {
-        if (idleRotateTween != null && idleRotateTween.IsActive()) idleRotateTween.Kill();
-        if (idleBobTween != null && idleBobTween.IsActive()) idleBobTween.Kill();
-
-        transform.localPosition = baseLocalPos;
-    }
-
-    // Hiệu ứng khi click/hold/idle gây damage: squash & twist nhẹ rồi trở lại
-    private void PlayClickSquash()
-    {
-        KillClickTweens();
-        // Scale: 1 -> squash -> 1
-        transform.localScale = baseLocalScale; // reset trước khi tween
-        clickScaleTween = transform
-            .DOScale(baseLocalScale * clickSquashScale, clickSquashDuration * 0.5f)
-            .SetEase(Ease.InQuad)
-            .OnComplete(() =>
-            {
-                transform.DOScale(baseLocalScale, clickSquashDuration * 0.5f).SetEase(Ease.OutBack).SetLink(gameObject);
-            })
-            .SetLink(gameObject);
-    }
-
-    private void KillClickTweens()
-    {
-        if (clickScaleTween != null && clickScaleTween.IsActive()) clickScaleTween.Kill();
-        if (clickTwistTween != null && clickTwistTween.IsActive()) clickTwistTween.Kill();
-    }
-
-
-    public void PlayExplodeEffect()
-    {
         isDyingEffect = true;
-        Sequence seq = DOTween.Sequence();
 
-        seq.Append(transform.DOScale(shrinkScale, shrinkTime))           // Shrink
-           .AppendInterval(delayBeforeExpand)                            // Pause
-           .Append(transform.DOScale(expandScale, expandTime))           // Expand           
-           .OnComplete(() =>
-           {
-               UpdateCrackVisual(MaxHealth);
-               for (int i = 0; i < numberOfFragment; i++)
-               {
-                   cubeRenderer.enabled = false;
-                   var go = LeanPool.Spawn(fragmentPrefab, transform.position, Quaternion.identity, transform);
-                   var frag = go.GetComponent<BlockFragment>();
-                   if (frag)
-                   {
-                       Vector2Int baseTile = SetMapByName(blockName);
-                       frag.SetupTile(textureAtlas, atlasColumns, atlasRows, baseTile, flipY);
-                   }
+        animCtrl?.PlayDeath(() =>
+        {
+            UpdateCrackVisual(MaxHealth); // reset crack
+            HandleItemDrop();
+            isDyingEffect = false;
+            PlayBreakedSound();
 
-               }
-               isDyingEffect = false;
-               PlayBreakedSound();
-           });
+            BlockManager.Ins.OnBlockBroken();
+        });
     }
+    // Crack animation
+    void UpdateCrackVisual(float currentHP)
+    {
+        if (crackMeshRenderer == null) return;
+
+        // Compute crack index
+        float healthPercent = currentHP / MaxHealth;
+        int crackIndex = Mathf.FloorToInt((1f - healthPercent) * crackLevels);
+        crackIndex = Mathf.Clamp(crackIndex, 0, crackLevels - 1);
+
+        // Apply to shader
+        crackMeshRenderer.GetPropertyBlock(propertyBlock);
+        propertyBlock.SetFloat(CrackIndexID, crackIndex);
+        crackMeshRenderer.SetPropertyBlock(propertyBlock);
+    }
+    public float GetDestroyBlockAnimTime() => 0f;
+
+    #endregion
+
+    #region SOUND -----------------------------------------------------------------------------------------
     void PlayHittingSound()
     {
         if (!SoundEffectController.Ins.PlaySFX(blockName + "Breaking"))
@@ -392,26 +315,6 @@ public class ClickableObject : MonoBehaviour, IDamagable
             SoundEffectController.Ins.PlaySFX("Ack");
         }
     }
-    // Crack animation
-    void UpdateCrackVisual(float currentHP)
-    {
-        if (crackMeshRenderer == null) return;
-
-        // Compute crack index
-        float healthPercent = currentHP / MaxHealth;
-        int crackIndex = Mathf.FloorToInt((1f - healthPercent) * crackLevels);
-        crackIndex = Mathf.Clamp(crackIndex, 0, crackLevels - 1);
-
-        // Apply to shader
-        crackMeshRenderer.GetPropertyBlock(propertyBlock);
-        propertyBlock.SetFloat(CrackIndexID, crackIndex);
-        crackMeshRenderer.SetPropertyBlock(propertyBlock);
-    }
-    public float GetDestroyBlockAnimTime()
-    {
-        return shrinkTime + delayBeforeExpand + expandTime;
-    }
-
     #endregion
 
     #region TEXTURE -------------------------------------------------------------------------------------
@@ -515,6 +418,9 @@ public class ClickableObject : MonoBehaviour, IDamagable
     {
         return SetMapByID(blockUVDatabase.GetAtlasIndex(name));
     }
+
+    #endregion
+    #region HELPER --------------------------------------------------------------------------------------------
     
     #endregion
 }

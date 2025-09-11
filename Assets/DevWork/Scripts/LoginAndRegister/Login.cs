@@ -70,6 +70,8 @@ public class Login : MonoBehaviour
         // Ensure DataSaver exists before using it
         yield return new WaitUntil(() => DataSaver.Ins != null);
 
+        DataSaver.Ins.currentUserID = userId;
+
         // Load your data
         yield return StartCoroutine(DataSaver.Ins.LoadAllInventories(userId));
         yield return StartCoroutine(DataSaver.Ins.LoadCurrentBlock(userId));

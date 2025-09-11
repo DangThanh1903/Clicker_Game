@@ -108,7 +108,7 @@ public class CraftingController : MonoBehaviour
             inputInventoryData.inventoryData.SetItem(index, newItem);
         }
 
-        // DataSaver.Ins.SaveDataFn();
+        DataSaver.Ins.SaveDataFn();
     }
 
 }

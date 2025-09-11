@@ -1,0 +1,95 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e9620f8c34305754d8cc9a7e49e852d9, type: 3}
+  m_Name: Enums_en
+  m_EditorClassIdentifier: 
+  m_LocaleId:
+    m_Code: en
+  m_SharedData: {fileID: 11400000, guid: 127343a30618242478c79927947c2680, type: 2}
+  m_Metadata:
+    m_Items: []
+  m_TableData:
+  - m_Id: 6425624576
+    m_Localized: Any
+    m_Metadata:
+      m_Items: []
+  - m_Id: 46183432192
+    m_Localized: Normal
+    m_Metadata:
+      m_Items: []
+  - m_Id: 48435773440
+    m_Localized: Rain
+    m_Metadata:
+      m_Items: []
+  - m_Id: 50176409600
+    m_Localized: Foggy
+    m_Metadata:
+      m_Items: []
+  - m_Id: 1860681285632
+    m_Localized: Any
+    m_Metadata:
+      m_Items: []
+  - m_Id: 1865706061824
+    m_Localized: Plain
+    m_Metadata:
+      m_Items: []
+  - m_Id: 1867249565696
+    m_Localized: Ice
+    m_Metadata:
+      m_Items: []
+  - m_Id: 1867924848640
+    m_Localized: Underground
+    m_Metadata:
+      m_Items: []
+  - m_Id: 1868562382848
+    m_Localized: SkyIsland
+    m_Metadata:
+      m_Items: []
+  - m_Id: 1870474985472
+    m_Localized: Desert
+    m_Metadata:
+      m_Items: []
+  - m_Id: 1871645196288
+    m_Localized: Cave
+    m_Metadata:
+      m_Items: []
+  - m_Id: 18533182291968
+    m_Localized: Max HP
+    m_Metadata:
+      m_Items: []
+  - m_Id: 18549602992128
+    m_Localized: Mana
+    m_Metadata:
+      m_Items: []
+  - m_Id: 18550613819392
+    m_Localized: Damage
+    m_Metadata:
+      m_Items: []
+  - m_Id: 18552086020096
+    m_Localized: Defense
+    m_Metadata:
+      m_Items: []
+  - m_Id: 18595337682944
+    m_Localized: Crit Chance
+    m_Metadata:
+      m_Items: []
+  - m_Id: 19448966627328
+    m_Localized: Damage
+    m_Metadata:
+      m_Items: []
+  - m_Id: 19452015886336
+    m_Localized: Damage
+    m_Metadata:
+      m_Items: []
+  references:
+    version: 2
+    RefIds: []

@@ -26,18 +26,6 @@ public class BlockManager : MonoBehaviour
             DataSaver.Ins.currentBlock ?? "Dirt");
         locationLoader.SetLocation((int?)DataSaver.Ins.currentLocation ?? 1);
     }
-    void Start()
-    {
-        currentBlock.CurrentHealth
-            .Where(health => health <= 0f)
-            .Delay(TimeSpan.FromSeconds(currentBlock.GetDestroyBlockAnimTime()))
-            .Subscribe(_ =>
-            {
-                Debug.Log("GameplayManager: Block has broken!");
-                OnBlockBroken();
-            })
-            .AddTo(this);
-    }
 
     public GameObject Summon(BaseStat bossBase)
     {
@@ -91,7 +79,7 @@ public class BlockManager : MonoBehaviour
         if (currentBlock) currentBlock.gameObject.SetActive(true);
         UIManager.Ins.SetButtonsInteractable(true);
     }
-    private void OnBlockBroken()
+    public void OnBlockBroken()
     {
         NormalWeatherName normalName =
             (WeatherManager.Instance.CurrentNormalWeather.Value as NormalWeatherData)?.weatherName
@@ -100,17 +88,10 @@ public class BlockManager : MonoBehaviour
         SpecialWeatherName specialName =
             (WeatherManager.Instance.CurrentSpecialWeather.Value as SpecialWeatherData)?.weatherName
             ?? SpecialWeatherName.Any;
-        if (currentBlock.BlockWeight <= rareWeightCap)
-        {
-            DataSaver.Ins.SaveDataFn();
-        }
-        else
-        {
-            DataSaver.Ins.OnBlockBreak();    
-        }
+        DataSaver.Ins.SaveDataFn();
         currentBlock.SetClickableBlockByCondition(
             locationLoader.currentLocation,
-            TimeSystem.Instance.CurrentTimeState,
+            TimeSystem.Instance.CurrentTimeState.Value,
             normalName,
             specialName
         );
