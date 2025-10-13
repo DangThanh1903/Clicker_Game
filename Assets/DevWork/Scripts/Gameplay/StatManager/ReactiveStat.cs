@@ -19,7 +19,14 @@ public enum StatType
     CritChance,
     CritDmg,
     Pen,
-    Lucky
+    Lucky,
+
+
+    // For record
+    TotalBlockBreaked,
+    TotalDamageDealed,
+    TotalTimePlayed,
+    HoldedTime
 }
 
 
@@ -31,6 +38,8 @@ public class ReactiveStat
 
     public void Add(float amount) => value.Value += amount;
     public void Sub(float amount) => value.Value -= amount;
+    public void AddPercent(float amount) => value.Value += (int)(value.Value * amount / 100);
+    public void SubPercent(float amount) => value.Value -= (int)(value.Value * amount / 100);
     public void Set(float amount) => value.Value = amount;
     public float Get() => value.Value;
 }

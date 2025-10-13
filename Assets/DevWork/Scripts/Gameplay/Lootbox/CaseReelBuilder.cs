@@ -32,6 +32,7 @@ public static class CaseReelBuilder
 
         return new CaseRollPayload
         {
+            sourceBox = box,
             item = roll.item,
             amount = roll.amount,
             targetIndex = targetIndex,
@@ -42,6 +43,7 @@ public static class CaseReelBuilder
 
 public struct CaseRollPayload
 {
+    public Lootbox sourceBox;
     public Item item;       // the real result
     public int amount;      // stack result
     public int targetIndex; // where the reel should stop

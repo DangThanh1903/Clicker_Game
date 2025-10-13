@@ -1,0 +1,85 @@
+using System;
+using UniRx;
+using UnityEngine;
+
+public class StepTracker : IDisposable
+{
+    public readonly string StepId;
+    public readonly IntReactiveProperty Current = new(0);
+    public readonly IntReactiveProperty Required = new(1);
+    public readonly BoolReactiveProperty Completed = new(false);
+
+    private readonly CompositeDisposable _cd = new();
+
+    public StepTracker(QuestStepDef def, int initialProgress)
+    {
+        StepId = def.stepId;
+        Required.Value = Mathf.Max(1, def.requiredAmount);
+        Current.Value  = Mathf.Clamp(initialProgress, 0, Required.Value);
+
+        // completed khi Current >= Required (distinct để không spam)
+        Current
+            .Select(cur => cur >= Required.Value)
+            .DistinctUntilChanged()
+            .Subscribe(done => Completed.Value = done)
+            .AddTo(_cd);
+
+        // Ghép stream theo goal
+        IObservable<int> incStream = BuildIncrementStream(def);
+        if (incStream != null)
+        {
+            incStream
+                .Where(_ => !Completed.Value) // dừng cộng khi đã xong
+                .Subscribe(inc =>
+                {
+                    Current.Value = Mathf.Clamp(Current.Value + inc, 0, Required.Value);
+                })
+                .AddTo(_cd);
+        }
+
+        // Với ReachStat kiểu “>= threshold” – không cộng dồn mà check trực tiếp:
+        if (def.goalType == GoalType.ReachStat)
+        {
+            QuestSignals.OnStatChanged
+                .Where(t => string.Equals(t.statKey, def.targetId, StringComparison.OrdinalIgnoreCase))
+                .Select(t => t.value >= def.requiredAmount) // dùng requiredAmount làm ngưỡng
+                .DistinctUntilChanged()
+                .Where(ok => ok && !Completed.Value)
+                .Subscribe(_ =>
+                {
+                    Current.Value = Required.Value;
+                })
+                .AddTo(_cd);
+        }
+    }
+
+    private IObservable<int> BuildIncrementStream(QuestStepDef def)
+    {
+        switch (def.goalType)
+        {
+            case GoalType.BreakBlock:
+                return QuestSignals.OnBreakBlock
+                    .Where(t => string.Equals(t.targetId, def.targetId, StringComparison.OrdinalIgnoreCase))
+                    .Select(t => t.amount);
+
+            case GoalType.CollectItem:
+                return QuestSignals.OnCollectItem
+                    .Where(t => string.Equals(t.targetId, def.targetId, StringComparison.OrdinalIgnoreCase))
+                    .Select(t => t.amount);
+
+            case GoalType.CraftItem:
+                return QuestSignals.OnCraftItem
+                    .Where(t => string.Equals(t.targetId, def.targetId, StringComparison.OrdinalIgnoreCase))
+                    .Select(t => t.amount);
+
+            case GoalType.Custom:
+                // Bạn có thể map Custom sang một Subject khác nếu cần
+                return null;
+
+            default:
+                return null;
+        }
+    }
+
+    public void Dispose() => _cd.Dispose();
+}

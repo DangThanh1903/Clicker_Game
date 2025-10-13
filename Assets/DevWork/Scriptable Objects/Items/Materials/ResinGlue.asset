@@ -15,5 +15,4 @@ MonoBehaviour:
   itemName: ResinGlue
   description: Sticky!
   icon: {fileID: 21300000, guid: 1e04b6c2317afba49b04f5f3fd6782ca, type: 3}
-  Location: 0
-  rarity: 0
+  rarity: 1

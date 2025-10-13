@@ -15,8 +15,11 @@ MonoBehaviour:
   itemName: MegaHammer
   description: MegaHammer
   icon: {fileID: 21300000, guid: 3794a7b7395883c4fa75486a701ad944, type: 3}
+  rarity: 2
   modifiers:
   - statType: 3
     value: 4
+  passiveBuffs:
+  - {fileID: 11400000, guid: f9bbfd7029567e4499d095cf53d60a8b, type: 2}
   currentState: 0
   itemPrefix: 0

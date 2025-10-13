@@ -19,6 +19,8 @@ public class InventoryController : MonoBehaviour
     [SerializeField] private Button useButton;
     [SerializeField] private BuffManager buffManager;
     [SerializeField] private Button sortInventoryButton;
+    [SerializeField] private PopupView lootboxPrefab;
+    [SerializeField] private CaseRollController caseRollController;
 
     private void Awake()
     {
@@ -133,7 +135,9 @@ public class InventoryController : MonoBehaviour
     }
     public void SetUseButton(Item item, int index, InventoryData inventoryData)
     {
-        useButton.gameObject.SetActive(item.Type == ItemType.Consumable || item.Type == ItemType.BossSummoner);
+        useButton.gameObject.SetActive(item.Type == ItemType.Consumable
+                                    || item.Type == ItemType.BossSummoner
+                                    || item.Type == ItemType.Lootbox);
         useButton.onClick.RemoveAllListeners();
         if (item is ConsumableItem consumableItem)
         {
@@ -151,6 +155,15 @@ public class InventoryController : MonoBehaviour
             useButton.onClick.AddListener(() =>
             {
                 UseSummonBoss(bossSummoner);
+                inventoryData.RemoveItemAt(index);
+                useButton.gameObject.SetActive(false);
+            });
+        }
+        else if (item is Lootbox lootbox)
+        {
+            useButton.onClick.AddListener(async () =>
+            {
+                await UseLootBox(lootbox);
                 inventoryData.RemoveItemAt(index);
                 useButton.gameObject.SetActive(false);
             });
@@ -195,21 +208,19 @@ public class InventoryController : MonoBehaviour
                 // Apply buffs from accessory / passive items
                 if (item.itemData is Accessory accessory)
                     buffManager.ApplyItemBuffs(item.itemData, accessory.GetPassiveBuffs());
+
+                if (item.itemData is Pickaxe pickaxe)
+                    buffManager.ApplyItemBuffs(item.itemData, pickaxe.GetPassiveBuffs());
             }
         }
 
-        // Apply all active buffs (item conditional + consumable)
         foreach (var buff in buffManager.GetActiveBuffs())
         {
-            if (buff.SourceItem == null) // only consumables
+            if (buff.SourceItem == null)
             {
-                StatsManager.Ins.Add(
-                    buff.buffData.statType,
-                    buff.buffData.amount * (buff.buffData.isStackable ? buff.StackCount : 1)
-                );
+                buff.ApplyEffect();
             }
         }
-
 
         // Update UI description
         UpdateStatDescription();
@@ -219,11 +230,11 @@ public class InventoryController : MonoBehaviour
 
     async void UpdateStatDescription()
     {
-        string text = await GetStatDescriptionWithBuffs(buffManager.GetActiveBuffs().ToList());
+        string text = await GetStatDescriptionWithBuffs(buffManager.GetActiveBuffs().ToList(), buffManager.GetConditionBuffs().ToList());
         SetDescription(text);
     }
 
-    public async Task<string> GetStatDescriptionWithBuffs(List<BuffInstance> buffs)
+    public async Task<string> GetStatDescriptionWithBuffs(List<BuffInstance> buffs, List<BuffInstance> conditionBuffs)
     {
         // wait for base description
         string desc = await GetStatDescriptionAsync();
@@ -236,7 +247,17 @@ public class InventoryController : MonoBehaviour
             {
                 // if buffName is LocalizedString, resolve it here:
                 string buffName = buff.buffData.buffName;
-                sb.AppendLine($"{buffName}: +{buff.buffData.amount}");
+                sb.AppendLine($"{buffName}: +{buff.buffData.amount} {buff.buffData.statType}");
+            }
+        }
+
+        foreach (var buff in conditionBuffs)
+        {
+            if (buff.buffData is ConditionalBuffSO conditionalBuffSO)
+            {
+                sb.AppendLine(
+                    $"{conditionalBuffSO.buffName}: +{conditionalBuffSO.amount} {conditionalBuffSO.statType} [{conditionalBuffSO.conditionType}]"
+                    );
             }
         }
 
@@ -300,12 +321,16 @@ public class InventoryController : MonoBehaviour
 
     void UseSummonBoss(BossSummoner bossSummoner)
     {
-        BlockManager.Ins.Summon(bossSummoner.bossBase);
+        BlockManager.Ins.Summon(bossSummoner.bossLocation, bossSummoner.bossType);
         UIManager.Ins.MoveToMain();
     }
 
-    public InventoryItem GetPickaxe()
+    async Task UseLootBox(Lootbox lootbox)
     {
-        return uiManager.GetPickaxe();
+        var popup = await PopupController.Instance.Show(lootboxPrefab);
+        var caseRollerUI = popup.GetComponentInChildren<CaseRollerUI>(true);
+
+        caseRollController.SetUI(caseRollerUI);
+        caseRollController.UseLootbox(lootbox);
     }
 }

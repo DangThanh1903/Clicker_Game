@@ -177,6 +177,8 @@ public class PlayerController : MonoBehaviour
         IsDead = true;
 
         OnDied?.Invoke();
+
+        Respawn(100);
     }
     public void Respawn(float hpPercent = 1f)
     {

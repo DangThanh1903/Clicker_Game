@@ -13,6 +13,7 @@ public enum PickaxeType
 public class Pickaxe : Item, IStatProvider
 {
     [SerializeField] private List<StatModifier> modifiers;
+    [SerializeField] private List<BuffSO> passiveBuffs;
     public override ItemType Type => ItemType.Pickaxe;
     public PickaxeType currentState = PickaxeType.Normal;
     public ItemPrefix itemPrefix;
@@ -20,5 +21,9 @@ public class Pickaxe : Item, IStatProvider
     public IEnumerable<StatModifier> GetStatModifiers()
     {
         return modifiers;
+    }
+    public IEnumerable<BuffSO> GetPassiveBuffs()
+    {
+        return passiveBuffs;
     }
 }

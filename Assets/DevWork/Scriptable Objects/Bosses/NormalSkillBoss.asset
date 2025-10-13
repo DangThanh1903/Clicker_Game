@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c2151ed1ead506c46adba3b7a4716b10, type: 3}
+  m_Name: NormalSkillBoss
+  m_EditorClassIdentifier: 
+  skillId: Normal
+  moveLocal: {x: 0, y: 0, z: -2}
+  moveTime: 0.25
+  scaleTo: {x: 1.6, y: 1.6, z: 1.6}
+  scaleTime: 0.25
+  rotateEuler: {x: 0, y: 0, z: 0}
+  rotateTime: 0.25
+  fireMoment: 0.3
+  recoverTime: 0.2
+  cooldown: 3

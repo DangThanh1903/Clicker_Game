@@ -17,7 +17,6 @@ public class BlockAnimationController : MonoBehaviour
     private bool isDeathPlaying;
     private const string RESUME_IDLE_ID = "ANIM_RESUME_IDLE";
 
-    void OnEnable()  => TryPlayIdle();
     void OnDisable() => StopAll();
 
     public void SetSpawnIndex(int idx)   { spawnIndex = Clamp(idx, spawnOptions.Count); }

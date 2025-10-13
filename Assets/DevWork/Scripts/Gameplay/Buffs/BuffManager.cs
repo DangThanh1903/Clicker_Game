@@ -44,7 +44,14 @@ public class BuffManager : MonoBehaviour
     }
 
     public IReadOnlyList<BuffInstance> GetActiveBuffs() =>
-        activeBuffs.Where(b => b.IsActive).ToList();
+    activeBuffs
+        .Where(b => b.IsActive && b.buffData is not ConditionalBuffSO)
+        .ToList();
+        
+    public IReadOnlyList<BuffInstance> GetConditionBuffs() =>
+    activeBuffs
+        .Where(b => b.buffData is ConditionalBuffSO)
+        .ToList();
 
     // -------- Player-only (item-originated) ----------
     public void ApplyItemBuffs(Item item, IEnumerable<BuffSO> buffs)

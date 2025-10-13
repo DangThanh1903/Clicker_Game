@@ -9,25 +9,26 @@ public class BlockManager : MonoBehaviour
     public static BlockManager Ins;
     [SerializeField] private ClickableObject currentBlock;
     [SerializeField] private LocationLoader locationLoader;
-    [SerializeField] GameObject bossPrefab;
+    [SerializeField] BossSO bossSO;
     [SerializeField] Transform  spawnPos;
     public float rareWeightCap = 10;
     private GameObject activeBoss;
     Boss activeBossComp;
     void Awake()
     {
-        if (Ins && Ins != this)
-        {
-            Destroy(gameObject); return;
-        }
+        if (Ins && Ins != this) { Destroy(gameObject); return; }
         Ins = this;
         DontDestroyOnLoad(gameObject);
-        currentBlock.SetClickableBlock(
-            DataSaver.Ins.currentBlock ?? "Dirt");
-        locationLoader.SetLocation((int?)DataSaver.Ins.currentLocation ?? 1);
+
+        currentBlock.SetClickableBlock(DataSaver.Ins.currentBlock ?? "Dirt");
+
+
+        int startIndex = (int?)DataSaver.Ins.currentLocation ?? 1;
+        locationLoader.SetLocation(startIndex, isInitiate: true);
     }
 
-    public GameObject Summon(BaseStat bossBase)
+
+    public GameObject Summon(BlockSpawnLocation bossLocation, BossType bossType)
     {
         if (activeBoss)
         {
@@ -38,17 +39,10 @@ public class BlockManager : MonoBehaviour
         Vector3 pos = spawnPos ? spawnPos.position : Vector3.zero;
         Quaternion rot = spawnPos ? spawnPos.rotation : Quaternion.identity;
 
+        var bossPrefab = bossSO.FindOne(bossLocation, bossType).bossPrefab;
         var go = LeanPool.Spawn(bossPrefab, pos, rot);
         activeBoss = go;
         var stats = go.GetComponent<EnemyStatsManager>();
-        if (stats)
-        {
-            stats.SetBaseStat(bossBase);
-        }
-        else
-        {
-            Debug.LogWarning("[BossSpawner] Spawned boss has no EnemyStatsManager.");
-        }
 
         UIManager.Ins.SetButtonsInteractable(false);
 

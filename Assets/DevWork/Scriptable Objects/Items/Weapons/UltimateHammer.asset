@@ -15,8 +15,11 @@ MonoBehaviour:
   itemName: UltimateHammer
   description: UltimateHammer
   icon: {fileID: 21300000, guid: c7c0e5f6abb293d4b876ee36ec02244f, type: 3}
+  rarity: 0
   modifiers:
   - statType: 3
     value: 7
+  passiveBuffs:
+  - {fileID: 11400000, guid: 2c7e71a07f855f74b94eefe42cef7244, type: 2}
   currentState: 0
   itemPrefix: 0

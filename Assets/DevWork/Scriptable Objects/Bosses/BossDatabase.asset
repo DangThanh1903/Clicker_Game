@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d5dcecc893969604ca627f427ec3ceff, type: 3}
+  m_Name: BossDatabase
+  m_EditorClassIdentifier: 
+  bosses:
+  - bossPrefab: {fileID: 7950708091266567536, guid: 54cb018364d7f3f4fa32fa100d6005f5,
+      type: 3}
+    biome: 1
+    bossName: Slime
+    description: A bruh bruh bruh
+    type: 1
+    timeRequired: 2
+    normalWeatherRequired: 0
+    specialWeatherRequired: 0

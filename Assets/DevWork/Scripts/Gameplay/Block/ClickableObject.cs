@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using DG.Tweening;
 using Lean.Pool;
 using Unity.Mathematics;
+using Unity.VisualScripting;
 
 public class ClickableObject : MonoBehaviour, IDamagable
 {
@@ -53,6 +54,7 @@ public class ClickableObject : MonoBehaviour, IDamagable
     private MaterialPropertyBlock propertyBlock;
     [Header("Animation")]
     [SerializeField] private BlockAnimationController animCtrl;
+    private Vector2 onClickPos;
 
     // 📦 Internal click buffer and stream
     private readonly Subject<long> clickStream = new Subject<long>();
@@ -138,20 +140,21 @@ public class ClickableObject : MonoBehaviour, IDamagable
         PlayerController.Instance.OnUpdate(this);
 
         if (!UIManager.Ins.IsBlockCanClick()) return;
-
         if (isDyingEffect) return;
-
         if (PopupController.Instance.IsAnyPopupOpen()) return;
 
+        // Mouse Down
         if (Input.GetMouseButtonDown(0))
         {
             Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
             if (Physics.Raycast(ray, out RaycastHit hit) && hit.transform == transform)
             {
+                onClickPos = GetUIPosition(hit.point);
                 PlayerController.Instance.OnClick(this);
             }
         }
 
+        // Mouse Held
         if (Input.GetMouseButton(0))
         {
             if (!isMouseHeld)
@@ -162,6 +165,7 @@ public class ClickableObject : MonoBehaviour, IDamagable
             Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
             if (Physics.Raycast(ray, out RaycastHit hit) && hit.transform == transform)
             {
+                onClickPos = GetUIPosition(hit.point);
                 PlayerController.Instance.OnHold(this);
             }
         }
@@ -170,36 +174,41 @@ public class ClickableObject : MonoBehaviour, IDamagable
             if (isMouseHeld)
             {
                 isMouseHeld = false;
+                StatsManager.Ins.Set(StatType.HoldedTime, 0);
             }
         }
     }
 
+    /// <summary>
+    /// Convert world pos -> RectTransform anchored position
+    /// </summary>
+    private Vector2 GetUIPosition(Vector3 worldPos)
+    {
+        Vector2 screenPos = Camera.main.WorldToScreenPoint(worldPos);
+        RectTransformUtility.ScreenPointToLocalPointInRectangle(
+            Toaster.Ins.canvas.transform as RectTransform,
+            screenPos,
+            Toaster.Ins.canvas.worldCamera,
+            out Vector2 localPoint
+        );
+        return localPoint;
+    }
+
+
     public void HandleClick()
     {
         float power = StatsManager.Ins.Get(StatType.NormalPower);
-
-        StatsManager.Ins.Add(StatType.Clicks, power);
-
-        CurrentHealth.Value = Mathf.Max(0, CurrentHealth.Value - power);
-
-        long time = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        clickStream.OnNext(time);
-
-        animCtrl?.PlayClick();
+        TakeDamage(power);
     }
     public void HandleHold()
     {
         accumulatedHoldTime += Time.deltaTime;
+        StatsManager.Ins.Add(StatType.HoldedTime, Time.deltaTime);
         if (accumulatedHoldTime >= timeHoldReset)
         {
             float power = StatsManager.Ins.Get(StatType.HoldPower) * timeHoldReset;
-            CurrentHealth.Value = Mathf.Max(0, CurrentHealth.Value - power);
+            TakeDamage(power, timeHoldReset);
             accumulatedHoldTime = 0f;
-            StatsManager.Ins.Add(StatType.Clicks, power);
-            long time = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-            clickStream.OnNext(time);
-
-            animCtrl?.PlayClick();
         }
     }
 
@@ -209,14 +218,24 @@ public class ClickableObject : MonoBehaviour, IDamagable
         if (accumulatedHoldTime >= timeIdleReset)
         {
             float power = StatsManager.Ins.Get(StatType.IdlePower) * timeIdleReset;
-            CurrentHealth.Value = Mathf.Max(0, CurrentHealth.Value - power);
+            TakeDamage(power, timeIdleReset);
             accumulatedHoldTime = 0f;
-            StatsManager.Ins.Add(StatType.Clicks, power);
-            long time = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-            clickStream.OnNext(time);
-
-            animCtrl?.PlayClick();
         }
+    }
+
+    void TakeDamage(float power, float timeReset = 1)
+    {
+        CurrentHealth.Value = Mathf.Max(0, CurrentHealth.Value - power);
+
+        StatsManager.Ins.Add(StatType.Clicks, 1 * timeReset);
+        StatsManager.Ins.Add(StatType.TotalDamageDealed, power);
+
+        Toaster.Show($"-{power:F1}", null, 0.2f, onClickPos);
+
+        long time = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        clickStream.OnNext(time);
+
+        animCtrl?.PlayClick();
     }
     void HandleItemDrop()
     {
@@ -267,6 +286,8 @@ public class ClickableObject : MonoBehaviour, IDamagable
     void OnDisappear()
     {
         isDyingEffect = true;
+
+        StatsManager.Ins.Add(StatType.TotalBlockBreaked, 1);
 
         animCtrl?.PlayDeath(() =>
         {

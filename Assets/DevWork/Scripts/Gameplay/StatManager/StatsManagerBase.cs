@@ -1,6 +1,8 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UniRx;
+using System;
+using System.Linq;
 
 public abstract class StatsManagerBase : MonoBehaviour
 {
@@ -8,6 +10,7 @@ public abstract class StatsManagerBase : MonoBehaviour
 
     protected Dictionary<StatType, ReactiveStat> stats;
     protected Dictionary<StatType, ReactiveStat> baseStatsDict;
+
 
     protected virtual void Awake()
     {

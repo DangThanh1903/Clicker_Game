@@ -5,12 +5,14 @@ using System;
 using Sirenix.OdinInspector;
 using System.Linq;
 using UnityEngine.Localization;
+using Lean.Pool;
 
 public class WeatherManager : MonoBehaviour
 {
     public static WeatherManager Instance { get; private set; }
     [SerializeField] private List<NormalWeatherData> normalWeatherList;
     [SerializeField] private List<SpecialWeatherData> specialWeatherList;
+    [SerializeField] private Vector3 weatherPos;
 
     [ShowInInspector, ReadOnly]
     public ReactiveProperty<WeatherData> CurrentNormalWeather { get; private set; } = new();
@@ -20,6 +22,7 @@ public class WeatherManager : MonoBehaviour
 
     private float normalRemainingTime;
     private IDisposable normalWeatherTimer;
+    private GameObject currentWeaterEffect;
 
     void Awake()
     {
@@ -47,6 +50,9 @@ public class WeatherManager : MonoBehaviour
 
         CurrentNormalWeather.Value = nextWeather;
 
+        if (nextWeather.effectPrefab != null)
+            currentWeaterEffect = LeanPool.Spawn(nextWeather.effectPrefab, weatherPos, Quaternion.Euler(-90, 0, 0));
+
         // get enum value
         NormalWeatherName enumName = (nextWeather as NormalWeatherData)?.weatherName ?? NormalWeatherName.Any;
 
@@ -57,8 +63,6 @@ public class WeatherManager : MonoBehaviour
         var handle = locName.GetLocalizedStringAsync();
         handle.Completed += h =>
         {
-            // weather_set: "Weather set {name}!"
-            //              "Thời tiết được đặt thành {name}!"
             GameDebugHandler.LogStaticKey("UI_Debug", "weather_set", new { name = h.Result });
             UnityEngine.AddressableAssets.Addressables.Release(h);
         };
@@ -87,6 +91,8 @@ public class WeatherManager : MonoBehaviour
     private void ClearNormalWeatherAndTriggerNext()
     {
         CurrentNormalWeather.Value = null;
+        LeanPool.Despawn(currentWeaterEffect);
+        currentWeaterEffect = null;
         SetNormalWeather();
     }
 

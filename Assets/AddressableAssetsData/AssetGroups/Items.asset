@@ -17,43 +17,8 @@ MonoBehaviour:
     m_SerializedData: []
   m_GUID: b81ff3e0a10ea1d4d8bbac3184ef21ba
   m_SerializeEntries:
-  - m_GUID: c20a05ced0dd7e84d8c8c222e0b49b97
-    m_Address: IronHelmet
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 51d287ca54e2da64cae6ffd5593d2031
-    m_Address: None
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: b4b45169c1d55ef478776ecc544921bd
-    m_Address: IronChestplate
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 561e8bf53c57b5c41a0423da4a935abb
-    m_Address: NormalPickaxe
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: b58c152454d354b47b2cd8650bf8bf45
-    m_Address: Dirt
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 29cbe6ecf8408004f8d8d687db60a892
-    m_Address: CopperOre
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: dac4b888454f57f4daa7ff54d977b870
-    m_Address: Apple
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: c80d6d5c9bc23dd41b6fd9f5a9548715
-    m_Address: Cherry
+  - m_GUID: 0476db4275c0dfa4aacb7a319b146ac6
+    m_Address: LongStick
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
@@ -62,153 +27,8 @@ MonoBehaviour:
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 59fcfa93e31fa0b4c9c1df353d23e163
-    m_Address: ClayMixture
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 7dc9610d6516d9a4691a52468dbbbcd0
-    m_Address: Cloud
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: a675b34cf6191694aa93207bb07214da
-    m_Address: Amber
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 69c48c737b5a3ef438799fd75b451469
-    m_Address: Clay
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 25fd1d52d0fc7e64c9ec4919bbc1cb4b
-    m_Address: Gravel
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 316db00a34b3a934f940b6b33978c119
-    m_Address: GoldOre
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 7edc2ad3ba06bac49ad1c0dc388b28b6
-    m_Address: Flint
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 6b9393087ac194444b338530596eec20
-    m_Address: Emerald
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 279e95db0f56b7a4d8cff915ba47b1ba
-    m_Address: Cactus
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 904b66f360a855742ac90dc4777032b6
-    m_Address: IceCube
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 26d693e4fc5369242b4dcd6fca32a202
-    m_Address: Diamond
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: c3f542efd5f66924a9c977674221cdc1
-    m_Address: Crit_01
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 16440b717d33e5f4ab2ba7e0018be097
-    m_Address: IronOre
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 60b16f0202ef37f41a526bca0b284645
-    m_Address: Log
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 0476db4275c0dfa4aacb7a319b146ac6
-    m_Address: LongStick
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 19a06376a2f052245ad87e8265176925
-    m_Address: Meteorite
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 43dafd87ea180c740acd40a552af12c9
-    m_Address: Resin
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 2a2e148f032c0ff43b4c692380eac8ee
-    m_Address: Ruby
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 60eba10bb91811a428635d328b1eaa73
-    m_Address: Sand
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: f283a7837311ca04d9d35e8f889b1512
-    m_Address: SandStone
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: e5f6aa03116f4214482efdda6fc8991c
-    m_Address: SilverOre
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 47eb6a003a39f374199cbbdcdd058c36
-    m_Address: SkyOre
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 2f06f9fef62d1564cb0a491165a88e04
-    m_Address: SnowBall
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 65cfc837310bb284e8fbe055ed609c44
-    m_Address: Star
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: ecf93b30a50f8004da1f06c546509b21
-    m_Address: StarDust
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 5658c337be36c8c4587eeee8cd78bb87
-    m_Address: Stick
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: af90eb75736662849aad659d1f498689
-    m_Address: Stone
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: bf496e75ff78eed4fb67fa288495f97d
-    m_Address: Sunflower
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 1e1abd19b7618de4fb588cc991792acf
-    m_Address: SunflowerSeed
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: c6ed369ce235f8f46b79ba83d7abbd2a
-    m_Address: Sunplate
+  - m_GUID: 0bd9bce6e90f6ec44a9c50b63a53e714
+    m_Address: ClayRing
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
@@ -217,113 +37,8 @@ MonoBehaviour:
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: e83ef346264113f4fabe6267697da001
-    m_Address: WetCloud
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 15282561daa2fcc4590d4754049134ff
-    m_Address: WoodPlank
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 568a60f8923e63147a4d886034bf10da
-    m_Address: ClayHammer
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 8e5b45b681b13834f86ab40b23effb6e
-    m_Address: StarWand
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 2d1e2c8cfaf934c4a81de0897d73378f
-    m_Address: ClayStaff
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 4990e9260c2e87d46970ee073d04d54e
-    m_Address: HealingPotionLv1
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 7ad676cca3fa0f94f98ed13a5af0c39b
-    m_Address: HealingPotionLv2
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 9ac4de7e21348e64396ea8c663d0d2ff
-    m_Address: HealingPotionLv3
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: abec4b4184d5c6f409e819b42d43a0d9
-    m_Address: SunIdol
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: eb7b1fa61acfc9c46b6443064427c89f
-    m_Address: SunBrew
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 96e4b7967bd7cb14d88fe81290f5b6d3
-    m_Address: LeafAmulet
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 0bd9bce6e90f6ec44a9c50b63a53e714
-    m_Address: ClayRing
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: b94e0583a78ef384596d38f245c178ae
-    m_Address: SunflowerCrown
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: cd27079e9e9206d4aaf916b922763984
-    m_Address: AppleCharm
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 61137f480cfbbb141a3487e8f8051be1
-    m_Address: SunTalisman
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 4afe8fca97b42a04c8729488e0489e62
-    m_Address: WoodenPendant
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 5a5ca31805fe9fe46b139f6c0bb3927c
-    m_Address: NatureSigil
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: ed38cc3c6dee8c74bb988496567eaafa
-    m_Address: SunstoneRing
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 41a0bbb654b0c0e45b2b2ac1ed4ec5ab
-    m_Address: BarkBracelet
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 557912c212c70c74ab1ed705b2877c43
-    m_Address: DruidCharm
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: ffcfaa219e050ef4bb4596f678a66cc2
-    m_Address: ResinGlue
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 42f37d51a53698544a6e81103f143f9c
-    m_Address: MegaHammer
+  - m_GUID: 108dd3e4ed4800344a51c5e19b445dc1
+    m_Address: ForagerCrate
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
@@ -332,8 +47,313 @@ MonoBehaviour:
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 15282561daa2fcc4590d4754049134ff
+    m_Address: WoodPlank
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 16440b717d33e5f4ab2ba7e0018be097
+    m_Address: IronOre
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 19a06376a2f052245ad87e8265176925
+    m_Address: Meteorite
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 1e1abd19b7618de4fb588cc991792acf
+    m_Address: SunflowerSeed
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 25fd1d52d0fc7e64c9ec4919bbc1cb4b
+    m_Address: Gravel
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 26d693e4fc5369242b4dcd6fca32a202
+    m_Address: Diamond
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 279e95db0f56b7a4d8cff915ba47b1ba
+    m_Address: Cactus
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 29cbe6ecf8408004f8d8d687db60a892
+    m_Address: CopperOre
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 2a2e148f032c0ff43b4c692380eac8ee
+    m_Address: Ruby
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 2d1e2c8cfaf934c4a81de0897d73378f
+    m_Address: ClayStaff
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 2f06f9fef62d1564cb0a491165a88e04
+    m_Address: SnowBall
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 316db00a34b3a934f940b6b33978c119
+    m_Address: GoldOre
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 41a0bbb654b0c0e45b2b2ac1ed4ec5ab
+    m_Address: BarkBracelet
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 42f37d51a53698544a6e81103f143f9c
+    m_Address: MegaHammer
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 43dafd87ea180c740acd40a552af12c9
+    m_Address: Resin
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 47eb6a003a39f374199cbbdcdd058c36
+    m_Address: SkyOre
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 4990e9260c2e87d46970ee073d04d54e
+    m_Address: HealingPotionLv1
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 4afe8fca97b42a04c8729488e0489e62
+    m_Address: WoodenPendant
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 4d6b893cf9b5c214995672897cb9e7b6
+    m_Address: BloomingPike
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 51d287ca54e2da64cae6ffd5593d2031
+    m_Address: None
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 549340901e476ff43bccfca5422ba096
+    m_Address: SunpetalStaff
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 557912c212c70c74ab1ed705b2877c43
+    m_Address: DruidCharm
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 561e8bf53c57b5c41a0423da4a935abb
+    m_Address: NormalPickaxe
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 5658c337be36c8c4587eeee8cd78bb87
+    m_Address: Stick
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 568a60f8923e63147a4d886034bf10da
+    m_Address: ClayHammer
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 59fcfa93e31fa0b4c9c1df353d23e163
+    m_Address: ClayMixture
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 5a5ca31805fe9fe46b139f6c0bb3927c
+    m_Address: NatureSigil
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 5e5c1c81298783b4bbc9b0dab562e275
+    m_Address: ResinboundChakram
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 60b16f0202ef37f41a526bca0b284645
+    m_Address: Log
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 60eba10bb91811a428635d328b1eaa73
+    m_Address: Sand
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 61137f480cfbbb141a3487e8f8051be1
+    m_Address: SunTalisman
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 65cfc837310bb284e8fbe055ed609c44
+    m_Address: Star
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 69c48c737b5a3ef438799fd75b451469
+    m_Address: Clay
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 6b9393087ac194444b338530596eec20
+    m_Address: Emerald
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 7ad676cca3fa0f94f98ed13a5af0c39b
+    m_Address: HealingPotionLv2
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 7dc9610d6516d9a4691a52468dbbbcd0
+    m_Address: Cloud
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 7edc2ad3ba06bac49ad1c0dc388b28b6
+    m_Address: Flint
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 8e5b45b681b13834f86ab40b23effb6e
+    m_Address: StarWand
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 904b66f360a855742ac90dc4777032b6
+    m_Address: IceCube
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 96e4b7967bd7cb14d88fe81290f5b6d3
+    m_Address: LeafAmulet
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 9ac4de7e21348e64396ea8c663d0d2ff
+    m_Address: HealingPotionLv3
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: a675b34cf6191694aa93207bb07214da
+    m_Address: Amber
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: abec4b4184d5c6f409e819b42d43a0d9
+    m_Address: SunIdol
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: af90eb75736662849aad659d1f498689
+    m_Address: Stone
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: b4b45169c1d55ef478776ecc544921bd
+    m_Address: IronChestplate
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: b58c152454d354b47b2cd8650bf8bf45
+    m_Address: Dirt
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: b94e0583a78ef384596d38f245c178ae
+    m_Address: SunflowerCrown
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: bf496e75ff78eed4fb67fa288495f97d
+    m_Address: Sunflower
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: c20a05ced0dd7e84d8c8c222e0b49b97
+    m_Address: IronHelmet
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: c3f542efd5f66924a9c977674221cdc1
+    m_Address: Crit_01
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: c6ed369ce235f8f46b79ba83d7abbd2a
+    m_Address: Sunplate
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: c80d6d5c9bc23dd41b6fd9f5a9548715
+    m_Address: Cherry
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: cd27079e9e9206d4aaf916b922763984
+    m_Address: AppleCharm
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: d109241e29491604a96df3d1fdacf06f
     m_Address: StarStaff
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: dac4b888454f57f4daa7ff54d977b870
+    m_Address: Apple
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: e5f6aa03116f4214482efdda6fc8991c
+    m_Address: SilverOre
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: e83ef346264113f4fabe6267697da001
+    m_Address: WetCloud
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: eb7b1fa61acfc9c46b6443064427c89f
+    m_Address: SunBrew
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: ecf93b30a50f8004da1f06c546509b21
+    m_Address: StarDust
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: ed38cc3c6dee8c74bb988496567eaafa
+    m_Address: SunstoneRing
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: f283a7837311ca04d9d35e8f889b1512
+    m_Address: SandStone
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: ffcfaa219e050ef4bb4596f678a66cc2
+    m_Address: ResinGlue
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0

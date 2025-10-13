@@ -177,6 +177,7 @@ GameObject:
   m_Component:
   - component: {fileID: 7395756190249421471}
   - component: {fileID: 5895381229722262548}
+  - component: {fileID: 4452147073957258605}
   m_Layer: 0
   m_Name: PlainBiome
   m_TagString: Untagged
@@ -218,6 +219,35 @@ MonoBehaviour:
   - {fileID: 2780357658763440652}
   - {fileID: 1208651165672064324}
   - {fileID: 4397037492750902031}
+--- !u!114 &4452147073957258605
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7518712295697615944}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8edd8f7bc93abb740a904755949a56e4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  landGroup:
+  - {fileID: 4365019586527997583}
+  otherGroup:
+  - {fileID: 2654071875257642040}
+  - {fileID: 5018199413202415372}
+  spawnTime: 1.5
+  despawnTime: 1.3
+  landOffsetY: 12
+  otherOffsetY: 12
+  fadeGroup: {fileID: 0}
+  fadeInPercent: 0.8
+  fadeOutPercent: 0.9
+  spawnVFX: []
+  despawnVFX: []
+  audioSource: {fileID: 0}
+  spawnSfx: {fileID: 0}
+  despawnSfx: {fileID: 0}
 --- !u!1001 &2163255622985355584
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -227,6 +257,16 @@ PrefabInstance:
     m_TransformParent: {fileID: 7395756190249421471}
     m_Modifications:
     - target: {fileID: 752009210938597217, guid: 7ab85a542bb14fe45b851e261db8406c,
+        type: 3}
+      propertyPath: m_Layer
+      value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: 1063008201661109252, guid: 7ab85a542bb14fe45b851e261db8406c,
+        type: 3}
+      propertyPath: m_Layer
+      value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: 2522024357859258959, guid: 7ab85a542bb14fe45b851e261db8406c,
         type: 3}
       propertyPath: m_Layer
       value: 6

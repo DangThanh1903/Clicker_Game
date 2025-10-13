@@ -15,5 +15,4 @@ MonoBehaviour:
   itemName: LongStick
   description: Tool's time
   icon: {fileID: 21300000, guid: 04d183d91a7b93b488a8e20a1297703d, type: 3}
-  Location: 0
-  rarity: 0
+  rarity: 1

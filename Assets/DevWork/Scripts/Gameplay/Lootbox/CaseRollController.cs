@@ -5,21 +5,14 @@ public class CaseRollController : MonoBehaviour
 {
     public CaseRollerUI rollerUI;
 
-    public Lootbox simpleLootBox;
-
     // Optional deterministic RNG (seed from server for anti-cheat)
     private System.Random rng;
 
     private void Awake()
     {
         rng = new System.Random(Environment.TickCount);
-        rollerUI.OnLanded += OnLanded;
     }
 
-    void Start()
-    {
-        UseLootbox(simpleLootBox);
-    }
     // Call this from your “Use” button with the selected Lootbox asset
     public void UseLootbox(Lootbox box)
     {
@@ -36,10 +29,17 @@ public class CaseRollController : MonoBehaviour
         // If you must be secure, grant on server immediately and only mirror visuals here.
     }
 
+    public void SetUI(CaseRollerUI caseRollerUI)
+    {
+        if (rollerUI != null)
+            rollerUI.OnLanded -= OnLanded;
+        rollerUI = caseRollerUI;
+        rollerUI.OnLanded += OnLanded;
+    }
+
     private void OnLanded(Item item, int amount)
     {
-        // Grant to inventory (hook into your existing system)
-        // InventoryController.Instance.AddItemToInventory(new InventoryItem(item, amount));
+        InventoryController.Instance.AddItemToInventory(new InventoryItem(item, amount));
 
         Debug.Log($"🎉 Landed: {item.GetColoredName()} x{amount}");
         // TODO: Play rarity sting VFX/SFX here based on item.rarity

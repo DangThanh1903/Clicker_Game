@@ -49,25 +49,25 @@ public class PopupController : MonoBehaviour
     }
 
     // Show by spawning from pool into popupRoot
-    public async Task Show(PopupView popupPrefab)
+    public async Task<PopupView> Show(PopupView popupPrefab)
     {
-        if (popupPrefab == null) return;
+        if (popupPrefab == null) return null;
 
-        // UI-safe spawn — parented under popupRoot
         var go = LeanPool.Spawn(popupPrefab.gameObject, popupRoot);
         var popup = go.GetComponent<PopupView>();
 
-        // Ensure on top of other UI
         go.transform.SetAsLastSibling();
-
-        // For UI layout: center by default (optional)
-        var rt = go.transform as RectTransform;
-        if (rt) { rt.anchoredPosition = Vector2.zero; rt.localScale = Vector3.one; }
+        if (go.transform is RectTransform rt)
+        {
+            rt.anchoredPosition = Vector2.zero;
+            rt.localScale = Vector3.one;
+        }
 
         stack.Push(popup);
 
         await FadeBackdropTo(1f, enableRaycast: true);
         await popup.OpenAsync();
+        return popup;
     }
 
     public async void CloseTop()

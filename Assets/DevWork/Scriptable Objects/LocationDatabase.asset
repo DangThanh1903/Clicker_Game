@@ -19,9 +19,10 @@ MonoBehaviour:
     spawnPosition: {x: -2, y: -4, z: 35}
     spawnRotationEuler: {x: 0, y: 180, z: 0}
   - location: 2
-    prefab: {fileID: 0}
-    spawnPosition: {x: 0, y: 0, z: 0}
-    spawnRotationEuler: {x: 0, y: 0, z: 0}
+    prefab: {fileID: 8409039171786953899, guid: dc84f78c210149d4cab10cedf3ce96c0,
+      type: 3}
+    spawnPosition: {x: -2, y: -4, z: 36}
+    spawnRotationEuler: {x: 0, y: 180, z: 0}
   - location: 3
     prefab: {fileID: 0}
     spawnPosition: {x: 0, y: 0, z: 0}

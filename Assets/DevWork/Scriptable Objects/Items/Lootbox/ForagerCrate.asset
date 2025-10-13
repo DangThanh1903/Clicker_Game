@@ -1,0 +1,64 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2660aa8905e138748a53ab2e9bdbc099, type: 3}
+  m_Name: ForagerCrate
+  m_EditorClassIdentifier: 
+  itemName: ForagerCrate
+  description: 
+  icon: {fileID: 21300000, guid: 9282adae8a23c1345bed14ed1025a3a9, type: 3}
+  rarity: 2
+  options:
+  - item: {fileID: 11400000, guid: b58c152454d354b47b2cd8650bf8bf45, type: 2}
+    minAmount: 8
+    maxAmount: 14
+    customWeight: 25
+  - item: {fileID: 11400000, guid: b58c152454d354b47b2cd8650bf8bf45, type: 2}
+    minAmount: 1
+    maxAmount: 5
+    customWeight: 20
+  - item: {fileID: 11400000, guid: 43dafd87ea180c740acd40a552af12c9, type: 2}
+    minAmount: 3
+    maxAmount: 6
+    customWeight: 18
+  - item: {fileID: 11400000, guid: 59fcfa93e31fa0b4c9c1df353d23e163, type: 2}
+    minAmount: 2
+    maxAmount: 4
+    customWeight: 15
+  - item: {fileID: 11400000, guid: bf496e75ff78eed4fb67fa288495f97d, type: 2}
+    minAmount: 2
+    maxAmount: 4
+    customWeight: 12
+  - item: {fileID: 11400000, guid: ffcfaa219e050ef4bb4596f678a66cc2, type: 2}
+    minAmount: 1
+    maxAmount: 2
+    customWeight: 6
+  - item: {fileID: 11400000, guid: 0476db4275c0dfa4aacb7a319b146ac6, type: 2}
+    minAmount: 1
+    maxAmount: 1
+    customWeight: 2
+  - item: {fileID: 11400000, guid: 4d6b893cf9b5c214995672897cb9e7b6, type: 2}
+    minAmount: 1
+    maxAmount: 1
+    customWeight: 0.5
+  - item: {fileID: 11400000, guid: 549340901e476ff43bccfca5422ba096, type: 2}
+    minAmount: 1
+    maxAmount: 1
+    customWeight: 0.5
+  - item: {fileID: 11400000, guid: 5e5c1c81298783b4bbc9b0dab562e275, type: 2}
+    minAmount: 1
+    maxAmount: 1
+    customWeight: 0.5
+  commonWeight: 100
+  uncommonWeight: 45
+  rareWeight: 16
+  epicWeight: 5
+  legendaryWeight: 1

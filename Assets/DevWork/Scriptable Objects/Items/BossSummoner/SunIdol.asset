@@ -15,4 +15,6 @@ MonoBehaviour:
   itemName: SunIdol
   description: Summon miniboss
   icon: {fileID: 21300000, guid: eab030d91f9a5274e9611ea3a67964b1, type: 3}
-  bossBase: {fileID: 11400000, guid: ccac14db0d023af479d5f4283f64d89a, type: 2}
+  rarity: 0
+  bossLocation: 1
+  bossType: 1

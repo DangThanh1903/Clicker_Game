@@ -15,6 +15,7 @@ MonoBehaviour:
   itemName: ClayStaff
   description: ClayStaff
   icon: {fileID: 21300000, guid: 204032e901a60e64696615bea31adcf0, type: 3}
+  rarity: 0
   modifiers:
   - statType: 9
     value: 50
@@ -22,5 +23,6 @@ MonoBehaviour:
     value: 2
   - statType: 4
     value: 2
+  passiveBuffs: []
   currentState: 1
   itemPrefix: 0
