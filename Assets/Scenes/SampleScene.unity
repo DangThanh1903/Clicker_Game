@@ -37,7 +37,7 @@ RenderSettings:
   m_ReflectionBounces: 1
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
-  m_Sun: {fileID: 0}
+  m_Sun: {fileID: 410087040}
   m_UseRadianceAmbientProbe: 0
 --- !u!157 &3
 LightmapSettings:
@@ -7979,6 +7979,10 @@ MonoBehaviour:
   startTime: 0
   sunriseAngle: 15
   fullCycleDegrees: 360
+  skyboxMaterial: {fileID: 2100000, guid: a4ce6b30511a99446b7711964361a378, type: 2}
+  nightMinBlend: 0
+  dayMaxBlend: 1
+  assignAsRenderSettingsSkybox: 1
   CurrentTimeState:
     value: 0
 --- !u!4 &1545049718

@@ -51,7 +51,14 @@ public class TimeSystem : MonoBehaviour
     [SerializeField, Range(0f, 720f)]
     private float fullCycleDegrees = 360f;       // full sweep per cycle
 
-    [ReadOnly] public ReactiveProperty<TimeState> CurrentTimeState;
+    [Header("Skybox (URP Shader Graph)")]
+    [Tooltip("Material using your URP Unlit Shader Graph with Day/Night blend.")]
+    [SerializeField] private Material skyboxMaterial;
+    [Range(0f, 1f)] public float nightMinBlend = 0.0f; // min blend at full night
+    [Range(0f, 1f)] public float dayMaxBlend  = 1.0f;  // max blend at full day
+    public bool assignAsRenderSettingsSkybox = true;
+
+    [ReadOnly] public ReactiveProperty<TimeState> CurrentTimeState = new ReactiveProperty<TimeState>();
     public ReactiveProperty<float> CurrentTime { get; private set; } = new ReactiveProperty<float>(); // seconds
 
     private float CycleLength => dayDuration + nightDuration;
@@ -75,6 +82,12 @@ public class TimeSystem : MonoBehaviour
 
         // Build curves/gradients so keys align to sunrise/sunset/next sunrise
         EnsureCurvesMatchDurations();
+
+        // Optionally set skybox material in RenderSettings
+        if (assignAsRenderSettingsSkybox && skyboxMaterial != null)
+        {
+            RenderSettings.skybox = skyboxMaterial;
+        }
 
         // Apply once before ticking
         ApplyLighting(CurrentTime.Value / CycleLength);
@@ -238,6 +251,24 @@ public class TimeSystem : MonoBehaviour
 
         // --- Shadows ---
         mainLight.shadowStrength = isDay ? dayShadowStrength : nightShadowStrength;
+
+        // --- Skybox blend ---
+        UpdateSkybox(curveT);
+    }
+
+    private void UpdateSkybox(float curveT)
+    {
+        if (!skyboxMaterial) return;
+
+        // Use directional intensity as base "day factor"
+        float rawDayFactor = Mathf.Clamp01(directIntensityOverDay.Evaluate(curveT));
+        float dayFactor = Mathf.SmoothStep(0f, 1f, rawDayFactor);
+
+        // 1 = full day sky, 0 = full night sky
+        float blend = Mathf.Lerp(nightMinBlend, dayMaxBlend, dayFactor);
+
+        // Shader Graph float property named "Blend" will be "_Blend" here
+        skyboxMaterial.SetFloat("_Blend", blend);
     }
 
     private void SwitchToDay()
@@ -255,5 +286,4 @@ public class TimeSystem : MonoBehaviour
         GameDebugHandler.LogStaticKey("UI_Debug", "time_night");
         WeatherManager.Instance?.ClearSpecialWeatherAndTriggerNext();
     }
-
 }

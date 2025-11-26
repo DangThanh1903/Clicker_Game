@@ -7,7 +7,7 @@ public enum ItemType
     Pickaxe,
     Consumable,
     Accessory,
-    Material,
+    ItemMaterial,
     BossSummoner,
     Lootbox
 }

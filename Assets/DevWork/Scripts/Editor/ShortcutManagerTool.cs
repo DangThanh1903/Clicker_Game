@@ -1,4 +1,3 @@
-// Assets/Editor/ToolbarSceneSwitcher.cs
 #if UNITY_EDITOR
 using System;
 using System.Linq;
