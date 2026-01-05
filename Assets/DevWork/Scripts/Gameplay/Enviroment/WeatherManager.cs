@@ -56,16 +56,19 @@ public class WeatherManager : MonoBehaviour
         // get enum value
         NormalWeatherName enumName = (nextWeather as NormalWeatherData)?.weatherName ?? NormalWeatherName.Any;
 
-        // build a LocalizedString from the enum
-        var locName = enumName.ToLocalized(); // e.g. ("Enums", "normalweathername_rain")
-
-        // resolve it and feed into your Smart String log
-        var handle = locName.GetLocalizedStringAsync();
-        handle.Completed += h =>
+        if (!(enumName == NormalWeatherName.Any || enumName == NormalWeatherName.Normal))
         {
-            GameDebugHandler.LogStaticKey("UI_Debug", "weather_set", new { name = h.Result });
-            UnityEngine.AddressableAssets.Addressables.Release(h);
-        };
+            // build a LocalizedString from the enum
+            var locName = enumName.ToLocalized(); // e.g. ("Enums", "normalweathername_rain")
+
+            // resolve it and feed into your Smart String log
+            var handle = locName.GetLocalizedStringAsync();
+            handle.Completed += h =>
+            {
+                GameDebugHandler.LogStaticKey("UI_Debug", "weather_set", new { name = h.Result });
+                UnityEngine.AddressableAssets.Addressables.Release(h);
+            };
+        }
 
         normalWeatherTimer?.Dispose();
         if (nextWeather != null)

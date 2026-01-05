@@ -12,8 +12,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0f72d49f8e98f1b409f36e1972239411, type: 3}
   m_Name: Crit_01
   m_EditorClassIdentifier: 
-  buffName: Crit
-  statType: 12
-  amount: 20
-  duration: 120
-  isStackable: 0
+  buffName: Test
+  modifiers:
+  - statType: 6
+    value: 200
+    modType: 0
+  - statType: 9
+    value: 200
+    modType: 0
+  - statType: 7
+    value: 200
+    modType: 0
+  - statType: 10
+    value: 200
+    modType: 0
+  buffIcon: {fileID: 21300000, guid: cf74c36fa1be90f46bfc5d6a667bd01e, type: 3}
+  duration: 30
+  isStackable: 1

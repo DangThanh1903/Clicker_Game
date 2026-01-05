@@ -97,7 +97,7 @@ public class QuestManager : MonoBehaviour
             // Auto-save khi có tiến độ đổi (throttle nhẹ để giảm I/O)
             tracker.OnStepProgressChanged += t =>
             {
-                SaveDict(dict, defs);
+                SaveDict(dict, defs, def.type);
                 _onQuestUpdated.OnNext(t.QuestId);
             };
 
@@ -107,7 +107,7 @@ public class QuestManager : MonoBehaviour
                 .Where(done => done)
                 .Subscribe(_ =>
                 {
-                    SaveDict(dict, defs);
+                    SaveDict(dict, defs, def.type);
                     _onQuestUpdated.OnNext(def.id);
                 })
                 .AddTo(_cd);
@@ -127,32 +127,44 @@ public class QuestManager : MonoBehaviour
     {
         if (progressTrackers.TryGetValue(questId, out var p))
         {
+            var def = questDB.progressQuests.FirstOrDefault(q => q.id == questId);
+            if (def == null) { Debug.LogWarning($"QuestDef not found: {questId}"); return; }
+
             if (p.Completed.Value && !p.RewardClaimed.Value)
             {
+                GrantRewards(def);
                 p.RewardClaimed.Value = true;
-                SaveDict(progressTrackers, questDB.progressQuests);
+                SaveDict(progressTrackers, questDB.progressQuests, QuestType.Progress);
                 _onQuestUpdated.OnNext(questId);
             }
             return;
         }
         if (dailyTrackers.TryGetValue(questId, out var d))
         {
+            var def = questDB.dailyQuests.FirstOrDefault(q => q.id == questId);
+            if (def == null) { Debug.LogWarning($"Daily QuestDef not found: {questId}"); return; }
+
             if (d.Completed.Value && !d.RewardClaimed.Value)
             {
+                GrantRewards(def);
                 d.RewardClaimed.Value = true;
-                SaveDict(dailyTrackers, questDB.dailyQuests.Where(q=>dailySelectedIds.Contains(q.id)).ToList());
+                SaveDict(dailyTrackers,
+                questDB.dailyQuests.Where(q => dailySelectedIds.Contains(q.id)).ToList(),
+                    QuestType.Daily);
                 _onQuestUpdated.OnNext(questId);
             }
         }
     }
 
     // ---- Save/Load helpers ----
-    private void SaveDict(Dictionary<string, QuestTracker> dict, List<QuestDef> defs)
+    private void SaveDict(Dictionary<string, QuestTracker> dict, List<QuestDef> defs, QuestType type)
     {
         var states = new List<QuestState>();
+
         foreach (var def in defs)
         {
             if (!dict.TryGetValue(def.id, out var tr)) continue;
+
             var st = new QuestState
             {
                 questId = def.id,
@@ -169,15 +181,14 @@ public class QuestManager : MonoBehaviour
                     };
                 }).ToList()
             };
+
             states.Add(st);
         }
 
-        // phân loại lưu
-        if (defs.Count > 0 && defs[0].type == QuestType.Progress)
-            storage.SaveProgressStates(states);
-        else
-            storage.SaveDailyStates(states);
+        if (type == QuestType.Progress) storage.SaveProgressStates(states);
+        else storage.SaveDailyStates(states);
     }
+
 
     private QuestState NewQuestStateFromDef(QuestDef def) => new QuestState
     {
@@ -206,4 +217,37 @@ public class QuestManager : MonoBehaviour
         catch { local = TimeZoneInfo.ConvertTimeFromUtc(utcNow, TimeZoneInfo.FindSystemTimeZoneById("Asia/Bangkok")); }
         return local.ToString("yyyyMMdd");
     }
+
+    private void GrantRewards(QuestDef def)
+    {
+        if (def.rewards == null || def.rewards.Count == 0)
+            return;
+
+        foreach (var reward in def.rewards)
+        {
+            // --- 1) Give Gems ---
+            if (reward.gemAmount > 0)
+            {
+                StatsManager.Ins.Add(StatType.Diamond, reward.gemAmount);
+                Debug.Log($"[QuestManager] +{reward.gemAmount} Gems");
+            }
+
+            // --- 2) Give Inventory Items ---
+            if (reward.items != null)
+            {
+                foreach (var invItem in reward.items)
+                {
+                    if (invItem == null || invItem.itemData == null || invItem.quantity.Value <= 0)
+                        continue;
+
+                    InventoryController.Instance.AddItemToInventory(invItem);
+
+                    Debug.Log($"[QuestManager] +{invItem.quantity.Value}x {invItem.itemData.name}");
+
+                    GameDebugHandler.LogStatic($"[Quest] +{invItem.quantity.Value}x {invItem.itemData.name}");
+                }
+            }
+        }
+    }
+
 }

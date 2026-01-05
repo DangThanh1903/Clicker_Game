@@ -1,87 +1,112 @@
 using System.Collections;
-using System.Threading.Tasks;
 using UnityEngine;
-using Firebase.Auth;
 using UnityEngine.SceneManagement;
 
 public class Login : MonoBehaviour
 {
-    private FirebaseAuth auth;
+    [Header("Scene to load after data")]
+    [SerializeField] private string gameSceneName = "SampleScene";
 
-    void Awake()
-    {
-        auth = FirebaseAuth.DefaultInstance;
-    }
+    [Header("Timeouts (seconds)")]
+    [SerializeField] private float waitFirebaseTimeout = 10f;
+    [SerializeField] private float loadDataTimeout = 10f;
 
     void Start()
     {
-        _ = EnsureSignedInThenLoadAsync();
+        Debug.Log("✅ Login.Start()");
+        StartCoroutine(Flow());
     }
 
-    private async Task EnsureSignedInThenLoadAsync()
+    IEnumerator Flow()
     {
-        // If Firebase previously persisted a session, CurrentUser will be non-null.
-        // Reload to ensure token/session is still valid (optional but safer).
-        if (auth.CurrentUser != null)
+        // 1) Wait FirebaseBootstrap
+        Debug.Log("⏳ Waiting FirebaseBootstrap...");
+        yield return WaitUntilOrTimeout(
+            () => FirebaseBootstrap.Ins != null &&
+                  FirebaseBootstrap.Ins.Auth != null &&
+                  FirebaseBootstrap.Ins.Auth.CurrentUser != null &&
+                  FirebaseBootstrap.Ins.Db != null &&
+                  !string.IsNullOrEmpty(FirebaseBootstrap.Ins.Auth.CurrentUser.UserId),
+            waitFirebaseTimeout,
+            "FirebaseBootstrap not ready (timeout)"
+        );
+
+        if (FirebaseBootstrap.Ins == null || FirebaseBootstrap.Ins.Auth?.CurrentUser == null)
         {
-            try
+            Debug.LogError("❌ Firebase not ready. Still continue to scene (offline/local fallback).");
+            LoadGameScene();
+            yield break;
+        }
+
+        string uid = FirebaseBootstrap.Ins.Auth.CurrentUser.UserId;
+        Debug.Log($"✅ Firebase ready. uid={uid}");
+
+        // 2) Wait DataSaver
+        Debug.Log("⏳ Waiting DataSaver...");
+        yield return WaitUntilOrTimeout(
+            () => DataSaver.Ins != null,
+            5f,
+            "DataSaver not found (timeout)"
+        );
+
+        if (DataSaver.Ins == null)
+        {
+            Debug.LogError("❌ DataSaver missing. Cannot load cloud data.");
+            LoadGameScene();
+            yield break;
+        }
+
+        // 3) Load gameplay + inventories with timeout
+        Debug.Log("⏳ Loading gameplay...");
+        yield return RunCoroutineWithTimeout(DataSaver.Ins.LoadGameplay(uid), loadDataTimeout, "LoadGameplay timeout");
+
+        Debug.Log("⏳ Loading inventories...");
+        yield return RunCoroutineWithTimeout(DataSaver.Ins.LoadAllInventories(uid), loadDataTimeout, "LoadAllInventories timeout");
+
+        Debug.Log("✅ Load flow done -> Load scene");
+        LoadGameScene();
+    }
+
+    void LoadGameScene()
+    {
+        // Check scene exists in build settings
+        int idx = SceneManager.GetSceneByName(gameSceneName).buildIndex;
+        Debug.Log($"➡️ Loading scene: {gameSceneName}");
+
+        SceneManager.LoadScene(gameSceneName);
+    }
+
+    IEnumerator WaitUntilOrTimeout(System.Func<bool> predicate, float timeout, string timeoutMsg)
+    {
+        float t = 0f;
+        while (!predicate())
+        {
+            t += Time.unscaledDeltaTime;
+            if (t >= timeout)
             {
-                await auth.CurrentUser.ReloadAsync();
+                Debug.LogWarning($"⚠️ {timeoutMsg}");
+                yield break;
             }
-            catch { /* ignore reload errors; we'll re-auth if needed */ }
+            yield return null;
         }
+    }
 
-        if (auth.CurrentUser == null)
+    IEnumerator RunCoroutineWithTimeout(IEnumerator routine, float timeout, string timeoutMsg)
+    {
+        float t = 0f;
+        while (true)
         {
-            Debug.Log("No Firebase session. Signing in anonymously...");
-            var user = await GuestLoginAsync();
-            if (user == null)
+            bool moved = routine.MoveNext();
+            if (!moved) yield break;
+
+            t += Time.unscaledDeltaTime;
+            if (t >= timeout)
             {
-                Debug.LogError("Failed to sign in anonymously.");
-                return;
+                Debug.LogWarning($"⚠️ {timeoutMsg}");
+                yield break;
             }
-            Debug.Log($"Anonymous sign-in success: {user.UserId}");
+
+            yield return routine.Current;
         }
-        else
-        {
-            Debug.Log($"Found Firebase user: {auth.CurrentUser.UserId}");
-        }
-
-        // Proceed to load game data
-        StartCoroutine(LoadSceneAfterData(auth.CurrentUser.UserId));
-    }
-
-    private async Task<FirebaseUser> GuestLoginAsync()
-    {
-        try
-        {
-            var result = await auth.SignInAnonymouslyAsync();
-            return result?.User;
-        }
-        catch (System.Exception e)
-        {
-            Debug.LogError($"Anonymous login failed: {e}");
-            return null;
-        }
-    }
-
-    private IEnumerator LoadSceneAfterData(string userId)
-    {
-        // Ensure DataSaver exists before using it
-        yield return new WaitUntil(() => DataSaver.Ins != null);
-
-        DataSaver.Ins.currentUserID = userId;
-
-        // Load your data
-        yield return StartCoroutine(DataSaver.Ins.LoadAllInventories(userId));
-        yield return StartCoroutine(DataSaver.Ins.LoadCurrentBlock(userId));
-        yield return StartCoroutine(DataSaver.Ins.LoadCurrentLocation(userId));
-        yield return StartCoroutine(DataSaver.Ins.LoadSomeStat(userId));
-        yield return StartCoroutine(DataSaver.Ins.LoadTime(userId));
-
-        // Optional delay for UX
-        yield return new WaitForSeconds(0.5f);
-
-        SceneManager.LoadScene("SampleScene");
     }
 }

@@ -1,0 +1,1498 @@
+fileFormatVersion: 2
+guid: 7586368d7f4164142b29618fbc759171
+TextureImporter:
+  internalIDToNameTable: []
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 0
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 0
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 16
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 3
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 0
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 3
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 3
+    buildTarget: Android
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: BlackGreyUISheet_0
+      rect:
+        serializedVersion: 2
+        x: 4
+        y: 132
+        width: 96
+        height: 96
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 8aceafb65a8fe1a43a30ad440eb84bea
+      internalID: -48668286
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackGreyUISheet_1
+      rect:
+        serializedVersion: 2
+        x: 116
+        y: 180
+        width: 48
+        height: 48
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: cbc3bc6db7e0b084c8164e2c0b6f8f79
+      internalID: 297028843
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackGreyUISheet_2
+      rect:
+        serializedVersion: 2
+        x: 180
+        y: 180
+        width: 48
+        height: 48
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: eac7eea617742ab4a9a43a23ebd345f9
+      internalID: -947892781
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackGreyUISheet_3
+      rect:
+        serializedVersion: 2
+        x: 244
+        y: 180
+        width: 48
+        height: 46
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: aa8ada0054538d146ba4d67653ffc57f
+      internalID: 2010233756
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackGreyUISheet_4
+      rect:
+        serializedVersion: 2
+        x: 300
+        y: 204
+        width: 17
+        height: 17
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 21e43f990f3468c41a27288b7d5aa009
+      internalID: 537705728
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackGreyUISheet_5
+      rect:
+        serializedVersion: 2
+        x: 333
+        y: 205
+        width: 4
+        height: 14
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e4e17edd0241b1342a36f49f430d428a
+      internalID: 523921016
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackGreyUISheet_6
+      rect:
+        serializedVersion: 2
+        x: 343
+        y: 205
+        width: 4
+        height: 14
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 19a166629a73bda49a65b29ccbb1f468
+      internalID: -348706091
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackGreyUISheet_7
+      rect:
+        serializedVersion: 2
+        x: 361
+        y: 200
+        width: 22
+        height: 24
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 40257e1af308da641acb8f809511fd1f
+      internalID: 843397007
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackGreyUISheet_8
+      rect:
+        serializedVersion: 2
+        x: 395
+        y: 217
+        width: 4
+        height: 4
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e5c4f3e67e34d1a48834139cd6367112
+      internalID: 1801134732
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackGreyUISheet_9
+      rect:
+        serializedVersion: 2
+        x: 402
+        y: 217
+        width: 4
+        height: 4
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b719aee44ea4dce45b1c19466efa6a37
+      internalID: 1815304516
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackGreyUISheet_10
+      rect:
+        serializedVersion: 2
+        x: 409
+        y: 217
+        width: 4
+        height: 4
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: aff1b9fad49bd9948a98249c4424925b
+      internalID: 88984795
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackGreyUISheet_11
+      rect:
+        serializedVersion: 2
+        x: 395
+        y: 210
+        width: 4
+        height: 4
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 58c459b0ece31224db301a9225bcd351
+      internalID: -1431013836
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackGreyUISheet_12
+      rect:
+        serializedVersion: 2
+        x: 402
+        y: 210
+        width: 4
+        height: 4
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 307c1ddb8e74e7346890591ebd2b916c
+      internalID: -73370598
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackGreyUISheet_13
+      rect:
+        serializedVersion: 2
+        x: 409
+        y: 210
+        width: 4
+        height: 4
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 491e46035c4cb7c418f2a3202ff04bc9
+      internalID: -1012485842
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackGreyUISheet_14
+      rect:
+        serializedVersion: 2
+        x: 395
+        y: 203
+        width: 4
+        height: 4
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c49c49de204e05147bf4df5209090fc3
+      internalID: -1327099347
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackGreyUISheet_15
+      rect:
+        serializedVersion: 2
+        x: 402
+        y: 203
+        width: 4
+        height: 4
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a1d4d1cbf0483d843b05f04c86afeb74
+      internalID: 2018896234
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackGreyUISheet_16
+      rect:
+        serializedVersion: 2
+        x: 409
+        y: 203
+        width: 4
+        height: 4
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 189678a3f9d233846a79889843e182a6
+      internalID: 1327375208
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackGreyUISheet_17
+      rect:
+        serializedVersion: 2
+        x: 298
+        y: 172
+        width: 20
+        height: 16
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 52c6bf3ee8029e94a94f00ecc48745ad
+      internalID: -197944535
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackGreyUISheet_18
+      rect:
+        serializedVersion: 2
+        x: 330
+        y: 172
+        width: 20
+        height: 16
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: cf7e4296b76417043a45ef9394ab20f2
+      internalID: -1684676351
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackGreyUISheet_19
+      rect:
+        serializedVersion: 2
+        x: 362
+        y: 172
+        width: 20
+        height: 16
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ddafca60ec9dcc747b44aa6c83a4eedc
+      internalID: -1793953740
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackGreyUISheet_20
+      rect:
+        serializedVersion: 2
+        x: 394
+        y: 172
+        width: 20
+        height: 16
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 1c1aa0728c67ca64598a7e39f7b111b5
+      internalID: -1247150149
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackGreyUISheet_21
+      rect:
+        serializedVersion: 2
+        x: 116
+        y: 148
+        width: 48
+        height: 16
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7dbc7ede2437b4f4fa59bde9b0cc03f1
+      internalID: 1312205049
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackGreyUISheet_22
+      rect:
+        serializedVersion: 2
+        x: 180
+        y: 148
+        width: 48
+        height: 16
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c5ec4937a8594464fb7d50bf0de4f41b
+      internalID: -999197875
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackGreyUISheet_23
+      rect:
+        serializedVersion: 2
+        x: 244
+        y: 148
+        width: 48
+        height: 14
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 082cfac049535df419a0a7322540255d
+      internalID: -1432953533
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackGreyUISheet_24
+      rect:
+        serializedVersion: 2
+        x: 300
+        y: 138
+        width: 16
+        height: 20
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e711237b575671a4e872342d4adc4e49
+      internalID: -990696831
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackGreyUISheet_25
+      rect:
+        serializedVersion: 2
+        x: 332
+        y: 138
+        width: 16
+        height: 20
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 8300b36da7d9c214284e09b2d3f93c8c
+      internalID: 1786899557
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackGreyUISheet_26
+      rect:
+        serializedVersion: 2
+        x: 364
+        y: 138
+        width: 16
+        height: 20
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 159c1bde79af17641998321b643f1c47
+      internalID: 769273905
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackGreyUISheet_27
+      rect:
+        serializedVersion: 2
+        x: 396
+        y: 138
+        width: 16
+        height: 20
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7ec58df550a74894b99e6d4d32b7b400
+      internalID: -895514310
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackGreyUISheet_28
+      rect:
+        serializedVersion: 2
+        x: 121
+        y: 121
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 936b4ae490223464d97e8fdb3250a308
+      internalID: -2058904114
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackGreyUISheet_29
+      rect:
+        serializedVersion: 2
+        x: 132
+        y: 122
+        width: 48
+        height: 4
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 322954e42a807a940b8a75fe4d6b0750
+      internalID: -976326391
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackGreyUISheet_30
+      rect:
+        serializedVersion: 2
+        x: 184
+        y: 117
+        width: 8
+        height: 15
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: de668c63b3a09784da7fcfd74f5bb842
+      internalID: 80453391
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackGreyUISheet_31
+      rect:
+        serializedVersion: 2
+        x: 200
+        y: 117
+        width: 8
+        height: 15
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 35bacf8318bf35d43a33a0132b56b7c4
+      internalID: 1475077451
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackGreyUISheet_32
+      rect:
+        serializedVersion: 2
+        x: 233
+        y: 121
+        width: 7
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6a163316275ac504282b83465551418a
+      internalID: 1810435139
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackGreyUISheet_33
+      rect:
+        serializedVersion: 2
+        x: 249
+        y: 121
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a703a07053d12f946931c6619e24cf52
+      internalID: 578555520
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackGreyUISheet_34
+      rect:
+        serializedVersion: 2
+        x: 265
+        y: 106
+        width: 22
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 3a353a093bf8c4449ac9009bc65a1852
+      internalID: 512891653
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackGreyUISheet_35
+      rect:
+        serializedVersion: 2
+        x: 297
+        y: 106
+        width: 16
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 065bd0262e504af4ea4e9bd05497df7d
+      internalID: 1517382497
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackGreyUISheet_37
+      rect:
+        serializedVersion: 2
+        x: 329
+        y: 106
+        width: 16
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d8c7aeb5299638f46968d2b13dd8511f
+      internalID: 750873734
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackGreyUISheet_39
+      rect:
+        serializedVersion: 2
+        x: 4
+        y: 20
+        width: 96
+        height: 94
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 315f0524891fb3048b73fbaef3b06820
+      internalID: -1584670496
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackGreyUISheet_41
+      rect:
+        serializedVersion: 2
+        x: 120
+        y: 105
+        width: 7
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 32cc03d1f6ed1b9478a7b5ea1c3ffc0f
+      internalID: 435572226
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackGreyUISheet_43
+      rect:
+        serializedVersion: 2
+        x: 132
+        y: 105
+        width: 48
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 8052391454e644546a607ceb7143d06c
+      internalID: -1723614668
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackGreyUISheet_45
+      rect:
+        serializedVersion: 2
+        x: 201
+        y: 68
+        width: 6
+        height: 48
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 306c7ec1d690cb9499f2d81302e98b00
+      internalID: 1987444927
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackGreyUISheet_46
+      rect:
+        serializedVersion: 2
+        x: 233
+        y: 68
+        width: 7
+        height: 48
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7afc2daaa18650041987b6949f60c712
+      internalID: 483246005
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackGreyUISheet_47
+      rect:
+        serializedVersion: 2
+        x: 250
+        y: 68
+        width: 4
+        height: 48
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: dae4edcb28e5baa4f8d8de7cbe588717
+      internalID: -1830430805
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackGreyUISheet_48
+      rect:
+        serializedVersion: 2
+        x: 116
+        y: 72
+        width: 15
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 2645aa2e42f8c2946ae09b2f2202708c
+      internalID: -586488510
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackGreyUISheet_49
+      rect:
+        serializedVersion: 2
+        x: 132
+        y: 73
+        width: 48
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 21d0d3909557de04986efeb84dbdcc15
+      internalID: 1740130642
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackGreyUISheet_51
+      rect:
+        serializedVersion: 2
+        x: 267
+        y: 72
+        width: 18
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c6053ae55089a294ca1a14a6d713a6e0
+      internalID: -1730219640
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackGreyUISheet_53
+      rect:
+        serializedVersion: 2
+        x: 299
+        y: 72
+        width: 34
+        height: 17
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f9585d26276ea8c44b561ff30c1d3283
+      internalID: -999675963
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackGreyUISheet_54
+      rect:
+        serializedVersion: 2
+        x: 340
+        y: 72
+        width: 17
+        height: 17
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 58a002a61f0eef741ab307d6ead33f5b
+      internalID: -998194893
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackGreyUISheet_55
+      rect:
+        serializedVersion: 2
+        x: 116
+        y: 56
+        width: 15
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a1597b8ea5078934cadd4b6da50dd5d5
+      internalID: 1110690734
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackGreyUISheet_56
+      rect:
+        serializedVersion: 2
+        x: 260
+        y: 56
+        width: 16
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 85a2a05af47959243a60511260996065
+      internalID: -1955023154
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackGreyUISheet_57
+      rect:
+        serializedVersion: 2
+        x: 277
+        y: 45
+        width: 13
+        height: 23
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 3e8205f3c49f9354eb056ce39ca5ba4a
+      internalID: 90396788
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackGreyUISheet_58
+      rect:
+        serializedVersion: 2
+        x: 293
+        y: 52
+        width: 46
+        height: 15
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b108f68f5b511cf4e9994460a6a1fe90
+      internalID: 1134592422
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackGreyUISheet_59
+      rect:
+        serializedVersion: 2
+        x: 340
+        y: 36
+        width: 29
+        height: 27
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7f5f9774fa9cd4e4ca69f4a00272da59
+      internalID: 1953683128
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackGreyUISheet_60
+      rect:
+        serializedVersion: 2
+        x: 116
+        y: 4
+        width: 14
+        height: 48
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b34fca4d16d447e4b8d341f319350e14
+      internalID: 437012152
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackGreyUISheet_61
+      rect:
+        serializedVersion: 2
+        x: 132
+        y: 45
+        width: 48
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d8534dce6d2dd674298c67dfc4d8337e
+      internalID: 982134305
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackGreyUISheet_62
+      rect:
+        serializedVersion: 2
+        x: 184
+        y: 42
+        width: 40
+        height: 4
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 71cf2bfcc0edb1349aa6de178f3149c9
+      internalID: 858883026
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackGreyUISheet_63
+      rect:
+        serializedVersion: 2
+        x: 261
+        y: 29
+        width: 13
+        height: 23
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 19a92be4c9c6b6147b027f9d26e87a24
+      internalID: -2136985264
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackGreyUISheet_64
+      rect:
+        serializedVersion: 2
+        x: 277
+        y: 30
+        width: 12
+        height: 22
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e4c4d14698205b143bed0b5a9f2e7cfa
+      internalID: -448213575
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackGreyUISheet_65
+      rect:
+        serializedVersion: 2
+        x: 293
+        y: 36
+        width: 46
+        height: 15
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 89fda665177257d45933c4018497a33c
+      internalID: 1512558056
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackGreyUISheet_66
+      rect:
+        serializedVersion: 2
+        x: 132
+        y: 21
+        width: 96
+        height: 14
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 0e7bdef6c37348d4981f59222e6463b1
+      internalID: -943469181
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackGreyUISheet_67
+      rect:
+        serializedVersion: 2
+        x: 132
+        y: 5
+        width: 48
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c412ce64d446fd544b853b568eba6237
+      internalID: -2054403267
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BlackGreyUISheet_68
+      rect:
+        serializedVersion: 2
+        x: 182
+        y: 10
+        width: 44
+        height: 4
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9dd0b71266abba44e8884382efb1ef51
+      internalID: -1167635317
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    physicsShape: []
+    bones: []
+    spriteID: d2444d4d03eca7e41b0a6c3b765d5470
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    nameFileIdTable:
+      BlackGreyUISheet_0: -48668286
+      BlackGreyUISheet_1: 297028843
+      BlackGreyUISheet_10: 88984795
+      BlackGreyUISheet_11: -1431013836
+      BlackGreyUISheet_12: -73370598
+      BlackGreyUISheet_13: -1012485842
+      BlackGreyUISheet_14: -1327099347
+      BlackGreyUISheet_15: 2018896234
+      BlackGreyUISheet_16: 1327375208
+      BlackGreyUISheet_17: -197944535
+      BlackGreyUISheet_18: -1684676351
+      BlackGreyUISheet_19: -1793953740
+      BlackGreyUISheet_2: -947892781
+      BlackGreyUISheet_20: -1247150149
+      BlackGreyUISheet_21: 1312205049
+      BlackGreyUISheet_22: -999197875
+      BlackGreyUISheet_23: -1432953533
+      BlackGreyUISheet_24: -990696831
+      BlackGreyUISheet_25: 1786899557
+      BlackGreyUISheet_26: 769273905
+      BlackGreyUISheet_27: -895514310
+      BlackGreyUISheet_28: -2058904114
+      BlackGreyUISheet_29: -976326391
+      BlackGreyUISheet_3: 2010233756
+      BlackGreyUISheet_30: 80453391
+      BlackGreyUISheet_31: 1475077451
+      BlackGreyUISheet_32: 1810435139
+      BlackGreyUISheet_33: 578555520
+      BlackGreyUISheet_34: 512891653
+      BlackGreyUISheet_35: 1517382497
+      BlackGreyUISheet_36: 75526911
+      BlackGreyUISheet_37: 750873734
+      BlackGreyUISheet_38: -470129499
+      BlackGreyUISheet_39: -1584670496
+      BlackGreyUISheet_4: 537705728
+      BlackGreyUISheet_40: -2011548482
+      BlackGreyUISheet_41: 435572226
+      BlackGreyUISheet_42: 1421010486
+      BlackGreyUISheet_43: -1723614668
+      BlackGreyUISheet_44: -268649838
+      BlackGreyUISheet_45: 1987444927
+      BlackGreyUISheet_46: 483246005
+      BlackGreyUISheet_47: -1830430805
+      BlackGreyUISheet_48: -586488510
+      BlackGreyUISheet_49: 1740130642
+      BlackGreyUISheet_5: 523921016
+      BlackGreyUISheet_50: -443266584
+      BlackGreyUISheet_51: -1730219640
+      BlackGreyUISheet_52: -340921371
+      BlackGreyUISheet_53: -999675963
+      BlackGreyUISheet_54: -998194893
+      BlackGreyUISheet_55: 1110690734
+      BlackGreyUISheet_56: -1955023154
+      BlackGreyUISheet_57: 90396788
+      BlackGreyUISheet_58: 1134592422
+      BlackGreyUISheet_59: 1953683128
+      BlackGreyUISheet_6: -348706091
+      BlackGreyUISheet_60: 437012152
+      BlackGreyUISheet_61: 982134305
+      BlackGreyUISheet_62: 858883026
+      BlackGreyUISheet_63: -2136985264
+      BlackGreyUISheet_64: -448213575
+      BlackGreyUISheet_65: 1512558056
+      BlackGreyUISheet_66: -943469181
+      BlackGreyUISheet_67: -2054403267
+      BlackGreyUISheet_68: -1167635317
+      BlackGreyUISheet_7: 843397007
+      BlackGreyUISheet_8: 1801134732
+      BlackGreyUISheet_9: 1815304516
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

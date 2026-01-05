@@ -11,10 +11,28 @@ public class Accessory : Item, IStatProvider
 
     public IEnumerable<StatModifier> GetStatModifiers()
     {
-        return modifiers;
+        foreach (var m in modifiers)
+            yield return m;
     }
-    public IEnumerable<BuffSO> GetPassiveBuffs()
+
+    public IEnumerable<BuffSO> GetPassiveBuffs() => passiveBuffs;
+
+    protected override string GetBodyText()
     {
-        return passiveBuffs;
+        string modsText = StatModifier.GetFormattedModifiers(GetStatModifiers());
+
+        string buffText = "";
+        foreach (var buff in passiveBuffs)
+            buffText += $"• {buff.buffName}\n";
+
+        var sb = new System.Text.StringBuilder(description);
+
+        if (modsText.Length > 0)
+            sb.Append($"\n\n<b>Stats:</b>\n{modsText}");
+
+        if (buffText.Length > 0)
+            sb.Append($"\n<b>Buffs:</b>\n{buffText}");
+
+        return sb.ToString();
     }
 }

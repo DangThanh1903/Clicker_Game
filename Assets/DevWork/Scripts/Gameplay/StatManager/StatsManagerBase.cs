@@ -10,7 +10,14 @@ public abstract class StatsManagerBase : MonoBehaviour
 
     protected Dictionary<StatType, ReactiveStat> stats;
     protected Dictionary<StatType, ReactiveStat> baseStatsDict;
+    public event Action OnStatsRecalculated;
 
+    public IReadOnlyList<BuffInstance> ActiveBuffs    => buffManager?.GetActiveBuffs();
+    public IReadOnlyList<BuffInstance> ConditionBuffs => buffManager?.GetConditionBuffs();
+
+    [SerializeField] protected BuffManager buffManager;
+
+    private CompositeDisposable _cd = new CompositeDisposable();
 
     protected virtual void Awake()
     {
@@ -21,55 +28,121 @@ public abstract class StatsManagerBase : MonoBehaviour
         }
 
         baseStatsDict = new Dictionary<StatType, ReactiveStat>();
-        foreach (var baseStat in baseStat.baseStats)
+        foreach (var bs in baseStat.baseStats)
         {
-            baseStatsDict[baseStat.statType] = baseStat;
+            baseStatsDict[bs.statType] = bs;
         }
 
-        ClearAll();
+        if (!buffManager)
+            buffManager = GetComponent<BuffManager>();
+
+        // Starter buffs: apply ONCE at startup
+        ApplyStarterBuffsOnce();
+
+        // Build final stats once (base + gear (override) + buffs)
+        RecalculateAllStats();
     }
 
-    public ReactiveProperty<float> GetReactive(StatType type)
+    protected virtual void OnDestroy()
     {
-        return stats[type].value;
+        _cd.Dispose();
     }
 
-    public float Get(StatType type)
+    protected void EnableQuestStatSignals()
     {
-        return stats[type].Get();
+        foreach (var kv in stats)
+        {
+            var statType = kv.Key;
+            var reactive = kv.Value.value;
+
+            reactive
+                .DistinctUntilChanged()
+                .Subscribe(newValue =>
+                {
+                    QuestSignals.StatChanged(statType.ToString(), newValue);
+                })
+                .AddTo(_cd);
+        }
     }
 
-    public void Set(StatType type, float value)
-    {
-        stats[type].Set(value);
-    }
-
-    public void Add(StatType type, float amount)
-    {
-        stats[type].Add(amount);
-    }
-
-    public void Sub(StatType type, float amount)
-    {
-        stats[type].Sub(amount);
-    }
+    public ReactiveProperty<float> GetReactive(StatType type) => stats[type].value;
+    public float Get(StatType type) => stats[type].Get();
+    public void Set(StatType type, float value) => stats[type].Set(value);
+    public void Add(StatType type, float amount) => stats[type].Add(amount);
+    public void Sub(StatType type, float amount) => stats[type].Sub(amount);
 
     public void ClearAll()
     {
         foreach (var stat in stats.Values)
         {
-            if (baseStatsDict.TryGetValue(stat.statType, out var baseStat))
+            if (baseStatsDict.TryGetValue(stat.statType, out var bs))
+                stat.Set(bs.Get());
+        }
+    }
+
+    public void SetBaseStat(BaseStat insertBaseStat) => baseStat = insertBaseStat;
+
+    // Starter buffs (permanent passives defined on BaseStat)
+    protected virtual void ApplyStarterBuffsOnce()
+    {
+        if (buffManager == null || baseStat == null || baseStat.starterBuff == null)
+            return;
+
+        foreach (var starterBuff in baseStat.starterBuff)
+        {
+            if (starterBuff == null) continue;
+
+            bool alreadyHas = buffManager
+                .GetAllBuffs()
+                .Any(b => b.buffData == starterBuff && b.SourceItem == null);
+
+            if (alreadyHas) continue;
+
+            buffManager.ApplyBuff(starterBuff);
+        }
+    }
+
+    protected void RaiseStatsRecalculated()
+    {
+        OnStatsRecalculated?.Invoke();
+    }
+
+    // Main rebuild entry point
+    public virtual void RecalculateAllStats()
+    {
+        ClearAll();
+
+        ApplyBuffs();
+
+        ReCalculateHPAndMP();
+
+        RaiseStatsRecalculated();
+    }
+
+    // Shared buff application for everyone
+    protected virtual void ApplyBuffs()
+    {
+            if (buffManager == null) return;
+
+            foreach (var buffInst in buffManager.GetAllBuffs())
+        {
+            if (!buffInst.IsActive) continue;
+
+            var data  = buffInst.buffData;
+            int stacks = buffInst.StackCount;
+
+            foreach (var mod in data.GetEffectiveModifiers(stacks))
             {
-                stat.Set(baseStat.Get());
+                Add(mod.statType, mod.value);
             }
         }
     }
-    public void SetBaseStat(BaseStat insertBaseStat)
+
+    protected virtual void ReCalculateHPAndMP()
     {
-        baseStat = insertBaseStat;
-    }
-    public List<ConditionalBuffSO> GetAllStarterBuff()
-    {
-        return baseStat.starterBuff;
+        if (Get(StatType.CurrentHP) > Get(StatType.HP))
+            Set(StatType.CurrentHP, Get(StatType.HP));
+        if (Get(StatType.CurrentMana) > Get(StatType.Mana))
+            Set(StatType.CurrentMana, Get(StatType.Mana));
     }
 }

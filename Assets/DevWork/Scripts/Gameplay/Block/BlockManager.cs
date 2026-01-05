@@ -13,6 +13,7 @@ public class BlockManager : MonoBehaviour
     [SerializeField] Transform  spawnPos;
     public float rareWeightCap = 10;
     private GameObject activeBoss;
+    private BossEntry activeBossInfo;
     Boss activeBossComp;
     void Awake()
     {
@@ -39,7 +40,29 @@ public class BlockManager : MonoBehaviour
         Vector3 pos = spawnPos ? spawnPos.position : Vector3.zero;
         Quaternion rot = spawnPos ? spawnPos.rotation : Quaternion.identity;
 
-        var bossPrefab = bossSO.FindOne(bossLocation, bossType).bossPrefab;
+        activeBossInfo = bossSO.FindOne(bossLocation, bossType);
+
+        if (activeBossInfo == null)
+        {
+            Debug.LogWarning($"[BossSpawner] No boss found for location {bossLocation} and type {bossType}");
+            return null;
+        }
+
+        if (activeBossInfo.bossPrefab == null)
+        {
+            Debug.LogWarning($"[BossSpawner] Boss prefab is null for boss {activeBossInfo.bossName}");
+            return null;
+        }
+
+        if (IsBossOutOfCondition())
+        {
+            Debug.Log($"[BossSpawner] Boss {activeBossInfo.bossName} cannot be summoned due to time/weather conditions.");
+            // Game log
+            return null;
+        }
+
+        // Spawn
+        var bossPrefab = activeBossInfo.bossPrefab;
         var go = LeanPool.Spawn(bossPrefab, pos, rot);
         activeBoss = go;
         var stats = go.GetComponent<EnemyStatsManager>();
@@ -75,6 +98,15 @@ public class BlockManager : MonoBehaviour
     }
     public void OnBlockBroken()
     {
+        string blockId = currentBlock.BlockName;
+
+        var biome = locationLoader.currentLocation;
+        string biomeName = biome.ToString();
+
+        string targetId = $"{blockId}@{biomeName}";
+
+        QuestSignals.BreakBlock(targetId, 1);
+
         NormalWeatherName normalName =
             (WeatherManager.Instance.CurrentNormalWeather.Value as NormalWeatherData)?.weatherName
             ?? NormalWeatherName.Any;
@@ -89,5 +121,12 @@ public class BlockManager : MonoBehaviour
             normalName,
             specialName
         );
+    }
+
+
+    // Boss
+    public bool IsBossOutOfCondition()
+    {
+        return activeBossInfo.Matches(TimeSystem.Instance.CurrentTimeState.Value, WeatherManager.Instance.CurrentNormalWeather.Value, WeatherManager.Instance.CurrentSpecialWeather.Value) == false;
     }
 }

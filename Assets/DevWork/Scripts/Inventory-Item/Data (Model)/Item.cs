@@ -11,18 +11,6 @@ public enum ItemType
     BossSummoner,
     Lootbox
 }
-
-public enum ItemPrefix
-{
-    Gigachad,
-    Greedy,
-    Overclocked,
-    Mighty,
-    OPM,
-    Bruh,
-    Unlucky,
-    Shit
-}
 public enum Rarity
 {
     Common,
@@ -43,10 +31,16 @@ public abstract class Item : ScriptableObject
     public string GetFormattedDescription()
     {
         string header = $"<size=120%>{GetColoredName()}</size>";
-        string body   = description;
+        string body   = GetBodyText();
 
         return $"{header}\n\n{body}";
     }
+
+    protected virtual string GetBodyText()
+    {
+        return description;
+    }
+
     public string GetColoredName()
     {
         string colorHex = RarityColors.GetColorHex(rarity);

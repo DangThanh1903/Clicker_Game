@@ -7,7 +7,12 @@ using UniRx;
 
 public class LocationLoader : MonoBehaviour
 {
+    public static LocationLoader Ins { get; private set; }
+
     public BlockSpawnLocation currentLocation;
+
+    // Reactive stream for other systems (music, etc.)
+    public ReactiveProperty<BlockSpawnLocation> ReactiveLocation { get; private set; }
 
     [Header("UI")]
     [SerializeField] private Button[] LocationButton;
@@ -21,7 +26,21 @@ public class LocationLoader : MonoBehaviour
 
     // runtime
     private GameObject currentInstance;
-    private bool _bootstrapped = false;   // <— NEW
+    private bool _bootstrapped = false;
+
+    private void Awake()
+    {
+        if (Ins != null && Ins != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+
+        Ins = this;
+
+        // Init reactive location with whatever currentLocation is (inspector / save)
+        ReactiveLocation = new ReactiveProperty<BlockSpawnLocation>(currentLocation);
+    }
 
     private void Start()
     {
@@ -40,8 +59,11 @@ public class LocationLoader : MonoBehaviour
             return;
         }
 
-        SpawnLocation(loc.Value, isInitiate: true); // <— ensure no despawn on first time
+        SpawnLocation(loc.Value, isInitiate: true);
         _bootstrapped = true;
+
+        // Ensure reactive matches current
+        ReactiveLocation.Value = currentLocation;
     }
 
     private void InitializeLocationButton()
@@ -87,7 +109,7 @@ public class LocationLoader : MonoBehaviour
         }
     }
 
-    public void SetLocation(int index, bool isInitiate = false)   // <— accepts isInitiate
+    public void SetLocation(int index, bool isInitiate = false)
     {
         if (!Enum.IsDefined(typeof(BlockSpawnLocation), index))
         {
@@ -103,6 +125,10 @@ public class LocationLoader : MonoBehaviour
         DataSaver.Ins.currentLocation = newLoc;
         if (DataSaver.Ins.PeakLocation == null || DataSaver.Ins.PeakLocation < newLoc)
             DataSaver.Ins.PeakLocation = newLoc;
+
+        // Update reactive stream for music / other systems
+        if (ReactiveLocation != null)
+            ReactiveLocation.Value = newLoc;
 
         var data = locationSO.GetByEnum(newLoc);
         if (!data.HasValue)

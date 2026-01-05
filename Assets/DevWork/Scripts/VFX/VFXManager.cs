@@ -1,13 +1,48 @@
 using UnityEngine;
+using System.Collections;
 using System.Collections.Generic;
 using UniRx;
 using Lean.Pool;
 
 public class VFXManager : MonoBehaviour
 {
+    public static VFXManager Ins { get; private set; }
+
+    [Header("VFX Triggers")]
     [SerializeField] private List<VFXTrigger> triggers;
 
-    void Start()
+    [Header("Biome Music")]
+    [SerializeField] private AudioSource musicSource;          // Loop ON, PlayOnAwake OFF
+    [SerializeField] private List<BiomeMusicEntry> biomeMusic; // Map BlockSpawnLocation -> clip
+    [SerializeField] private float defaultFadeTime = 1.5f;
+
+    private Coroutine _fadeRoutine;
+
+    // 🎧 user volume (0–1)
+    private float _musicVolume = 1f;
+    private const string MusicVolumeKey = "MusicVolume";
+
+    private void Awake()
+    {
+        if (Ins != null && Ins != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+
+        Ins = this;
+        DontDestroyOnLoad(gameObject);
+    }
+
+    private void Start()
+    {
+        SetupVFXTriggers();
+        SetupBiomeMusic();
+    }
+
+    #region VFX
+
+    private void SetupVFXTriggers()
     {
         foreach (var trigger in triggers)
         {
@@ -49,7 +84,12 @@ public class VFXManager : MonoBehaviour
 
         if (shouldPlay && trigger.spawnedVFX == null)
         {
-            trigger.spawnedVFX = LeanPool.Spawn(trigger.vfxPrefab, transform.position, Quaternion.identity, transform);
+            trigger.spawnedVFX = LeanPool.Spawn(
+                trigger.vfxPrefab,
+                transform.position,
+                Quaternion.identity,
+                transform
+            );
             Debug.Log($"Started in-game VFX: {trigger.name}");
         }
         else if (!shouldPlay && trigger.spawnedVFX != null)
@@ -60,4 +100,122 @@ public class VFXManager : MonoBehaviour
         }
     }
 
+    #endregion
+
+    #region Biome Music
+
+    private void SetupBiomeMusic()
+    {
+        // Load saved volume first (0–1, default 1)
+        _musicVolume = PlayerPrefs.GetFloat(MusicVolumeKey, 1f);
+        if (musicSource != null)
+            musicSource.volume = _musicVolume;
+
+        if (LocationLoader.Ins == null || LocationLoader.Ins.ReactiveLocation == null)
+        {
+            Debug.LogWarning("[VFXManager] No LocationLoader.Ins or ReactiveLocation, biome music will not play.");
+            return;
+        }
+
+        // React to biome changes from LocationLoader
+        LocationLoader.Ins.ReactiveLocation
+            .DistinctUntilChanged()
+            .Subscribe(OnBiomeChanged)
+            .AddTo(this);
+
+        // Apply initial biome
+        OnBiomeChanged(LocationLoader.Ins.ReactiveLocation.Value);
+    }
+
+    private void OnBiomeChanged(BlockSpawnLocation biome)
+    {
+        var entry = biomeMusic.Find(b => b.biome == biome);
+
+        if (entry == null || entry.clip == null)
+        {
+            Debug.LogWarning($"[VFXManager] No music clip set for biome: {biome}");
+            return;
+        }
+
+        float fade = entry.fadeTime > 0f ? entry.fadeTime : defaultFadeTime;
+        PlayBiomeMusic(entry.clip, fade);
+        Debug.Log($"[VFXManager] Switched biome music to {biome}");
+    }
+
+    private void PlayBiomeMusic(AudioClip newClip, float fadeTime)
+    {
+        // Already playing this clip
+        if (musicSource != null && musicSource.clip == newClip && musicSource.isPlaying)
+            return;
+
+        if (_fadeRoutine != null)
+            StopCoroutine(_fadeRoutine);
+
+        _fadeRoutine = StartCoroutine(FadeToClipRoutine(newClip, fadeTime));
+    }
+
+    private IEnumerator FadeToClipRoutine(AudioClip newClip, float fadeTime)
+    {
+        if (musicSource == null)
+            yield break;
+
+        float targetVolume = _musicVolume;   // user volume 0–1
+        float startVolume = musicSource.volume;
+
+        // Fade out
+        if (musicSource.clip != null && fadeTime > 0f)
+        {
+            float t = 0f;
+            while (t < fadeTime)
+            {
+                t += Time.deltaTime;
+                musicSource.volume = Mathf.Lerp(startVolume, 0f, t / fadeTime);
+                yield return null;
+            }
+        }
+
+        // Swap clip
+        musicSource.clip = newClip;
+        if (newClip != null)
+        {
+            musicSource.loop = true;
+            musicSource.Play();
+        }
+
+        // Fade in
+        if (fadeTime > 0f)
+        {
+            float t = 0f;
+            while (t < fadeTime)
+            {
+                t += Time.deltaTime;
+                musicSource.volume = Mathf.Lerp(0f, targetVolume, t / fadeTime);
+                yield return null;
+            }
+        }
+
+        musicSource.volume = targetVolume;
+        _fadeRoutine = null;
+    }
+
+    /// <summary>
+    /// Called from SettingsUI. volume01 is 0–1.
+    /// </summary>
+    public void SetMusicVolume(float volume01)
+    {
+        _musicVolume = Mathf.Clamp01(volume01);
+
+        if (musicSource != null)
+            musicSource.volume = _musicVolume;
+    }
+
+    #endregion
+}
+
+[System.Serializable]
+public class BiomeMusicEntry
+{
+    public BlockSpawnLocation biome;
+    public AudioClip clip;
+    public float fadeTime = 1.5f;
 }

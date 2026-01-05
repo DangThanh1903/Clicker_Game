@@ -61,6 +61,40 @@ public class InventoryUIManager : MonoBehaviour
         }
         return null;
     }
+
+    // Helper 
+
+    public IEnumerable<InventoryItem> GetEquippedItems()
+    {
+        foreach (var section in inventorySections)
+        {
+            if (section.inventoryData.inventoryType != InventoryType.Pickaxe &&
+                section.inventoryData.inventoryType != InventoryType.Accessory)
+                continue;
+
+            foreach (var item in section.inventoryData.Items)
+            {
+                if (item?.itemData == null) continue;
+                yield return item;
+            }
+        }
+    }
+
+    public IEnumerable<(InventoryType type, InventoryItem item)> GetEquippedItemSlots()
+    {
+        foreach (var section in inventorySections)
+        {
+            if (section.inventoryData.inventoryType != InventoryType.Pickaxe &&
+                section.inventoryData.inventoryType != InventoryType.Accessory)
+                continue;
+
+            foreach (var item in section.inventoryData.Items)
+            {
+                if (item?.itemData == null) continue;
+                yield return (section.inventoryData.inventoryType, item);
+            }
+        }
+    }
 }
 
 [Serializable]

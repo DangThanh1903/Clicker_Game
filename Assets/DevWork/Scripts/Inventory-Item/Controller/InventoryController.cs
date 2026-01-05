@@ -16,8 +16,8 @@ public class InventoryController : MonoBehaviour
     [SerializeField] private InventoryUIManager uiManager;
     [SerializeField] private CraftingController craftingController;
     [SerializeField] private TMP_Text description;
+    [SerializeField] private List<TMP_Text> statTexts;
     [SerializeField] private Button useButton;
-    [SerializeField] private BuffManager buffManager;
     [SerializeField] private Button sortInventoryButton;
     [SerializeField] private PopupView lootboxPrefab;
     [SerializeField] private CaseRollController caseRollController;
@@ -39,7 +39,6 @@ public class InventoryController : MonoBehaviour
 
     void Start()
     {
-        buffManager.Initialize(StatsManager.Ins);
         useButton.gameObject.SetActive(false);
         UpdateStat();
 
@@ -47,6 +46,14 @@ public class InventoryController : MonoBehaviour
         {
             uiManager.SortInventory();
         });
+
+        StatsManager.Ins.OnStatsRecalculated += UpdateStatDescription;
+    }
+
+    void OnDestroy()
+    {
+        if (StatsManager.Ins != null)
+            StatsManager.Ins.OnStatsRecalculated -= UpdateStatDescription;
     }
 
     // ==============================
@@ -180,121 +187,79 @@ public class InventoryController : MonoBehaviour
 
     void UpdateStat()
     {
-        // Reset stats to base
-        StatsManager.Ins.ClearAll();
-
-        // Remove all item buffs (so we can reapply)
-        foreach (var section in uiManager.inventorySections)
-            foreach (var item in section.inventoryData.Items)
-                if (item?.itemData != null)
-                    buffManager.RemoveBuffsFromItem(item.itemData);
-
-        // Apply buffs from equipped items
-        foreach (var section in uiManager.inventorySections)
-        {
-            if (section.inventoryData.inventoryType != InventoryType.Pickaxe &&
-                section.inventoryData.inventoryType != InventoryType.Accessory)
-                continue;
-
-            foreach (var item in section.inventoryData.Items)
-            {
-                if (item?.itemData == null) continue;
-
-                // Apply stats from IStatProvider
-                if (item.itemData is IStatProvider provider)
-                    foreach (var mod in provider.GetStatModifiers())
-                        StatsManager.Ins.Add(mod.statType, mod.value);
-
-                // Apply buffs from accessory / passive items
-                if (item.itemData is Accessory accessory)
-                    buffManager.ApplyItemBuffs(item.itemData, accessory.GetPassiveBuffs());
-
-                if (item.itemData is Pickaxe pickaxe)
-                    buffManager.ApplyItemBuffs(item.itemData, pickaxe.GetPassiveBuffs());
-            }
-        }
-
-        foreach (var buff in buffManager.GetActiveBuffs())
-        {
-            if (buff.SourceItem == null)
-            {
-                buff.ApplyEffect();
-            }
-        }
-
-        // Update UI description
-        UpdateStatDescription();
+        StatsManager.Ins.RecalculateAllStats();
+        UpdateStatTextsImmediate();     // ✅ update list text ngay lập tức
+        UpdateStatDescription();        // ✅ update description (buffs)
     }
-
 
 
     async void UpdateStatDescription()
     {
-        string text = await GetStatDescriptionWithBuffs(buffManager.GetActiveBuffs().ToList(), buffManager.GetConditionBuffs().ToList());
-        SetDescription(text);
+        var activeBuffs    = StatsManager.Ins.ActiveBuffs?.ToList()    ?? new List<BuffInstance>();
+        var conditionBuffs = StatsManager.Ins.ConditionBuffs?.ToList() ?? new List<BuffInstance>();
+
+        // ✅ Update stat list (đề phòng thay đổi state/buff)
+        UpdateStatTextsImmediate();
+
+        // ✅ Chỉ show buff vào description
+        string buffText = GetBuffOnlyDescription(activeBuffs, conditionBuffs);
+        SetDescription(buffText);
     }
 
-    public async Task<string> GetStatDescriptionWithBuffs(List<BuffInstance> buffs, List<BuffInstance> conditionBuffs)
+    void UpdateStatTextsImmediate()
     {
-        // wait for base description
-        string desc = await GetStatDescriptionAsync();
+        if (statTexts == null || statTexts.Count == 0) return;
 
-        var sb = new StringBuilder(desc);
+        // Order: HP, Mana, Damage, Crit, Def (giống bạn đang build)
+        var hp   = StatsManager.Ins.Get(StatType.HP);
+        var mana = StatsManager.Ins.Get(StatType.Mana);
+        var dmg  = GetDamageByState();
+        var crit = StatsManager.Ins.Get(StatType.CritChance);
+        var def  = StatsManager.Ins.Get(StatType.Def);
+        var luck = StatsManager.Ins.Get(StatType.Lucky);
+
+        // đảm bảo list đủ phần tử
+        void Set(int idx, string value)
+        {
+            if (idx >= 0 && idx < statTexts.Count && statTexts[idx] != null)
+                statTexts[idx].text = value;
+        }
+
+        Set(0, $"{hp:F0}");
+        Set(1, $"{mana:F0}");
+        Set(2, $"{dmg:F0}");
+        Set(3, $"{crit:F0}%");
+        Set(4, $"{def:F0}");
+        Set(5, $"{luck:F0}%");
+    }
+
+    string GetBuffOnlyDescription(List<BuffInstance> buffs, List<BuffInstance> conditionBuffs)
+    {
+        var sb = new StringBuilder();
 
         foreach (var buff in buffs)
         {
-            if (buff.IsActive)
-            {
-                // if buffName is LocalizedString, resolve it here:
-                string buffName = buff.buffData.buffName;
-                sb.AppendLine($"{buffName}: +{buff.buffData.amount} {buff.buffData.statType}");
-            }
+            if (!buff.IsActive) continue;
+
+            string buffName = buff.buffData.buffName;
+            sb.AppendLine($"{buffName} [x{buff.StackCount}]:");
+            foreach (var m in buff.buffData.modifiers)
+                sb.AppendLine($"   +{m.value * buff.StackCount} {m.statType}");
+            sb.AppendLine();
         }
 
         foreach (var buff in conditionBuffs)
         {
-            if (buff.buffData is ConditionalBuffSO conditionalBuffSO)
-            {
-                sb.AppendLine(
-                    $"{conditionalBuffSO.buffName}: +{conditionalBuffSO.amount} {conditionalBuffSO.statType} [{conditionalBuffSO.conditionType}]"
-                    );
-            }
+            if (buff.buffData is not ConditionalBuffSO conditional) continue;
+
+            sb.AppendLine($"{conditional.buffName} [{conditional.conditionType}]:");
+            foreach (var m in buff.buffData.modifiers)
+                sb.AppendLine($"   +{m.value} {m.statType}");
+            sb.AppendLine();
         }
 
-        return sb.ToString();
-    }
-
-    public async Task<string> GetStatDescriptionAsync()
-    {
-        var HP    = StatsManager.Ins.Get(StatType.HP);
-        var Mana  = StatsManager.Ins.Get(StatType.Mana);
-        var dmg   = GetDamageByState();
-        var def   = StatsManager.Ins.Get(StatType.Def);
-        var crit  = StatsManager.Ins.Get(StatType.CritChance);
-
-        var sb = new StringBuilder();
-
-        // Resolve từng LocalizedString 1 lần
-        async Task<string> L(StatType type)
-        {
-            var handle = type.ToLocalized().GetLocalizedStringAsync();
-            await handle.Task;
-            string result = handle.Status == AsyncOperationStatus.Succeeded ? handle.Result : type.ToString();
-            Addressables.Release(handle);
-            return result;
-        }
-
-        string hpLabel   = await L(StatType.HP);
-        string manaLabel = await L(StatType.Mana);
-        string dmgLabel  = await L(StatType.NormalPower); // hoặc key riêng "stat_damage"
-        string defLabel  = await L(StatType.Def);
-        string critLabel = await L(StatType.CritChance);
-
-        sb.AppendLine($"{hpLabel}: {HP:F0}");
-        sb.AppendLine($"{manaLabel}: {Mana}");
-        sb.AppendLine($"{dmgLabel}: {dmg}");
-        sb.AppendLine($"{critLabel}: {crit:F0}%");
-        sb.AppendLine($"{defLabel}: {def:F0}");
+        if (sb.Length == 0)
+            sb.AppendLine("No active buffs.");
 
         return sb.ToString();
     }
@@ -314,10 +279,11 @@ public class InventoryController : MonoBehaviour
     {
         if (consumable.buffToApply != null)
         {
-            buffManager.ApplyBuff(consumable.buffToApply);
+            StatsManager.Ins.ApplyConsumableBuff(consumable.buffToApply);
             Debug.Log($"Applied buff: {consumable.buffToApply.buffName}");
         }
     }
+
 
     void UseSummonBoss(BossSummoner bossSummoner)
     {

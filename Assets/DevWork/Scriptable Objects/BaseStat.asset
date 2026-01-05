@@ -15,7 +15,7 @@ MonoBehaviour:
   statsList:
   - statType: 0
     value:
-      value: 192.80048
+      value: 1442.8005
   - statType: 1
     value:
       value: 0
@@ -27,7 +27,7 @@ MonoBehaviour:
       value: 1
   - statType: 4
     value:
-      value: 3
+      value: 1
   - statType: 5
     value:
       value: 1
@@ -42,13 +42,13 @@ MonoBehaviour:
       value: 1
   - statType: 9
     value:
-      value: 100
+      value: 50
   - statType: 10
     value:
-      value: 28.899937
+      value: 50
   - statType: 11
     value:
-      value: 3
+      value: 1
   - statType: 12
     value:
       value: 0
@@ -61,12 +61,15 @@ MonoBehaviour:
   - statType: 15
     value:
       value: 0
+  - statType: 16
+    value:
+      value: 0
   - statType: 17
     value:
-      value: 1
+      value: 31
   - statType: 18
     value:
-      value: 14.800006
+      value: 576.8
   - statType: 19
     value:
       value: 0
@@ -105,6 +108,9 @@ MonoBehaviour:
     value:
       value: 200
   - statType: 15
+    value:
+      value: 0
+  - statType: 16
     value:
       value: 0
   starterBuff: []

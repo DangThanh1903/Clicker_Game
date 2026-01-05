@@ -13,9 +13,9 @@ MonoBehaviour:
   m_Name: passiveTest
   m_EditorClassIdentifier: 
   buffName: Hp regen
-  statType: 8
-  amount: 2
+  modifiers: []
   buffIcon: {fileID: 0}
   duration: 0
   isStackable: 0
-  conditionType: 1
+  maxStack: 1
+  conditionType: 11

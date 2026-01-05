@@ -13,7 +13,7 @@ public class InventoryItem
 
     public ReactiveProperty<int> quantity;
 
-    // Shared "None" item for all InventoryItems
+    public ItemPrefix prefix = ItemPrefix.None;
     private static Item _none;
     private static bool _loadingNone = false;
 

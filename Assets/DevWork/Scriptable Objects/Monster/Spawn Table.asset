@@ -1,0 +1,19 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b9d3a7f1a2b36024fa0fd9e297482bec, type: 3}
+  m_Name: Spawn Table
+  m_EditorClassIdentifier: 
+  pools:
+  - rule: {fileID: 11400000, guid: 915465b93aa695b498f5d5546760bf25, type: 2}
+    entries:
+    - monster: {fileID: 11400000, guid: 9f260a69d4cb3004ab78703a6e2656f8, type: 2}
+      weight: 1

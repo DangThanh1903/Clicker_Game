@@ -1,5 +1,5 @@
 using UnityEngine;
-using Firebase.Database;
+using Firebase.Firestore;
 using System.Collections.Generic;
 using UnityEngine.AddressableAssets;
 using UnityEngine.ResourceManagement.AsyncOperations;
@@ -10,19 +10,31 @@ using UniRx;
 public class DataSaver : MonoBehaviour
 {
     public static DataSaver Ins { get; private set; }
+
+    [Header("Gameplay")]
     public string currentBlock;
-    public string currentUserID;
     public BlockSpawnLocation? currentLocation;
     public BlockSpawnLocation? PeakLocation;
     public float CurrentTime;
+
+    [Header("Autosave")]
     private IntReactiveProperty blockBreakCounter = new IntReactiveProperty(0);
     private const int SaveThreshold = 10;
+
     [SerializeField] private List<InventoryData> inventoryDatas = new List<InventoryData>();
-    private DatabaseReference dbRef;
+
+    // Firestore
+    private FirebaseFirestore db;
+
+    // Throttle chống spam write (clicker)
+    [SerializeField] private float cloudSaveCooldown = 15f;
+    private float nextCloudSaveTime = 0f;
+
+    // Ready flag
+    private bool isReady = false;
 
     void Awake()
     {
-        dbRef = FirebaseDatabase.DefaultInstance.RootReference;
         if (Ins != null && Ins != this)
         {
             Destroy(gameObject);
@@ -31,303 +43,302 @@ public class DataSaver : MonoBehaviour
         Ins = this;
         DontDestroyOnLoad(gameObject);
     }
+
     private void Start()
     {
-        // Subscribe once at Start
+        // ✅ Delay init until FirebaseBootstrap is ready
+        StartCoroutine(InitWhenReady());
+    }
+
+    private IEnumerator InitWhenReady()
+    {
+        // Wait FirebaseBootstrap singleton exists
+        yield return new WaitUntil(() => FirebaseBootstrap.Ins != null);
+
+        // Wait Auth + CurrentUser + Db ready
+        yield return new WaitUntil(() =>
+            FirebaseBootstrap.Ins.Auth != null &&
+            FirebaseBootstrap.Ins.Auth.CurrentUser != null &&
+            FirebaseBootstrap.Ins.Db != null &&
+            !string.IsNullOrEmpty(FirebaseBootstrap.Ins.Auth.CurrentUser.UserId)
+        );
+
+        db = FirebaseBootstrap.Ins.Db;
+
+        // Subscribe once, only when ready
         blockBreakCounter
             .Where(count => count >= SaveThreshold)
-            .Subscribe(_ =>
-            {
-                SaveDataFn();
-            })
+            .Subscribe(_ => SaveDataFn())
             .AddTo(this);
+
+        isReady = true;
+        Debug.Log($"✅ DataSaver ready. uid={GetUid()}");
     }
+
+    private string GetUid()
+    {
+        if (FirebaseBootstrap.Ins == null) return null;
+        if (FirebaseBootstrap.Ins.Auth == null) return null;
+        if (FirebaseBootstrap.Ins.Auth.CurrentUser == null) return null;
+        return FirebaseBootstrap.Ins.Auth.CurrentUser.UserId;
+    }
+
+    private bool CanCloudSaveNow(out string uid)
+    {
+        uid = null;
+
+        if (!isReady) return false;
+        if (db == null) return false;
+
+        uid = GetUid();
+        if (string.IsNullOrEmpty(uid)) return false;
+
+        // cooldown để không spam write
+        if (Time.unscaledTime < nextCloudSaveTime) return false;
+        nextCloudSaveTime = Time.unscaledTime + cloudSaveCooldown;
+
+        return true;
+    }
+
+    // Bạn gọi cái này mỗi khi break block/click... tuỳ logic
+    public void IncreaseBreakCounter(int amount = 1)
+    {
+        blockBreakCounter.Value += amount;
+    }
+
     public void SaveDataFn()
     {
-        blockBreakCounter.Value = 0;
-        string storedId = currentUserID;
-        string userId = string.IsNullOrEmpty(storedId) ? null : storedId;
-        if (userId == null)
-        {
-            Debug.LogError("User id is null!");
+        // reset counter (nhưng chỉ reset khi thật sự save)
+        if (!CanCloudSaveNow(out var uid))
             return;
-        }
 
-        // for inventory
-        foreach (var inv in inventoryDatas)
-        {
-            InventorySaveData saveData = new InventorySaveData();
-            saveData.items = new List<InventoryItemSave>();
-            foreach (var invItem in inv.Items)
-            {
-                InventoryItemSave saveItem = new InventoryItemSave
-                {
-                    itemName = invItem.itemData.name,
-                    quantity = invItem.quantity.Value
-                };
+        blockBreakCounter.Value = 0;
 
-                saveData.items.Add(saveItem);
-            }
-            string json = JsonUtility.ToJson(saveData);
-            dbRef.Child("user").Child(userId).Child("inventory").Child(inv.inventoryType.ToString())
-                 .SetRawJsonValueAsync(json);
-        }
+        SaveGameplay(uid);
+        SaveAllInventories(uid);
+    }
 
-        // For block
-        string blockValue = currentBlock.ToString();
-        dbRef.Child("user").Child(userId).Child("Gameplay").Child("currentBlock").SetValueAsync(blockValue);
+    private void SaveGameplay(string uid)
+    {
+        // Guard null string
+        string blockValue = string.IsNullOrEmpty(currentBlock) ? "Dirt" : currentBlock;
 
-        // For location
-        string locationValue = currentLocation.ToString();
-        dbRef.Child("user").Child(userId).Child("Gameplay").Child("currentLocation").SetValueAsync(locationValue);
+        string locationValue = currentLocation?.ToString();
+        string peakValue = PeakLocation?.ToString();
 
-        // For peak location
-        string peakLoc = PeakLocation.ToString();
-        dbRef.Child("user").Child(userId).Child("Gameplay").Child("PeakLocation").SetValueAsync(peakLoc);
+        float clicks = StatsManager.Ins != null ? StatsManager.Ins.Get(StatType.Clicks) : 0f;
+        float diamonds = StatsManager.Ins != null ? StatsManager.Ins.Get(StatType.Diamond) : 0f;
 
-        // For clicks
-        string clicks = StatsManager.Ins.Get(StatType.Clicks).ToString();
-        dbRef.Child("user").Child(userId).Child("Gameplay").Child("Clicks").SetValueAsync(clicks);
-
-        // For diamond
-        string diamonds = StatsManager.Ins.Get(StatType.Diamond).ToString();
-        dbRef.Child("user").Child(userId).Child("Gameplay").Child("Diamonds").SetValueAsync(diamonds);
-
-        // For time
+        float timeValue = CurrentTime;
         if (TimeSystem.Instance != null)
+            timeValue = TimeSystem.Instance.CurrentTime.Value;
+
+        var gameplay = new GameplaySaveData
         {
-            string time = TimeSystem.Instance.CurrentTime.ToString();
-            dbRef.Child("user").Child(userId).Child("Gameplay").Child("CurrentTime").SetValueAsync(time);
-        }
+            currentBlock = blockValue,
+            currentLocation = locationValue,
+            peakLocation = peakValue,
+            clicks = clicks,
+            diamonds = diamonds,
+            currentTime = timeValue
+        };
+
+        var userDoc = db.Collection("users").Document(uid);
+
+        var payload = new Dictionary<string, object>
+        {
+            ["gameplay"] = gameplay,
+            ["meta.updatedAt"] = Timestamp.GetCurrentTimestamp(),
+            ["meta.rev"] = FieldValue.Increment(1),
+            ["meta.saveVersion"] = 1
+        };
+
+        userDoc.SetAsync(payload, SetOptions.MergeAll);
     }
-    public IEnumerator LoadAllInventories(string userId)
+
+    private void SaveAllInventories(string uid)
     {
         foreach (var inv in inventoryDatas)
         {
-            yield return StartCoroutine(LoadOneInventory(userId, inv));
+            SaveOneInventory(uid, inv);
         }
-
-        Debug.Log("✅ All inventories loaded");
     }
 
-    private IEnumerator LoadOneInventory(string userId, InventoryData inv)
+    private void SaveOneInventory(string uid, InventoryData inv)
     {
-        var dataTask = dbRef.Child("user").Child(userId).Child("inventory").Child(inv.inventoryType.ToString()).GetValueAsync();
-        yield return new WaitUntil(() => dataTask.IsCompleted);
+        InventorySaveData saveData = new InventorySaveData { items = new List<InventoryItemSave>() };
 
-        if (dataTask.Exception != null)
+        foreach (var invItem in inv.Items)
         {
-            Debug.LogError($"❌ Failed to load {inv.inventoryType}: {dataTask.Exception}");
+            var item = invItem?.itemData != null ? invItem.itemData : inv.NullItem;
+
+            saveData.items.Add(new InventoryItemSave
+            {
+                itemName = item != null ? item.name : "",
+                quantity = invItem?.quantity?.Value ?? 0
+            });
+        }
+
+        db.Collection("users").Document(uid)
+          .Collection("inventories").Document(inv.inventoryType.ToString())
+          .SetAsync(saveData);
+    }
+
+    // ===== LOAD =====
+
+    public IEnumerator LoadAllInventories(string uid)
+    {
+        foreach (var inv in inventoryDatas)
+            yield return StartCoroutine(LoadOneInventory(uid, inv));
+
+        Debug.Log("✅ All inventories loaded (Firestore)");
+    }
+
+    private IEnumerator LoadOneInventory(string uid, InventoryData inv)
+    {
+        var task = db.Collection("users").Document(uid)
+            .Collection("inventories").Document(inv.inventoryType.ToString())
+            .GetSnapshotAsync();
+
+        yield return new WaitUntil(() => task.IsCompleted);
+
+        if (task.Exception != null)
+        {
+            Debug.LogError($"❌ Failed to load {inv.inventoryType}: {task.Exception}");
             yield break;
         }
 
-        var snapshot = dataTask.Result;
-        if (!snapshot.Exists || string.IsNullOrEmpty(snapshot.GetRawJsonValue()))
+        var snap = task.Result;
+
+        // No data -> default size
+        if (!snap.Exists)
         {
-            Debug.LogWarning($"⚠️ No data for {inv.inventoryType}");
+            Debug.LogWarning($"⚠️ No data for {inv.inventoryType}, create default size = {inv.GetSize()}");
+            inv.Items.Clear();
+            EnsureInventorySize(inv);
             yield break;
         }
 
-        string json = snapshot.GetRawJsonValue();
-        var loadedData = JsonUtility.FromJson<InventorySaveData>(json);
+        var loadedData = snap.ConvertTo<InventorySaveData>() ?? new InventorySaveData();
+
         inv.Items.Clear();
 
         foreach (var data in loadedData.items)
         {
+            if (string.IsNullOrEmpty(data.itemName))
+            {
+                inv.Items.Add(new InventoryItem(inv.NullItem, 0));
+                continue;
+            }
+
             var handle = Addressables.LoadAssetAsync<Item>(data.itemName);
             yield return handle;
 
-            if (handle.Status == AsyncOperationStatus.Succeeded)
-            {
-                var itemSO = handle.Result;
-                inv.Items.Add(new InventoryItem(itemSO, data.quantity));
-            }
+            if (handle.Status == AsyncOperationStatus.Succeeded && handle.Result != null)
+                inv.Items.Add(new InventoryItem(handle.Result, data.quantity));
             else
             {
-                Debug.LogWarning($"[Addressables] Failed to load item: {data.itemName}");
+                Debug.LogWarning($"[Addressables] Failed to load item: {data.itemName} -> empty slot");
+                inv.Items.Add(new InventoryItem(inv.NullItem, 0));
             }
         }
+
+        bool migrated = EnsureInventorySize(inv);
+        if (migrated)
+        {
+            Debug.Log($"✅ Migrated {inv.inventoryType} to size {inv.GetSize()} -> saving back to Firestore");
+            SaveOneInventory(uid, inv);
+        }
     }
 
-    public IEnumerator LoadCurrentBlock(string userId, Action<string> onComplete = null)
+    public IEnumerator LoadGameplay(string uid, Action onComplete = null)
     {
-        var dataTask = dbRef.Child("user").Child(userId).Child("Gameplay").Child("currentBlock").GetValueAsync();
-        yield return new WaitUntil(() => dataTask.IsCompleted);
+        // Guard: db not ready
+        yield return new WaitUntil(() => db != null);
 
-        if (dataTask.Exception != null)
+        var task = db.Collection("users").Document(uid).GetSnapshotAsync();
+        yield return new WaitUntil(() => task.IsCompleted);
+
+        if (task.Exception != null)
         {
-            Debug.LogError($"❌ Failed to load currentBlock: {dataTask.Exception}");
+            Debug.LogError($"❌ Failed to load gameplay doc: {task.Exception}");
             yield break;
         }
 
-        var snapshot = dataTask.Result;
-        if (!snapshot.Exists || string.IsNullOrEmpty(snapshot.Value.ToString()))
+        var snap = task.Result;
+        if (!snap.Exists)
         {
-            Debug.LogWarning("⚠️ No currentBlock saved.");
-            currentBlock = "Dirt"; // For not null
+            Debug.LogWarning("⚠️ No user doc, keep defaults.");
+            onComplete?.Invoke();
             yield break;
         }
 
-        string blockName = snapshot.Value.ToString();
-        Debug.Log($"✅ Loaded currentBlock: {blockName}");
-
-        // Assign as string
-        currentBlock = blockName;
-
-        onComplete?.Invoke(blockName);
-    }
-
-
-    public IEnumerator LoadCurrentLocation(string userId, Action<BlockSpawnLocation?> onComplete = null)
-    {
-        var dataTask = dbRef.Child("user").Child(userId).Child("Gameplay").Child("currentLocation").GetValueAsync();
-        yield return new WaitUntil(() => dataTask.IsCompleted);
-
-        var dataTask2 = dbRef.Child("user").Child(userId).Child("Gameplay").Child("PeakLocation").GetValueAsync();
-        yield return new WaitUntil(() => dataTask2.IsCompleted);
-
-        if (dataTask.Exception != null)
+        if (!snap.TryGetValue("gameplay", out GameplaySaveData gameplay) || gameplay == null)
         {
-            Debug.LogError($"❌ Failed to load currentLocation: {dataTask.Exception}");
+            Debug.LogWarning("⚠️ No gameplay field.");
+            onComplete?.Invoke();
             yield break;
         }
 
-        if (dataTask2.Exception != null)
-        {
-            Debug.LogError($"❌ Failed to load PeakLocation: {dataTask2.Exception}");
-            yield break;
-        }
+        currentBlock = string.IsNullOrEmpty(gameplay.currentBlock) ? "Dirt" : gameplay.currentBlock;
 
-        var snapshot = dataTask.Result;
-        if (!snapshot.Exists || string.IsNullOrEmpty(snapshot.Value.ToString()))
-        {
-            Debug.LogWarning("⚠️ No currentLocation saved.");
-            currentLocation = null;
-            onComplete?.Invoke(null);
-            yield break;
-        }
-
-        var snapshot2 = dataTask2.Result;
-        if (!snapshot2.Exists || string.IsNullOrEmpty(snapshot2.Value.ToString()))
-        {
-            Debug.LogWarning("⚠️ No PeakLocation saved.");
-            PeakLocation = null;
-            onComplete?.Invoke(null);
-            yield break;
-        }
-
-        string locationString = snapshot.Value.ToString();
-        Debug.Log($"✅ Loaded currentLocation: {locationString}");
-
-        if (Enum.TryParse(locationString, out BlockSpawnLocation parsedLocation))
-        {
-            currentLocation = parsedLocation;
-            onComplete?.Invoke(parsedLocation);
-        }
+        if (Enum.TryParse(gameplay.currentLocation, out BlockSpawnLocation loc))
+            currentLocation = loc;
         else
-        {
-            Debug.LogWarning($"⚠️ Unknown location: {locationString}");
             currentLocation = null;
-            onComplete?.Invoke(null);
-        }
 
-        string peakString = snapshot2.Value.ToString();
-        Debug.Log($"✅ Loaded peakLocation: {peakString}");
-
-        if (Enum.TryParse(peakString, out BlockSpawnLocation parsedPeakLocation))
-        {
-            PeakLocation = parsedPeakLocation;
-            onComplete?.Invoke(parsedPeakLocation);
-        }
+        if (Enum.TryParse(gameplay.peakLocation, out BlockSpawnLocation peak))
+            PeakLocation = peak;
         else
-        {
-            Debug.LogWarning($"⚠️ Unknown location: {peakString}");
             PeakLocation = null;
-            onComplete?.Invoke(null);
+
+        if (StatsManager.Ins != null)
+        {
+            StatsManager.Ins.Set(StatType.Clicks, gameplay.clicks);
+            StatsManager.Ins.Set(StatType.Diamond, gameplay.diamonds);
         }
+
+        CurrentTime = gameplay.currentTime;
+
+        Debug.Log("✅ Loaded gameplay (Firestore)");
+        onComplete?.Invoke();
     }
-    public IEnumerator LoadTime(string userId, Action<string> onComplete = null)
+
+    private bool EnsureInventorySize(InventoryData inv)
     {
-        var dataTask = dbRef.Child("user").Child(userId).Child("Gameplay").Child("CurrentTime").GetValueAsync();
-        yield return new WaitUntil(() => dataTask.IsCompleted);
+        int target = inv.GetSize();
+        bool changed = false;
 
-        if (dataTask.Exception != null)
+        while (inv.Items.Count < target)
         {
-            Debug.LogError($"❌ Failed to load Time: {dataTask.Exception}");
-            yield break;
-        }
-        var snapshot = dataTask.Result;
-        if (!snapshot.Exists || string.IsNullOrEmpty(snapshot.Value.ToString()))
-        {
-            CurrentTime = 0;
-            Debug.LogWarning("⚠️ No Time saved.");
-            onComplete?.Invoke(null);
-            yield break;
+            inv.Items.Add(new InventoryItem(inv.NullItem, 0));
+            changed = true;
         }
 
-        CurrentTime = Convert.ToSingle(snapshot.Value);
-        Debug.Log($"✅ Loaded Time: {CurrentTime}");
+        while (inv.Items.Count > target)
+        {
+            inv.Items.RemoveAt(inv.Items.Count - 1);
+            changed = true;
+        }
+
+        return changed;
     }
 
-    public IEnumerator LoadSomeStat(string userId, Action<string> onComplete = null)
-    {
-        var dataTask = dbRef.Child("user").Child(userId).Child("Gameplay").Child("Clicks").GetValueAsync();
-        yield return new WaitUntil(() => dataTask.IsCompleted);
-
-        var dataTask2 = dbRef.Child("user").Child(userId).Child("Gameplay").Child("Diamonds").GetValueAsync();
-        yield return new WaitUntil(() => dataTask2.IsCompleted);
-
-        if (dataTask.Exception != null)
-        {
-            Debug.LogError($"❌ Failed to load Clicks: {dataTask.Exception}");
-            yield break;
-        }
-
-        var snapshot = dataTask.Result;
-        if (!snapshot.Exists || string.IsNullOrEmpty(snapshot.Value.ToString()))
-        {
-            StatsManager.Ins.Set(StatType.Clicks, 0);
-            Debug.LogWarning("⚠️ No Clicks saved.");
-            onComplete?.Invoke(null);
-            yield break;
-        }
-
-        if (dataTask2.Exception != null)
-        {
-            Debug.LogError($"❌ Failed to load Diamonds: {dataTask.Exception}");
-            yield break;
-        }
-
-        var snapshot2 = dataTask2.Result;
-        if (!snapshot2.Exists || string.IsNullOrEmpty(snapshot2.Value.ToString()))
-        {
-            StatsManager.Ins.Set(StatType.Diamond, 0);
-            Debug.LogWarning("⚠️ No Diamonds saved.");
-            onComplete?.Invoke(null);
-            yield break;
-        }
-
-        float clicks = Convert.ToSingle(snapshot.Value);
-        Debug.Log($"✅ Loaded Clicks: {clicks}");
-
-        float diamonds = Convert.ToSingle(snapshot2.Value);
-        Debug.Log($"✅ Loaded Diamonds: {diamonds}");
-
-        StatsManager.Ins.Set(StatType.Clicks, clicks);
-        StatsManager.Ins.Set(StatType.Diamond, diamonds);
-    }
     void OnApplicationPause(bool paused)
     {
-        if (paused) SaveDataFn();
+        if (paused && isReady && db != null && !string.IsNullOrEmpty(GetUid()))
+            SaveDataFn();
     }
 
     void OnApplicationFocus(bool hasFocus)
     {
-        if (!hasFocus) SaveDataFn();
+        if (!hasFocus && isReady && db != null && !string.IsNullOrEmpty(GetUid()))
+            SaveDataFn();
     }
 
     void OnApplicationQuit()
     {
-        SaveDataFn();
+        if (isReady && db != null && !string.IsNullOrEmpty(GetUid()))
+            SaveDataFn();
     }
 }

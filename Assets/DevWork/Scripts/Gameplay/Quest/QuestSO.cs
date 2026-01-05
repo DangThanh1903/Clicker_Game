@@ -55,14 +55,6 @@ public class QuestStepDef
 [Serializable]
 public class RewardDef
 {
-    public string currencyId;        // "gold", "gem" ... hoặc để trống nếu chỉ item
-    public int currencyAmount;
-    public List<ItemReward> items = new();
-}
-
-[Serializable]
-public class ItemReward
-{
-    public string itemId;
-    public int amount = 1;
+    public int gemAmount;
+    public List<InventoryItem> items = new();
 }

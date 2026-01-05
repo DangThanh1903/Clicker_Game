@@ -43,11 +43,33 @@ public class CraftingController : MonoBehaviour
         // Subscribe to player-driven SetItem calls on output slot 0 only
         outputData.OnPlayerSetItem
             .Where(change => change.index == 0)
-            .Subscribe(_ =>
+            .Subscribe(change =>
             {
+                HandleCraftQuest(change);
                 RemoveIngredients();
             })
             .AddTo(disposables);
+    }
+
+    private void HandleCraftQuest((int index, InventoryItem newItem) change)
+    {
+        // If no recipe, ignore
+        if (currentRecipe == null || currentRecipe.result == null)
+            return;
+
+        // The crafted output item
+        InventoryItem crafted = change.newItem;
+        if (crafted == null || crafted.itemData == null)
+            return;
+
+        // The item ID used in QuestStepDef.targetId
+        string craftedId = crafted.itemData.itemName;
+
+        // Quantity crafted
+        int craftedAmount = crafted.quantity.Value;
+
+        // Emit quest signal
+        QuestSignals.CraftItem(craftedId, craftedAmount);
     }
 
     private void UpdateCraftingOutput()

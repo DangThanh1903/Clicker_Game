@@ -21,6 +21,7 @@ public class InventoryData : ScriptableObject
 {
     [SerializeField] private int size = 20;
     [SerializeField] private Item nullItem;
+    public Item NullItem => nullItem;
     public InventoryType inventoryType;
 
     [ShowInInspector]
@@ -38,6 +39,7 @@ public class InventoryData : ScriptableObject
                 Items.Add(new InventoryItem(nullItem, 1));
         }
     }
+
     public int GetSize() => size;
 
     public void SetItem(int index, InventoryItem item, bool isPlayerAction = false)
@@ -57,8 +59,11 @@ public class InventoryData : ScriptableObject
         }
     }
 
-    public bool AddItem(InventoryItem newItem) =>
-        TryStackItem(newItem) || TryPlaceInEmptySlot(newItem);
+    public bool AddItem(InventoryItem newItem)
+    {
+        RollPrefixIfNeeded(newItem);
+        return TryStackItem(newItem) || TryPlaceInEmptySlot(newItem);
+    }
 
     private bool TryStackItem(InventoryItem item)
     {
@@ -89,6 +94,21 @@ public class InventoryData : ScriptableObject
             }
         }
         return false;
+    }
+    private void RollPrefixIfNeeded(InventoryItem it)
+    {
+        if (it == null) return;
+
+        var item = it.itemData;
+        if (item == null || item.Type == ItemType.None) return;
+
+        // ONLY these two item types get prefixes
+        bool allowPrefix = item.Type == ItemType.Pickaxe || item.Type == ItemType.Accessory;
+        if (!allowPrefix) return;
+
+        // roll once
+        if (it.prefix == ItemPrefix.None)
+            it.prefix = ItemPrefixConfig.GetRandomFor(item);
     }
     public void SortAndRepack_UsingAddItem()
     {
@@ -157,7 +177,7 @@ public class InventoryData : ScriptableObject
         if (!IsValidSlot(index)) return false;
 
         var item = Items[index];
-        if (item == null || item.itemData == nullItem || item.quantity.Value <= 1) return false;
+        if (item == null || item.itemData == nullItem || item.quantity.Value < amount) return false;
         // careful, i just temporary use <= 1 for buff
 
         item.quantity.Value -= amount;

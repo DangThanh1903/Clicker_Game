@@ -23,6 +23,7 @@ public class ConditionalBuffSO : BuffSO
             BuffConditionType.Holded3Sec => (int)stats.Get(StatType.HoldedTime) >= 3,
             BuffConditionType.Holded6Sec => (int)stats.Get(StatType.HoldedTime) >= 6,
             BuffConditionType.IsInPlain => DataSaver.Ins.currentLocation == BlockSpawnLocation.Plain,
+            BuffConditionType.IsBossOutOfCondition => BlockManager.Ins.IsBossOutOfCondition(),
             _ => true,
         };
     }
@@ -48,5 +49,6 @@ public enum BuffConditionType
     Holded3Sec,
     Holded6Sec,
     // Area
-    IsInPlain
+    IsInPlain,
+    IsBossOutOfCondition,
 }

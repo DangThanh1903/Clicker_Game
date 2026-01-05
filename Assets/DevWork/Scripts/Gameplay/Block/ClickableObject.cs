@@ -14,6 +14,7 @@ public class ClickableObject : MonoBehaviour, IDamagable
     [Header("Information")]
     [ReadOnly, SerializeField]
     private string blockName;
+    public string BlockName => blockName;
     public float MaxHealth { get; private set; }
     public ReactiveProperty<float> CurrentHealth { get; private set; } = new ReactiveProperty<float>();
     public float BlockWeight;
@@ -129,7 +130,8 @@ public class ClickableObject : MonoBehaviour, IDamagable
             blockSpawnLocation,
             timeState,
             normalWeatherName,
-            specialWeatherName).blockName
+            specialWeatherName,
+            StatsManager.Ins.Get(StatType.Lucky)).blockName
         );
     }
     #endregion
@@ -239,7 +241,7 @@ public class ClickableObject : MonoBehaviour, IDamagable
     }
     void HandleItemDrop()
     {
-        var items = blockUVDatabase.GetDroppedItemsByName(blockName);
+        var items = blockUVDatabase.GetDroppedItemsByName(blockName, StatsManager.Ins.Get(StatType.Lucky));
         string dropName = "";
         int countTemp = 0;
         if (items.Count == 0)
@@ -260,6 +262,12 @@ public class ClickableObject : MonoBehaviour, IDamagable
                 continue;
             }
             InventoryController.Instance.AddItemToInventory(new InventoryItem(item, amount));
+
+            QuestSignals.CollectItem(item.itemName, amount);
+
+            var itemId = Game.Discovery.BlockDiscoveryService.GetItemId(item);
+            Game.Discovery.BlockDiscoveryService.Ins?.DiscoverDrop(blockName, itemId);
+            
             dropName += (countTemp == 0) ? amount + " " + item.GetColoredName() : ", " + amount + " " + item.itemName;
             countTemp++;
         }
@@ -292,6 +300,9 @@ public class ClickableObject : MonoBehaviour, IDamagable
         animCtrl?.PlayDeath(() =>
         {
             UpdateCrackVisual(MaxHealth); // reset crack
+
+            Game.Discovery.BlockDiscoveryService.Ins?.DiscoverBlock(blockName);
+
             HandleItemDrop();
             isDyingEffect = false;
             PlayBreakedSound();

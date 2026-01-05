@@ -15,8 +15,6 @@ public class Boss : MonoBehaviour, IDamagable
     private readonly float timeIdleReset = 1f;
     public event Action<Boss> Died;
 
-    [SerializeField] private BuffManager buffManager;
-
     [SerializeField] private BossAnimManager bossAnimManager;
 
     private readonly Subject<long> clickStream = new Subject<long>();
@@ -39,11 +37,6 @@ public class Boss : MonoBehaviour, IDamagable
 
     private float _nextNormalTime;
     private float _nextSpecialTime;
-
-    void Awake()
-    {
-        buffManager.Initialize(enemyStatsManager);
-    }
     void Start()
     {
         SetUp();
@@ -153,14 +146,6 @@ public class Boss : MonoBehaviour, IDamagable
                     OnDying();
             })
             .AddTo(this);
-        ApplyStaterBuff();
-    }
-    void ApplyStaterBuff()
-    {
-        foreach (ConditionalBuffSO conditionalBuffSO in enemyStatsManager.GetAllStarterBuff())
-        {
-            buffManager.ApplyBuff(conditionalBuffSO);
-        }
     }
     public void HandleClickDetection()
     {
