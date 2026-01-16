@@ -1,13 +1,8 @@
 using Sirenix.OdinInspector;
 using UnityEngine;
-using UnityEngine.EventSystems;
 using UniRx;
 using System;
 using System.Collections.Generic;
-using DG.Tweening;
-using Lean.Pool;
-using Unity.Mathematics;
-using Unity.VisualScripting;
 
 public class ClickableObject : MonoBehaviour, IDamagable
 {

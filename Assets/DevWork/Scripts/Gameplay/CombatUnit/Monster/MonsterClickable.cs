@@ -13,6 +13,7 @@ public class MonsterClickable : MonoBehaviour, IDamagable
 
     private MonsterSpawner owner;
     private IDisposable lifeTimer;
+    private IDisposable healthSub;
 
     private bool isMouseHeld;
     private float accumulatedHoldTime = 0f;
@@ -32,20 +33,19 @@ public class MonsterClickable : MonoBehaviour, IDamagable
         CurrentHealth.Value = MaxHealth;
 
         // listen HP
-        CurrentHealth
+        healthSub?.Dispose();
+        healthSub = CurrentHealth
             .DistinctUntilChanged()
             .Subscribe(hp =>
             {
                 if (hp <= 0f)
                     OnKilled();
-            })
-            .AddTo(this);
+            });
 
         // lifetime
         lifeTimer?.Dispose();
         lifeTimer = Observable.Timer(TimeSpan.FromSeconds(def.lifetime))
-            .Subscribe(_ => OnMiss())
-            .AddTo(this);
+            .Subscribe(_ => OnMiss());
     }
 
     void Update()
@@ -57,13 +57,13 @@ public class MonsterClickable : MonoBehaviour, IDamagable
 
     public void HandleClickDetection()
     {
-        // giống Boss/Block
-        PlayerController.Instance.OnUpdate(this);
-
         if (resolved) return;
         if (!UIManager.Ins.IsBlockCanClick()) return;
         if (PopupController.Instance != null && PopupController.Instance.IsAnyPopupOpen()) return;
 
+        // giống Boss/Block
+        PlayerController.Instance.OnUpdate(this);
+        
         // Mouse Down
         if (Input.GetMouseButtonDown(0))
         {
@@ -167,6 +167,9 @@ public class MonsterClickable : MonoBehaviour, IDamagable
     void ResolveAndDespawn()
     {
         lifeTimer?.Dispose();
+        lifeTimer = null;
+        healthSub?.Dispose();
+        healthSub = null;
         owner?.NotifyResolved(this);
         LeanPool.Despawn(gameObject);
     }
@@ -175,6 +178,8 @@ public class MonsterClickable : MonoBehaviour, IDamagable
     {
         lifeTimer?.Dispose();
         lifeTimer = null;
+        healthSub?.Dispose();
+        healthSub = null;
         resolved = false;
         isMouseHeld = false;
         accumulatedHoldTime = 0f;

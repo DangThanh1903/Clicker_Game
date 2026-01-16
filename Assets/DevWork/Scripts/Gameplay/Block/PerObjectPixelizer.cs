@@ -1,4 +1,3 @@
-using Lean.Pool; // optional, not required
 using UnityEngine;
 using UnityEngine.UI;
 #if UNITY_RENDER_PIPELINE_UNIVERSAL

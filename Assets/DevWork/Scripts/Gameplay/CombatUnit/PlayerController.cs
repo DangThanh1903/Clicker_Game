@@ -62,17 +62,23 @@ public class PlayerController : MonoBehaviour
             .AddTo(this);
 
         // Death detection (fires once)
-        deathSub = StatsManager.Ins?.GetReactive(StatType.CurrentHP)
-            .Where(hp => hp <= 0f)
-            .Take(1)
-            .Subscribe(_ => Die())
-            .AddTo(this);
+        SubscribeDeath();
     }
 
     void OnDisable()
     {
         regenSub?.Dispose(); regenSub = null;
         deathSub?.Dispose(); deathSub = null;
+    }
+
+    void SubscribeDeath()
+    {
+        deathSub?.Dispose();
+        deathSub = StatsManager.Ins?.GetReactive(StatType.CurrentHP)
+            .Where(hp => hp <= 0f)
+            .Take(1)
+            .Subscribe(_ => Die())
+            .AddTo(this);
     }
     void SetUpCurrentStateItem()
     {
@@ -132,19 +138,6 @@ public class PlayerController : MonoBehaviour
     }
 
     #region COMBAT_LOGIC -----------------------------------------------------------------------------------
-    public void TakeDamage(float damage)
-    {
-        StatsManager.Ins.Set(
-            StatType.CurrentHP,
-            Mathf.Max(StatsManager.Ins.Get(StatType.CurrentHP) - damage, 0));
-    }
-
-    public void Heal(float amount)
-    {
-        StatsManager.Ins.Set(
-            StatType.CurrentHP,
-            Mathf.Max(StatsManager.Ins.Get(StatType.CurrentHP) + amount, StatsManager.Ins.Get(StatType.HP)));
-    }
     public void UseMana()
     {
         manaUsageTimer += Time.deltaTime;
@@ -186,11 +179,7 @@ public class PlayerController : MonoBehaviour
         StatsManager.Ins.Set(StatType.CurrentHP, Mathf.Clamp01(hpPercent) * max);
         IsDead = false;
 
-        deathSub ??= StatsManager.Ins.GetReactive(StatType.CurrentHP)
-                .Where(hp => hp <= 0f)
-                .Take(1)
-                .Subscribe(_ => Die())
-                .AddTo(this);
+        SubscribeDeath();
     }
 
     #endregion
