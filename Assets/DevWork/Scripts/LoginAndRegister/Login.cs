@@ -10,7 +10,9 @@ public class Login : MonoBehaviour
     [SerializeField] private string gameSceneName = "SampleScene";
 
     [Header("Timeouts (seconds)")]
+    [SerializeField] private float waitBootstrapTimeout = 5f;
     [SerializeField] private float waitFirebaseTimeout = 10f;
+    [SerializeField] private float waitFirebaseHardTimeout = 30f;
     [SerializeField] private float loadDataTimeout = 10f;
 
     void Awake()
@@ -31,13 +33,37 @@ public class Login : MonoBehaviour
 
     IEnumerator Flow()
     {
-        // 1) Wait FirebaseBootstrap
+        // 1) Wait FirebaseBootstrap instance
         Debug.Log("⏳ Waiting FirebaseBootstrap...");
         yield return WaitUntilOrTimeout(
-            () => FirebaseBootstrap.Ins != null && FirebaseBootstrap.Ins.IsReady,
-            waitFirebaseTimeout,
-            "FirebaseBootstrap not ready (timeout)"
+            () => FirebaseBootstrap.Ins != null,
+            waitBootstrapTimeout,
+            "FirebaseBootstrap missing (timeout)"
         );
+
+        if (FirebaseBootstrap.Ins != null)
+        {
+            float softTimeout = Mathf.Max(0f, waitFirebaseTimeout);
+            float hardTimeout = Mathf.Max(softTimeout, waitFirebaseHardTimeout);
+            bool warned = false;
+            float t = 0f;
+
+            while (!FirebaseBootstrap.Ins.IsReady && !FirebaseBootstrap.Ins.IsFailed)
+            {
+                t += Time.unscaledDeltaTime;
+                if (!warned && softTimeout > 0f && t >= softTimeout)
+                {
+                    warned = true;
+                    Debug.LogWarning("⚠️ FirebaseBootstrap not ready (soft timeout)");
+                }
+                if (hardTimeout > 0f && t >= hardTimeout)
+                {
+                    Debug.LogWarning("⚠️ FirebaseBootstrap not ready (hard timeout)");
+                    break;
+                }
+                yield return null;
+            }
+        }
 
         if (FirebaseBootstrap.Ins == null || !FirebaseBootstrap.Ins.IsReady)
         {
