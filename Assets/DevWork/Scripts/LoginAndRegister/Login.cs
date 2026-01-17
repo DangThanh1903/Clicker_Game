@@ -4,12 +4,24 @@ using UnityEngine.SceneManagement;
 
 public class Login : MonoBehaviour
 {
+    public static Login Ins { get; private set; }
+
     [Header("Scene to load after data")]
     [SerializeField] private string gameSceneName = "SampleScene";
 
     [Header("Timeouts (seconds)")]
     [SerializeField] private float waitFirebaseTimeout = 10f;
     [SerializeField] private float loadDataTimeout = 10f;
+
+    void Awake()
+    {
+        if (Ins != null && Ins != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+        Ins = this;
+    }
 
     void Start()
     {
@@ -22,18 +34,34 @@ public class Login : MonoBehaviour
         // 1) Wait FirebaseBootstrap
         Debug.Log("⏳ Waiting FirebaseBootstrap...");
         yield return WaitUntilOrTimeout(
-            () => FirebaseBootstrap.Ins != null &&
-                  FirebaseBootstrap.Ins.Auth != null &&
-                  FirebaseBootstrap.Ins.Auth.CurrentUser != null &&
-                  FirebaseBootstrap.Ins.Db != null &&
-                  !string.IsNullOrEmpty(FirebaseBootstrap.Ins.Auth.CurrentUser.UserId),
+            () => FirebaseBootstrap.Ins != null && FirebaseBootstrap.Ins.IsReady,
             waitFirebaseTimeout,
             "FirebaseBootstrap not ready (timeout)"
         );
 
-        if (FirebaseBootstrap.Ins == null || FirebaseBootstrap.Ins.Auth?.CurrentUser == null)
+        if (FirebaseBootstrap.Ins == null || !FirebaseBootstrap.Ins.IsReady)
         {
-            Debug.LogError("❌ Firebase not ready. Still continue to scene (offline/local fallback).");
+            if (FirebaseBootstrap.Ins != null && FirebaseBootstrap.Ins.IsFailed)
+                Debug.LogError($"❌ Firebase init failed: {FirebaseBootstrap.Ins.InitError}");
+            else
+                Debug.LogError("❌ Firebase not ready. Still continue to scene (offline/local fallback).");
+
+            yield return WaitUntilOrTimeout(
+                () => DataSaver.Ins != null,
+                5f,
+                "DataSaver not found (timeout)"
+            );
+
+            if (DataSaver.Ins != null)
+            {
+                bool localOk = false;
+                yield return RunCoroutineWithTimeout(
+                    DataSaver.Ins.LoadFromLocalCache(ok => localOk = ok),
+                    loadDataTimeout,
+                    "LoadLocalCache timeout"
+                );
+            }
+
             LoadGameScene();
             yield break;
         }
@@ -58,10 +86,31 @@ public class Login : MonoBehaviour
 
         // 3) Load gameplay + inventories with timeout
         Debug.Log("⏳ Loading gameplay...");
-        yield return RunCoroutineWithTimeout(DataSaver.Ins.LoadGameplay(uid), loadDataTimeout, "LoadGameplay timeout");
+        bool gameplayOk = false;
+        yield return RunCoroutineWithTimeout(
+            DataSaver.Ins.LoadGameplay(uid, ok => gameplayOk = ok),
+            loadDataTimeout,
+            "LoadGameplay timeout"
+        );
 
         Debug.Log("⏳ Loading inventories...");
-        yield return RunCoroutineWithTimeout(DataSaver.Ins.LoadAllInventories(uid), loadDataTimeout, "LoadAllInventories timeout");
+        bool inventoryOk = false;
+        yield return RunCoroutineWithTimeout(
+            DataSaver.Ins.LoadAllInventories(uid, ok => inventoryOk = ok),
+            loadDataTimeout,
+            "LoadAllInventories timeout"
+        );
+
+        if (!gameplayOk || !inventoryOk)
+        {
+            Debug.LogWarning("⚠️ Cloud load incomplete. Try local cache fallback.");
+            bool localOk = false;
+            yield return RunCoroutineWithTimeout(
+                DataSaver.Ins.LoadFromLocalCache(ok => localOk = ok),
+                loadDataTimeout,
+                "LoadLocalCache timeout"
+            );
+        }
 
         Debug.Log("✅ Load flow done -> Load scene");
         LoadGameScene();

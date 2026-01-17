@@ -193,7 +193,7 @@ public class InventoryController : MonoBehaviour
     }
 
 
-    async void UpdateStatDescription()
+    void UpdateStatDescription()
     {
         var activeBuffs    = StatsManager.Ins.ActiveBuffs?.ToList()    ?? new List<BuffInstance>();
         var conditionBuffs = StatsManager.Ins.ConditionBuffs?.ToList() ?? new List<BuffInstance>();

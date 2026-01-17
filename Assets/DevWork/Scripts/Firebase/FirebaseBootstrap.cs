@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Threading.Tasks;
 using Firebase;
 using Firebase.Auth;
@@ -14,22 +15,132 @@ public class FirebaseBootstrap : MonoBehaviour
 
     public string Uid => Auth?.CurrentUser?.UserId;
 
-    async void Awake()
+    public enum FirebaseInitState
+    {
+        Uninitialized,
+        Initializing,
+        Ready,
+        Failed
+    }
+
+    public FirebaseInitState State { get; private set; } = FirebaseInitState.Uninitialized;
+    public bool IsReady => State == FirebaseInitState.Ready;
+    public bool IsFailed => State == FirebaseInitState.Failed;
+    public DependencyStatus DependencyStatus { get; private set; } = DependencyStatus.UnavailableOther;
+    public Exception InitError { get; private set; }
+    public Task ReadyTask => readyTcs?.Task ?? Task.CompletedTask;
+
+    private TaskCompletionSource<bool> readyTcs;
+    private bool initStarted;
+
+    [Header("Quit Handling")]
+    [SerializeField] private float quitWaitTimeout = 2f;
+    private bool quitRequested;
+    private Coroutine quitRoutine;
+
+    void Awake()
     {
         if (Ins && Ins != this) { Destroy(gameObject); return; }
         Ins = this;
         DontDestroyOnLoad(gameObject);
+        StartInitIfNeeded();
+    }
 
-        var dep = await FirebaseApp.CheckAndFixDependenciesAsync();
-        if (dep != DependencyStatus.Available)
-            throw new Exception($"Firebase deps not available: {dep}");
+    void OnEnable()
+    {
+        Application.wantsToQuit += OnWantsToQuit;
+    }
+
+    void OnDisable()
+    {
+        Application.wantsToQuit -= OnWantsToQuit;
+    }
+
+    bool OnWantsToQuit()
+    {
+        if (quitRequested) return true;
+
+        quitRequested = true;
+        if (DataSaver.Ins != null)
+            DataSaver.Ins.SaveDataFn(true);
+
+        if (!FirebaseTaskTracker.HasPending)
+            return true;
+
+        if (quitRoutine == null)
+            quitRoutine = StartCoroutine(CoWaitAndQuit());
+
+        return false;
+    }
+
+    IEnumerator CoWaitAndQuit()
+    {
+        float t = 0f;
+        while (FirebaseTaskTracker.HasPending && t < quitWaitTimeout)
+        {
+            t += Time.unscaledDeltaTime;
+            yield return null;
+        }
+
+#if UNITY_EDITOR
+        UnityEditor.EditorApplication.isPlaying = false;
+#else
+        Application.Quit();
+#endif
+    }
+
+    void StartInitIfNeeded()
+    {
+        if (initStarted) return;
+        initStarted = true;
+        State = FirebaseInitState.Initializing;
+        readyTcs = new TaskCompletionSource<bool>();
+        StartCoroutine(CoInitialize());
+    }
+
+    IEnumerator CoInitialize()
+    {
+        var depTask = FirebaseTaskTracker.Track(FirebaseApp.CheckAndFixDependenciesAsync());
+        yield return new WaitUntil(() => depTask.IsCompleted);
+
+        if (depTask.Exception != null)
+        {
+            FailInit(depTask.Exception);
+            yield break;
+        }
+
+        DependencyStatus = depTask.Result;
+        if (DependencyStatus != DependencyStatus.Available)
+        {
+            FailInit(new Exception($"Firebase deps not available: {DependencyStatus}"));
+            yield break;
+        }
 
         Auth = FirebaseAuth.DefaultInstance;
         Db = FirebaseFirestore.DefaultInstance;
 
         if (Auth.CurrentUser == null)
-            await Auth.SignInAnonymouslyAsync();
+        {
+            var signTask = FirebaseTaskTracker.Track(Auth.SignInAnonymouslyAsync());
+            yield return new WaitUntil(() => signTask.IsCompleted);
 
+            if (signTask.Exception != null)
+            {
+                FailInit(signTask.Exception);
+                yield break;
+            }
+        }
+
+        State = FirebaseInitState.Ready;
+        readyTcs.TrySetResult(true);
         Debug.Log($"✅ Firebase ready. uid={Uid}");
+    }
+
+    void FailInit(Exception ex)
+    {
+        InitError = ex;
+        State = FirebaseInitState.Failed;
+        readyTcs.TrySetException(ex);
+        Debug.LogError($"❌ Firebase init failed: {ex}");
     }
 }

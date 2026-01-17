@@ -12,10 +12,13 @@ public class MonsterClickable : MonoBehaviour, IDamagable
     public ReactiveProperty<float> CurrentHealth { get; private set; } = new ReactiveProperty<float>();
 
     private MonsterSpawner owner;
+    private IMonsterMovement[] movementComponents;
+    private Vector3 baseLocalPos;
     private IDisposable lifeTimer;
     private IDisposable healthSub;
 
     private bool isMouseHeld;
+    private bool isPressedOnThis;
     private float accumulatedHoldTime = 0f;
     private readonly float timeHoldReset = 0.1f;
     private readonly float timeIdleReset = 1f;
@@ -28,6 +31,8 @@ public class MonsterClickable : MonoBehaviour, IDamagable
         def = d;
         owner = spawner;
         resolved = false;
+        CacheMovement();
+        baseLocalPos = transform.localPosition;
 
         MaxHealth = Mathf.Max(1f, def.MaxHP);
         CurrentHealth.Value = MaxHealth;
@@ -50,6 +55,7 @@ public class MonsterClickable : MonoBehaviour, IDamagable
 
     void Update()
     {
+        UpdateMovement();
         HandleClickDetection();
     }
 
@@ -70,17 +76,22 @@ public class MonsterClickable : MonoBehaviour, IDamagable
             Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
             if (Physics.Raycast(ray, out RaycastHit hit) && hit.transform == transform)
             {
+                isPressedOnThis = true;
                 PlayerController.Instance.OnClick(this);
+            }
+            else
+            {
+                isPressedOnThis = false;
             }
         }
 
         // Mouse Held
         if (Input.GetMouseButton(0))
         {
-            if (!isMouseHeld) isMouseHeld = true;
+            if (!isMouseHeld && isPressedOnThis) isMouseHeld = true;
 
             Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-            if (Physics.Raycast(ray, out RaycastHit hit) && hit.transform == transform)
+            if (isPressedOnThis && Physics.Raycast(ray, out RaycastHit hit) && hit.transform == transform)
             {
                 PlayerController.Instance.OnHold(this);
             }
@@ -92,6 +103,7 @@ public class MonsterClickable : MonoBehaviour, IDamagable
                 isMouseHeld = false;
                 StatsManager.Ins.Set(StatType.HoldedTime, 0);
             }
+            isPressedOnThis = false;
         }
     }
 
@@ -183,5 +195,31 @@ public class MonsterClickable : MonoBehaviour, IDamagable
         resolved = false;
         isMouseHeld = false;
         accumulatedHoldTime = 0f;
+    }
+
+    void CacheMovement()
+    {
+        movementComponents = GetComponents<IMonsterMovement>();
+    }
+
+    void UpdateMovement()
+    {
+        if (resolved) return;
+        if (movementComponents == null || movementComponents.Length == 0) return;
+
+        float dt = Time.deltaTime;
+        Vector3 offset = Vector3.zero;
+        bool hasActive = false;
+
+        for (int i = 0; i < movementComponents.Length; i++)
+        {
+            var movement = movementComponents[i];
+            if (movement is Behaviour behaviour && !behaviour.enabled) continue;
+            offset += movement.MoveUpdate(dt);
+            hasActive = true;
+        }
+
+        if (hasActive)
+            transform.localPosition = baseLocalPos + offset;
     }
 }
