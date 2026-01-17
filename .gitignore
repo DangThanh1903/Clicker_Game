@@ -69,3 +69,11 @@ marks.git
 
 # Local secrets
 user.keystore
+
+# Firebase config (local)
+Assets/StreamingAssets/google-services.json
+Assets/StreamingAssets/google-services-desktop.json
+Assets/StreamingAssets/google-services.json.meta
+Assets/StreamingAssets/google-services-desktop.json.meta
+Assets/Plugins/Android/google-services.json
+Assets/Plugins/Android/FirebaseApp.androidlib/res/values/google-services.xml

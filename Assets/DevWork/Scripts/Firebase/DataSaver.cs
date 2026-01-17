@@ -35,11 +35,19 @@ public class DataSaver : MonoBehaviour
     [Header("Cloud Save Retry")]
     [SerializeField] private int maxSaveAttempts = 3;
     [SerializeField] private float retryBaseDelaySeconds = 0.5f;
+    [SerializeField] private float cloudSaveTimeoutSeconds = 20f;
+    [SerializeField] private float cloudCommitTimeoutSeconds = 8f;
+
+    [Header("Debug")]
+    [SerializeField] private bool verboseSaveLogs = false;
 
     // Ready flag
     private bool isReady = false;
     private bool isQuitting = false;
     private Task ongoingSave;
+    private float ongoingSaveStartTime;
+    private bool pendingSave;
+    private bool pendingForce;
     private const string LocalCacheFileName = "local_save.json";
 
     void Awake()
@@ -92,21 +100,26 @@ public class DataSaver : MonoBehaviour
         return FirebaseBootstrap.Ins.Auth.CurrentUser.UserId;
     }
 
-    private bool CanCloudSaveNow(out string uid, bool force = false)
+    private bool CanCloudSaveNow(out string uid, bool force, out string reason)
     {
         uid = null;
+        reason = null;
 
-        if (isQuitting && !force) return false;
-        if (!isReady) return false;
-        if (db == null) return false;
+        if (isQuitting && !force) { reason = "quitting"; return false; }
+        if (!isReady) { reason = "not ready"; return false; }
+        if (db == null) { reason = "db null"; return false; }
 
         uid = GetUid();
-        if (string.IsNullOrEmpty(uid)) return false;
+        if (string.IsNullOrEmpty(uid)) { reason = "uid missing"; return false; }
 
         // cooldown để không spam write
         if (!force)
         {
-            if (Time.unscaledTime < nextCloudSaveTime) return false;
+            if (Time.unscaledTime < nextCloudSaveTime)
+            {
+                reason = $"cooldown ({(nextCloudSaveTime - Time.unscaledTime):F1}s)";
+                return false;
+            }
             nextCloudSaveTime = Time.unscaledTime + cloudSaveCooldown;
         }
 
@@ -121,18 +134,60 @@ public class DataSaver : MonoBehaviour
 
     public void SaveDataFn(bool force = false)
     {
+        if (verboseSaveLogs)
+            Debug.Log($"SaveDataFn called (force={force}).");
+
         SaveLocalCache();
 
         // reset counter (nhưng chỉ reset khi thật sự save)
-        if (!CanCloudSaveNow(out var uid, force))
+        if (!CanCloudSaveNow(out var uid, force, out var reason))
+        {
+            if (verboseSaveLogs)
+                Debug.Log($"SaveDataFn blocked: {reason ?? "unknown"}");
             return;
+        }
 
         blockBreakCounter.Value = 0;
 
         if (ongoingSave != null && !ongoingSave.IsCompleted)
+        {
+            pendingSave = true;
+            pendingForce |= force;
+            if (verboseSaveLogs)
+                Debug.Log("SaveDataFn skipped: previous save still running.");
             return;
+        }
 
+        ongoingSaveStartTime = Time.unscaledTime;
         ongoingSave = FirebaseTaskTracker.Track(SaveCloudAsync(uid));
+    }
+
+    [ContextMenu("Debug/Force Save Now")]
+    private void DebugForceSaveNow()
+    {
+        SaveDataFn(true);
+    }
+
+    void Update()
+    {
+        if (ongoingSave != null && !ongoingSave.IsCompleted)
+        {
+            float timeout = Mathf.Max(0f, cloudSaveTimeoutSeconds);
+            if (timeout > 0f && Time.unscaledTime - ongoingSaveStartTime >= timeout)
+            {
+                if (verboseSaveLogs)
+                    Debug.LogWarning($"SaveDataFn timeout after {timeout:F1}s, allowing next save.");
+                ongoingSave = null;
+            }
+        }
+
+        if (pendingSave && (ongoingSave == null || ongoingSave.IsCompleted))
+        {
+            bool force = pendingForce;
+            pendingSave = false;
+            pendingForce = false;
+            SaveDataFn(force);
+        }
     }
 
     private async Task SaveCloudAsync(string uid)
@@ -141,6 +196,9 @@ public class DataSaver : MonoBehaviour
 
         var gameplay = BuildGameplaySaveData();
         var inventories = BuildAllInventorySaveData();
+
+        if (verboseSaveLogs)
+            Debug.Log($"SaveCloudAsync start (uid={uid}).");
 
         await ExecuteWithRetry(async () =>
         {
@@ -163,8 +221,11 @@ public class DataSaver : MonoBehaviour
                 batch.Set(invDoc, entry.Value);
             }
 
-            await batch.CommitAsync();
+            await AwaitWithTimeout(batch.CommitAsync(), cloudCommitTimeoutSeconds, "Firestore commit");
         }, maxSaveAttempts, retryBaseDelaySeconds, "SaveCloudAsync");
+
+        if (verboseSaveLogs)
+            Debug.Log("SaveCloudAsync completed.");
     }
 
     private async Task ExecuteWithRetry(Func<Task> action, int maxAttempts, float baseDelaySeconds, string opName)
@@ -187,10 +248,29 @@ public class DataSaver : MonoBehaviour
                     return;
                 }
 
+                if (verboseSaveLogs)
+                    Debug.LogWarning($"{opName} attempt {i} failed: {ex.Message}");
+
                 float wait = delay * Mathf.Pow(2f, i - 1);
                 await Task.Delay(TimeSpan.FromSeconds(wait));
             }
         }
+    }
+
+    private async Task AwaitWithTimeout(Task task, float timeoutSeconds, string opName)
+    {
+        if (timeoutSeconds <= 0f)
+        {
+            await task;
+            return;
+        }
+
+        var delay = Task.Delay(TimeSpan.FromSeconds(timeoutSeconds));
+        var completed = await Task.WhenAny(task, delay);
+        if (completed == delay)
+            throw new TimeoutException($"{opName} timed out after {timeoutSeconds:F1}s");
+
+        await task;
     }
 
     private GameplaySaveData BuildGameplaySaveData()

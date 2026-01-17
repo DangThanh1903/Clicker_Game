@@ -841,7 +841,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   gameSceneName: SampleScene
+  waitBootstrapTimeout: 5
   waitFirebaseTimeout: 10
+  waitFirebaseHardTimeout: 30
   loadDataTimeout: 10
 --- !u!1 &1646232486
 GameObject:
@@ -1015,6 +1017,11 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 2211ad537f7af824e8fa7fb577cdbe4f, type: 2}
   - {fileID: 11400000, guid: 3406d5478e424094f94ba73e7b13739a, type: 2}
   cloudSaveCooldown: 15
+  maxSaveAttempts: 3
+  retryBaseDelaySeconds: 0.5
+  cloudSaveTimeoutSeconds: 20
+  cloudCommitTimeoutSeconds: 8
+  verboseSaveLogs: 1
 --- !u!4 &1848697407
 Transform:
   m_ObjectHideFlags: 0
@@ -1042,6 +1049,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: daad665947cb0374bbcfade80615e5aa, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  quitWaitTimeout: 2
+  runDiagnosticsOnReady: 1
+  logFirebaseConfig: 1
+  pingFirestoreWrite: 1
+  pingTimeoutSeconds: 8
 --- !u!1 &2132757850
 GameObject:
   m_ObjectHideFlags: 0

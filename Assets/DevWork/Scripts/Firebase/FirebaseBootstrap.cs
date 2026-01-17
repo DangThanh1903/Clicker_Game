@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Firebase;
 using Firebase.Auth;
@@ -37,6 +38,12 @@ public class FirebaseBootstrap : MonoBehaviour
     [SerializeField] private float quitWaitTimeout = 2f;
     private bool quitRequested;
     private Coroutine quitRoutine;
+
+    [Header("Diagnostics")]
+    [SerializeField] private bool runDiagnosticsOnReady = false;
+    [SerializeField] private bool logFirebaseConfig = true;
+    [SerializeField] private bool pingFirestoreWrite = true;
+    [SerializeField] private float pingTimeoutSeconds = 8f;
 
     void Awake()
     {
@@ -134,6 +141,9 @@ public class FirebaseBootstrap : MonoBehaviour
         State = FirebaseInitState.Ready;
         readyTcs.TrySetResult(true);
         Debug.Log($"✅ Firebase ready. uid={Uid}");
+
+        if (runDiagnosticsOnReady)
+            StartCoroutine(CoRunDiagnostics());
     }
 
     void FailInit(Exception ex)
@@ -142,5 +152,79 @@ public class FirebaseBootstrap : MonoBehaviour
         State = FirebaseInitState.Failed;
         readyTcs.TrySetException(ex);
         Debug.LogError($"❌ Firebase init failed: {ex}");
+    }
+
+    IEnumerator CoRunDiagnostics()
+    {
+        if (logFirebaseConfig)
+            LogFirebaseConfig();
+
+        if (pingFirestoreWrite)
+            yield return StartCoroutine(CoPingFirestore());
+    }
+
+    void LogFirebaseConfig()
+    {
+        try
+        {
+            var app = FirebaseApp.DefaultInstance;
+            var opt = app.Options;
+            string dbUrl = opt.DatabaseUrl != null ? opt.DatabaseUrl.ToString() : "null";
+            Debug.Log($"Firebase config: ProjectId={opt.ProjectId}, AppId={opt.AppId}, StorageBucket={opt.StorageBucket}, DatabaseUrl={dbUrl}");
+        }
+        catch (Exception ex)
+        {
+            Debug.LogWarning($"⚠️ Firebase config log failed: {ex}");
+        }
+    }
+
+    IEnumerator CoPingFirestore()
+    {
+        if (Db == null)
+        {
+            Debug.LogWarning("⚠️ Firestore ping skipped: Db not ready.");
+            yield break;
+        }
+
+        string uid = Auth?.CurrentUser?.UserId;
+        if (string.IsNullOrEmpty(uid))
+        {
+            Debug.LogWarning("⚠️ Firestore ping skipped: uid missing.");
+            yield break;
+        }
+
+        var doc = Db.Collection("users").Document(uid).Collection("debug").Document("ping");
+        var payload = new Dictionary<string, object>
+        {
+            ["ts"] = Timestamp.GetCurrentTimestamp(),
+            ["device"] = SystemInfo.deviceModel
+        };
+
+        var task = FirebaseTaskTracker.Track(doc.SetAsync(payload, SetOptions.MergeAll));
+
+        float timeout = Mathf.Max(0f, pingTimeoutSeconds);
+        if (timeout <= 0f)
+        {
+            yield return new WaitUntil(() => task.IsCompleted);
+        }
+        else
+        {
+            float t = 0f;
+            while (!task.IsCompleted && t < timeout)
+            {
+                t += Time.unscaledDeltaTime;
+                yield return null;
+            }
+            if (!task.IsCompleted)
+            {
+                Debug.LogWarning($"⚠️ Firestore ping timed out after {timeout:F1}s.");
+                yield break;
+            }
+        }
+
+        if (task.Exception != null)
+            Debug.LogError($"❌ Firestore ping failed: {task.Exception}");
+        else
+            Debug.Log("✅ Firestore ping write OK.");
     }
 }
