@@ -69,7 +69,9 @@ public class InventoryData : ScriptableObject
     {
         foreach (var existing in Items)
         {
-            if (existing != null && existing.CanStackWith(item))
+            if (existing == null) continue;
+            if (existing.itemData == null || existing.itemData.Type == ItemType.None) continue;
+            if (existing.CanStackWith(item))
             {
                 int added = existing.AddQuantity(item.quantity.Value);
                 item.quantity.Value -= added;
@@ -83,7 +85,10 @@ public class InventoryData : ScriptableObject
     {
         for (int i = 0; i < Items.Count; i++)
         {
-            if (Items[i] == null || Items[i].itemData == nullItem)
+            if (Items[i] == null ||
+                Items[i].itemData == null ||
+                Items[i].itemData.Type == ItemType.None ||
+                Items[i].itemData == nullItem)
             {
                 int toAdd = Mathf.Min(item.quantity.Value, item.itemData.MaxStack);
                 Items[i] = new InventoryItem(item.itemData, toAdd);

@@ -62,7 +62,26 @@ public class InventoryController : MonoBehaviour
 
     public void AddItemToInventory(InventoryItem inventoryItem)
     {
-        uiManager.AddItemToInventorySection(inventoryItem);
+        _ = TryAddItemToInventory(inventoryItem);
+    }
+
+    public bool TryAddItemToInventory(InventoryItem inventoryItem)
+    {
+        if (uiManager == null)
+        {
+            Debug.LogWarning("InventoryUIManager is null, cannot add item.");
+            return false;
+        }
+
+        bool ok = uiManager.AddItemToInventorySection(inventoryItem);
+        if (!ok)
+        {
+            bool hasSection = uiManager.HasInventorySection();
+            Debug.LogWarning(hasSection
+                ? "AddItemToInventory failed (inventory full)."
+                : "AddItemToInventory failed (no Inventory section).");
+        }
+        return ok;
     }
 
     public bool TrySwap(

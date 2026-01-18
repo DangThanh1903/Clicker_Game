@@ -2,6 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 public enum BlockSpawnLocation
 {
@@ -154,6 +157,34 @@ public class BlockUVDatabase : ScriptableObject
 
         return block.GetDroppedItems(luck);
     }
+
+    public List<ItemDropResult> GetDropResultsByName(string name, float luck)
+    {
+        var block = GetByName(name);
+        if (block == null)
+            return new List<ItemDropResult>();
+
+        return block.GetDropResults(luck);
+    }
+
+#if UNITY_EDITOR
+    private void OnValidate()
+    {
+        if (blocks == null) return;
+        bool changed = false;
+        foreach (var block in blocks)
+        {
+            if (block == null || block.drops == null) continue;
+            foreach (var drop in block.drops)
+            {
+                if (drop != null && drop.SyncAddressFromItem())
+                    changed = true;
+            }
+        }
+        if (changed)
+            EditorUtility.SetDirty(this);
+    }
+#endif
 }
 
 
@@ -195,6 +226,29 @@ public class BlockUVEntry
 
         return droppedItems;
     }
+
+    public List<ItemDropResult> GetDropResults(float luck)
+    {
+        List<ItemDropResult> droppedItems = new();
+
+        foreach (var drop in drops)
+        {
+            if (drop == null) continue;
+
+            float chance = drop.dropChance;
+
+            if (luck > 0f && chance < 1f)
+                chance = LuckMath.BoostChance(chance, luck);
+
+            if (UnityEngine.Random.value <= chance)
+            {
+                int amount = UnityEngine.Random.Range(drop.minAmount, drop.maxAmount + 1);
+                droppedItems.Add(new ItemDropResult(drop, amount));
+            }
+        }
+
+        return droppedItems;
+    }
 }
 
 
@@ -202,7 +256,37 @@ public class BlockUVEntry
 public class ItemDrop
 {
     public Item item;
+    [SerializeField] private string itemAddress;
     public int minAmount = 1;
     public int maxAmount = 1;
     public float dropChance = 1f;
+
+    public string GetItemAddress()
+    {
+        if (!string.IsNullOrEmpty(itemAddress)) return itemAddress;
+        if (item == null) return string.Empty;
+        return string.IsNullOrEmpty(item.itemName) ? item.name : item.itemName;
+    }
+
+#if UNITY_EDITOR
+    public bool SyncAddressFromItem()
+    {
+        if (item == null) return false;
+        if (!string.IsNullOrEmpty(itemAddress)) return false;
+        itemAddress = string.IsNullOrEmpty(item.itemName) ? item.name : item.itemName;
+        return true;
+    }
+#endif
+}
+
+public struct ItemDropResult
+{
+    public ItemDrop drop;
+    public int amount;
+
+    public ItemDropResult(ItemDrop drop, int amount)
+    {
+        this.drop = drop;
+        this.amount = amount;
+    }
 }

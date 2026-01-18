@@ -6,8 +6,6 @@ using Firebase.Analytics;
 
 public static class AnalyticsService
 {
-    private static bool debugEnabled;
-
     public struct AnalyticsParam
     {
         public string Key;
@@ -23,9 +21,6 @@ public static class AnalyticsService
     public static void LogEvent(string name, params AnalyticsParam[] parameters)
     {
         if (string.IsNullOrEmpty(name)) return;
-
-        if (debugEnabled)
-            Debug.Log($"[Analytics] {name}{FormatParams(parameters)}");
 
 #if FIREBASE_ANALYTICS
         if (parameters == null || parameters.Length == 0)
@@ -63,10 +58,6 @@ public static class AnalyticsService
     public static void SetUserProperty(string name, string value)
     {
         if (string.IsNullOrEmpty(name)) return;
-#if UNITY_EDITOR
-        if (debugEnabled)
-            Debug.Log($"[Analytics] set_user_property {name}={value}");
-#endif
 #if FIREBASE_ANALYTICS
         FirebaseAnalytics.SetUserProperty(name, value ?? string.Empty);
 #else
@@ -82,24 +73,4 @@ public static class AnalyticsService
 
     public static void SetUserProperty(string name, bool value) =>
         SetUserProperty(name, value ? "true" : "false");
-
-    public static void SetDebugLogging(bool enabled)
-    {
-        debugEnabled = enabled;
-    }
-
-    private static string FormatParams(AnalyticsParam[] parameters)
-    {
-        if (parameters == null || parameters.Length == 0) return string.Empty;
-
-        System.Text.StringBuilder sb = new System.Text.StringBuilder(" (");
-        for (int i = 0; i < parameters.Length; i++)
-        {
-            var p = parameters[i];
-            if (i > 0) sb.Append(", ");
-            sb.Append(p.Key).Append("=").Append(p.Value ?? "null");
-        }
-        sb.Append(")");
-        return sb.ToString();
-    }
 }

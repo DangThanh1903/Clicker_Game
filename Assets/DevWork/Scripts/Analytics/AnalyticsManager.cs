@@ -8,7 +8,6 @@ public class AnalyticsManager : MonoBehaviour
 
     [Header("Click Aggregation")]
     [SerializeField] private float clickFlushInterval = 0.5f;
-    [SerializeField] private bool logEventsInEditor = true;
 
     private readonly Dictionary<string, ClickAggregate> clickAgg = new Dictionary<string, ClickAggregate>();
     private float lastFlushTime;
@@ -33,9 +32,6 @@ public class AnalyticsManager : MonoBehaviour
         }
         Ins = this;
         DontDestroyOnLoad(gameObject);
-
-        if (Application.isEditor)
-            AnalyticsService.SetDebugLogging(logEventsInEditor);
 
         StartSession("app_start");
     }

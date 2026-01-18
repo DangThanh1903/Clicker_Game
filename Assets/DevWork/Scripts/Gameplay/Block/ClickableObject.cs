@@ -3,6 +3,9 @@ using UnityEngine;
 using UniRx;
 using System;
 using System.Collections.Generic;
+using System.Collections;
+using UnityEngine.AddressableAssets;
+using UnityEngine.ResourceManagement.AsyncOperations;
 
 public class ClickableObject : MonoBehaviour, IDamagable
 {
@@ -246,42 +249,108 @@ public class ClickableObject : MonoBehaviour, IDamagable
     }
     void HandleItemDrop()
     {
-        var items = blockUVDatabase.GetDroppedItemsByName(blockName, StatsManager.Ins.Get(StatType.Lucky));
-        string dropName = "";
-        int countTemp = 0;
-        if (items.Count == 0)
+        string dropBlockName = blockName;
+        float luck = StatsManager.Ins != null ? StatsManager.Ins.Get(StatType.Lucky) : 0f;
+        var drops = blockUVDatabase.GetDropResultsByName(dropBlockName, luck);
+        StartCoroutine(HandleItemDrop_Co(dropBlockName, drops));
+    }
+
+    IEnumerator HandleItemDrop_Co(string dropBlockName, List<ItemDropResult> drops)
+    {
+        if (drops.Count == 0)
         {
             Debug.Log("There is no item drop");
             GameDebugHandler.LogStaticKey(
                 "UI_Debug",
                 "block_drops_none",
-                new { block = blockName }
+                new { block = dropBlockName }
             );
-            return;
+            yield break;
         }
-        foreach (var (item, amount) in items)
+
+        if (InventoryController.Instance == null)
         {
+            Debug.LogWarning("InventoryController.Instance is null, cannot add drop.");
+            yield break;
+        }
+
+        string dropName = "";
+        int countTemp = 0;
+
+        foreach (var result in drops)
+        {
+            Item item = null;
+            yield return ResolveDropItem_Co(result.drop, resolved => item = resolved);
+
             if (item == null)
             {
                 Debug.LogWarning($"⚠️ Null item in drop list for block: {blockName}");
                 continue;
             }
-            InventoryController.Instance.AddItemToInventory(new InventoryItem(item, amount));
 
-            QuestSignals.CollectItem(item.itemName, amount);
+            InventoryController.Instance.TryAddItemToInventory(new InventoryItem(item, result.amount));
+
+            QuestSignals.CollectItem(item.itemName, result.amount);
 
             var itemId = Game.Discovery.BlockDiscoveryService.GetItemId(item);
-            Game.Discovery.BlockDiscoveryService.Ins?.DiscoverDrop(blockName, itemId);
-            
-            dropName += (countTemp == 0) ? amount + " " + item.GetColoredName() : ", " + amount + " " + item.itemName;
+            Game.Discovery.BlockDiscoveryService.Ins?.DiscoverDrop(dropBlockName, itemId);
+
+            dropName += (countTemp == 0) ? result.amount + " " + item.GetColoredName() : ", " + result.amount + " " + item.itemName;
             countTemp++;
         }
+
+        if (countTemp == 0)
+        {
+            GameDebugHandler.LogStaticKey(
+                "UI_Debug",
+                "block_drops_none",
+                new { block = blockName }
+            );
+            yield break;
+        }
+
         GameDebugHandler.LogStaticKey(
             "UI_Debug",
             "block_drops",
-            new { block = blockName, items = dropName }
+            new { block = dropBlockName, items = dropName }
         );
+    }
 
+    IEnumerator ResolveDropItem_Co(ItemDrop drop, Action<Item> onResolved)
+    {
+        if (drop == null)
+        {
+            onResolved?.Invoke(null);
+            yield break;
+        }
+
+        if (drop.item != null)
+        {
+            onResolved?.Invoke(drop.item);
+            yield break;
+        }
+
+        string address = drop.GetItemAddress();
+        if (string.IsNullOrEmpty(address))
+        {
+            Debug.LogWarning($"[Drop] Missing address for block '{blockName}'.");
+            onResolved?.Invoke(null);
+            yield break;
+        }
+
+        AsyncOperationHandle<Item> handle = Addressables.LoadAssetAsync<Item>(address);
+        yield return handle;
+
+        Item item = null;
+        if (handle.Status == AsyncOperationStatus.Succeeded)
+            item = handle.Result;
+        else
+        {
+            Debug.LogWarning($"[Drop] Failed to load Addressable Item '{address}' for block '{blockName}'. Status={handle.Status}");
+        }
+
+        Addressables.Release(handle);
+        onResolved?.Invoke(item);
     }
 
     #endregion

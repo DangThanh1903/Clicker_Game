@@ -16,8 +16,17 @@ public class InventoryUIManager : MonoBehaviour
 
     public bool AddItemToInventorySection(InventoryItem inventoryItem)
     {
+        if (inventorySections == null || inventorySections.Length == 0)
+        {
+            Debug.LogWarning("Inventory sections are missing or empty.");
+            return false;
+        }
+
         foreach (var section in inventorySections)
         {
+            if (section == null || section.inventoryData == null)
+                continue;
+
             if (section.inventoryData.inventoryType == InventoryType.Inventory)
             {
                 return section.inventoryData.AddItem(inventoryItem);
@@ -25,6 +34,23 @@ public class InventoryUIManager : MonoBehaviour
         }
 
         Debug.LogWarning("No Inventory section found with type 'Inventory'.");
+        return false;
+    }
+
+    public bool HasInventorySection()
+    {
+        if (inventorySections == null || inventorySections.Length == 0)
+            return false;
+
+        foreach (var section in inventorySections)
+        {
+            if (section == null || section.inventoryData == null)
+                continue;
+
+            if (section.inventoryData.inventoryType == InventoryType.Inventory)
+                return true;
+        }
+
         return false;
     }
     public void SortInventory()

@@ -50,6 +50,8 @@ public class FirebaseBootstrap : MonoBehaviour
         if (Ins && Ins != this) { Destroy(gameObject); return; }
         Ins = this;
         DontDestroyOnLoad(gameObject);
+        QualitySettings.vSyncCount = 0;
+        Application.targetFrameRate = 120;
         AnalyticsManager.EnsureExists();
         StartInitIfNeeded();
     }
