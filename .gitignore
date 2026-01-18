@@ -77,3 +77,9 @@ Assets/StreamingAssets/google-services.json.meta
 Assets/StreamingAssets/google-services-desktop.json.meta
 Assets/Plugins/Android/google-services.json
 Assets/Plugins/Android/FirebaseApp.androidlib/res/values/google-services.xml
+
+# AdMob settings (local)
+Assets/GoogleMobileAds/Resources/GoogleMobileAdsSettings.asset
+Assets/GoogleMobileAds/Resources/GoogleMobileAdsSettings.asset.meta
+Assets/DevWork/Settings/Ads/AdsConfig.asset
+Assets/DevWork/Settings/Ads/AdsConfig.asset.meta
