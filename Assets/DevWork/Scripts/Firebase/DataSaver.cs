@@ -90,6 +90,7 @@ public class DataSaver : MonoBehaviour
 
         isReady = true;
         Debug.Log($"✅ DataSaver ready. uid={GetUid()}");
+        AnalyticsManager.Ins?.UpdateUserProperties(this);
     }
 
     private string GetUid()
@@ -534,6 +535,7 @@ public class DataSaver : MonoBehaviour
         }
 
         CurrentTime = gameplay.currentTime;
+        AnalyticsManager.Ins?.UpdateUserProperties(this);
     }
 
     private IEnumerator ApplyInventoryData(InventoryData inv, InventorySaveData loadedData)

@@ -37,6 +37,8 @@ public class Boss : MonoBehaviour, IDamagable
 
     private float _nextNormalTime;
     private float _nextSpecialTime;
+    private float spawnTime;
+    private string bossId;
     void Start()
     {
         SetUp();
@@ -91,6 +93,9 @@ public class Boss : MonoBehaviour, IDamagable
     }
     void OnEnable()
     {
+        if (spawnTime <= 0f)
+            spawnTime = Time.unscaledTime;
+
         if (enemyStatsManager == null) return;
 
         var scheduler = useUnscaledTime ? Scheduler.MainThreadIgnoreTimeScale : Scheduler.MainThread;
@@ -237,11 +242,19 @@ public class Boss : MonoBehaviour, IDamagable
     void OnDying()
     {
         StatsManager.Ins.Add(StatType.TotalBlockBreaked, 1);
+        string id = string.IsNullOrEmpty(bossId) ? gameObject.name : bossId;
+        AnalyticsManager.Ins?.TrackBossKill(id, Mathf.Max(0f, Time.unscaledTime - spawnTime));
         Died?.Invoke(this); 
     }
 
     void OnSpawn()
     {
 
+    }
+
+    public void SetAnalyticsContext(string id)
+    {
+        bossId = string.IsNullOrEmpty(id) ? gameObject.name : id;
+        spawnTime = Time.unscaledTime;
     }
 }

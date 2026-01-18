@@ -69,6 +69,10 @@ public class BlockManager : MonoBehaviour
         activeBossComp = go.GetComponent<Boss>();
         if (activeBossComp != null)
             activeBossComp.Died += OnBossDied;
+
+        AnalyticsManager.Ins?.TrackBossSpawn(activeBossInfo.bossName, bossLocation.ToString());
+        activeBossComp?.SetAnalyticsContext(activeBossInfo.bossName);
+
         PlayerController.Instance.OnDied += () =>
         {
             LeanPool.Despawn(go);

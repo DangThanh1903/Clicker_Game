@@ -230,6 +230,7 @@ public class QuestManager : MonoBehaviour
             {
                 StatsManager.Ins.Add(StatType.Diamond, reward.gemAmount);
                 Debug.Log($"[QuestManager] +{reward.gemAmount} Gems");
+                AnalyticsManager.Ins?.TrackCurrencyEarn("gems", reward.gemAmount, $"quest:{def.id}");
             }
 
             // --- 2) Give Inventory Items ---

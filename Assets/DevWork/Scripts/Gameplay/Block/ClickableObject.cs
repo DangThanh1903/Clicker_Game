@@ -51,6 +51,7 @@ public class ClickableObject : MonoBehaviour, IDamagable
     [Header("Animation")]
     [SerializeField] private BlockAnimationController animCtrl;
     private Vector2 onClickPos;
+    private float blockSpawnTime;
 
     // 📦 Internal click buffer and stream
     private readonly Subject<long> clickStream = new Subject<long>();
@@ -134,20 +135,25 @@ public class ClickableObject : MonoBehaviour, IDamagable
     // Click logic
     public void HandleClickDetection()
     {
-        PlayerController.Instance.OnUpdate(this);
+        var player = PlayerController.Instance;
+        if (player == null) return;
+        player.OnUpdate(this);
 
-        if (!UIManager.Ins.IsBlockCanClick()) return;
+        var ui = UIManager.Ins;
+        if (ui == null || !ui.IsBlockCanClick()) return;
         if (isDyingEffect) return;
-        if (PopupController.Instance.IsAnyPopupOpen()) return;
+        if (PopupController.Instance != null && PopupController.Instance.IsAnyPopupOpen()) return;
 
         // Mouse Down
         if (Input.GetMouseButtonDown(0))
         {
-            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+            var cam = Camera.main;
+            if (cam == null) return;
+            Ray ray = cam.ScreenPointToRay(Input.mousePosition);
             if (Physics.Raycast(ray, out RaycastHit hit) && hit.transform == transform)
             {
                 onClickPos = GetUIPosition(hit.point);
-                PlayerController.Instance.OnClick(this);
+                player.OnClick(this);
             }
         }
 
@@ -159,11 +165,13 @@ public class ClickableObject : MonoBehaviour, IDamagable
                 isMouseHeld = true;
             }
 
-            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+            var cam = Camera.main;
+            if (cam == null) return;
+            Ray ray = cam.ScreenPointToRay(Input.mousePosition);
             if (Physics.Raycast(ray, out RaycastHit hit) && hit.transform == transform)
             {
                 onClickPos = GetUIPosition(hit.point);
-                PlayerController.Instance.OnHold(this);
+                player.OnHold(this);
             }
         }
         else if (Input.GetMouseButtonUp(0))
@@ -195,7 +203,7 @@ public class ClickableObject : MonoBehaviour, IDamagable
     public void HandleClick()
     {
         float power = StatsManager.Ins.Get(StatType.NormalPower);
-        TakeDamage(power);
+        TakeDamage(power, "click");
     }
     public void HandleHold()
     {
@@ -204,7 +212,7 @@ public class ClickableObject : MonoBehaviour, IDamagable
         if (accumulatedHoldTime >= timeHoldReset)
         {
             float power = StatsManager.Ins.Get(StatType.HoldPower) * timeHoldReset;
-            TakeDamage(power, timeHoldReset);
+            TakeDamage(power, "hold", timeHoldReset);
             accumulatedHoldTime = 0f;
         }
     }
@@ -215,17 +223,19 @@ public class ClickableObject : MonoBehaviour, IDamagable
         if (accumulatedHoldTime >= timeIdleReset)
         {
             float power = StatsManager.Ins.Get(StatType.IdlePower) * timeIdleReset;
-            TakeDamage(power, timeIdleReset);
+            TakeDamage(power, "idle", timeIdleReset);
             accumulatedHoldTime = 0f;
         }
     }
 
-    void TakeDamage(float power, float timeReset = 1)
+    void TakeDamage(float power, string source, float timeReset = 1)
     {
         CurrentHealth.Value = Mathf.Max(0, CurrentHealth.Value - power);
 
         StatsManager.Ins.Add(StatType.Clicks, 1 * timeReset);
         StatsManager.Ins.Add(StatType.TotalDamageDealed, power);
+
+        AnalyticsManager.Ins?.TrackBlockClick(blockName, GetLocationString(), power, source);
 
         Toaster.Show($"-{power:F1}", null, 0.2f, onClickPos);
 
@@ -279,6 +289,7 @@ public class ClickableObject : MonoBehaviour, IDamagable
     #region CUBE_ANIM -------------------------------------------------------------------------------------
     void OnAppear()
     {
+        blockSpawnTime = Time.unscaledTime;
         animCtrl?.PlaySpawn(() =>
         {
             animCtrl.TryPlayIdle();
@@ -289,6 +300,8 @@ public class ClickableObject : MonoBehaviour, IDamagable
     void OnDisappear()
     {
         isDyingEffect = true;
+        float timeToBreak = Mathf.Max(0f, Time.unscaledTime - blockSpawnTime);
+        AnalyticsManager.Ins?.TrackBlockBreak(blockName, GetLocationString(), timeToBreak);
 
         StatsManager.Ins.Add(StatType.TotalBlockBreaked, 1);
 
@@ -448,6 +461,11 @@ public class ClickableObject : MonoBehaviour, IDamagable
 
     #endregion
     #region HELPER --------------------------------------------------------------------------------------------
-    
+    string GetLocationString()
+    {
+        return DataSaver.Ins != null && DataSaver.Ins.currentLocation.HasValue
+            ? DataSaver.Ins.currentLocation.Value.ToString()
+            : "unknown";
+    }
     #endregion
 }

@@ -103,6 +103,15 @@ public class MonsterSpawner : MonoBehaviour
         clickable.Init(def, this);
         currentAlive = clickable;
 
+        var ctx = BuildContext();
+        AnalyticsManager.Ins?.TrackMonsterSpawn(
+            ResolveMonsterId(def),
+            ctx.location.ToString(),
+            ctx.timeState.ToString(),
+            ctx.normalWeather.ToString(),
+            ctx.specialWeather.ToString()
+        );
+
         if (def.appearSfx != null) SoundEffectController.Ins?.PlaySFX(def.appearSfx);
     }
 
@@ -114,6 +123,12 @@ public class MonsterSpawner : MonoBehaviour
     Vector3 GetSpawnPos()
     {
         return spawnRoot != null ? spawnRoot.position : transform.position;
+    }
+
+    string ResolveMonsterId(MonsterDef def)
+    {
+        if (def == null) return "unknown";
+        return string.IsNullOrEmpty(def.id) ? def.name : def.id;
     }
 
     void OnEncounterResolved(MonsterClickable who)

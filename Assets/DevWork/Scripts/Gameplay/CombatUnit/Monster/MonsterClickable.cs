@@ -16,6 +16,8 @@ public class MonsterClickable : MonoBehaviour, IDamagable
     private Vector3 baseLocalPos;
     private IDisposable lifeTimer;
     private IDisposable healthSub;
+    private float spawnTime;
+    private string monsterId;
 
     private bool isMouseHeld;
     private bool isPressedOnThis;
@@ -33,6 +35,8 @@ public class MonsterClickable : MonoBehaviour, IDamagable
         resolved = false;
         CacheMovement();
         baseLocalPos = transform.localPosition;
+        spawnTime = Time.unscaledTime;
+        monsterId = ResolveMonsterId(def);
 
         MaxHealth = Mathf.Max(1f, def.MaxHP);
         CurrentHealth.Value = MaxHealth;
@@ -158,6 +162,9 @@ public class MonsterClickable : MonoBehaviour, IDamagable
         if (resolved) return;
         resolved = true;
 
+        string rewardId = def != null && def.buffReward != null ? def.buffReward.name : "none";
+        AnalyticsManager.Ins?.TrackMonsterKill(monsterId, Time.unscaledTime - spawnTime, rewardId);
+
         // reward buff
         if (def != null && def.buffReward != null)
             StatsManager.Ins.ApplyConsumableBuff(def.buffReward);
@@ -173,6 +180,7 @@ public class MonsterClickable : MonoBehaviour, IDamagable
     {
         if (resolved) return;
         resolved = true;
+        AnalyticsManager.Ins?.TrackMonsterMiss(monsterId, Time.unscaledTime - spawnTime);
         ResolveAndDespawn();
     }
 
@@ -195,6 +203,8 @@ public class MonsterClickable : MonoBehaviour, IDamagable
         resolved = false;
         isMouseHeld = false;
         accumulatedHoldTime = 0f;
+        spawnTime = 0f;
+        monsterId = null;
     }
 
     void CacheMovement()
@@ -221,5 +231,11 @@ public class MonsterClickable : MonoBehaviour, IDamagable
 
         if (hasActive)
             transform.localPosition = baseLocalPos + offset;
+    }
+
+    string ResolveMonsterId(MonsterDef d)
+    {
+        if (d == null) return gameObject.name;
+        return string.IsNullOrEmpty(d.id) ? d.name : d.id;
     }
 }

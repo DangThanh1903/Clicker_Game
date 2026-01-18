@@ -117,6 +117,7 @@ public class LocationLoader : MonoBehaviour
             return;
         }
 
+        BlockSpawnLocation previousLocation = currentLocation;
         BlockSpawnLocation newLoc = (BlockSpawnLocation)index;
 
         UIManager.Ins.SetLocationBackground(index - 1);
@@ -139,6 +140,9 @@ public class LocationLoader : MonoBehaviour
 
         SpawnLocation(data.Value, isInitiate);
         _bootstrapped = true;
+
+        if (!isInitiate && previousLocation != newLoc)
+            AnalyticsManager.Ins?.TrackLocationChange(previousLocation.ToString(), newLoc.ToString());
     }
 
     // ================= LeanPool helpers =================

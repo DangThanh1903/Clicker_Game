@@ -50,6 +50,7 @@ public class FirebaseBootstrap : MonoBehaviour
         if (Ins && Ins != this) { Destroy(gameObject); return; }
         Ins = this;
         DontDestroyOnLoad(gameObject);
+        AnalyticsManager.EnsureExists();
         StartInitIfNeeded();
     }
 
