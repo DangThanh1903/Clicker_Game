@@ -964,12 +964,12 @@ PrefabInstance:
     - target: {fileID: 1867137494011555453, guid: f456b71d7c546d2468f24e8f72f04d65,
         type: 3}
       propertyPath: m_SizeDelta.x
-      value: 1200
+      value: 1080
       objectReference: {fileID: 0}
     - target: {fileID: 1867137494011555453, guid: f456b71d7c546d2468f24e8f72f04d65,
         type: 3}
       propertyPath: m_SizeDelta.y
-      value: 400
+      value: 360
       objectReference: {fileID: 0}
     - target: {fileID: 1867137494011555453, guid: f456b71d7c546d2468f24e8f72f04d65,
         type: 3}
@@ -1055,6 +1055,16 @@ PrefabInstance:
         type: 3}
       propertyPath: m_Spacing.y
       value: 40
+      objectReference: {fileID: 0}
+    - target: {fileID: 7146460927897498710, guid: f456b71d7c546d2468f24e8f72f04d65,
+        type: 3}
+      propertyPath: m_CellSize.x
+      value: 100
+      objectReference: {fileID: 0}
+    - target: {fileID: 7146460927897498710, guid: f456b71d7c546d2468f24e8f72f04d65,
+        type: 3}
+      propertyPath: m_CellSize.y
+      value: 100
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -1430,6 +1440,16 @@ PrefabInstance:
         type: 3}
       propertyPath: m_Spacing.x
       value: 60
+      objectReference: {fileID: 0}
+    - target: {fileID: 7146460927897498710, guid: f456b71d7c546d2468f24e8f72f04d65,
+        type: 3}
+      propertyPath: m_CellSize.x
+      value: 100
+      objectReference: {fileID: 0}
+    - target: {fileID: 7146460927897498710, guid: f456b71d7c546d2468f24e8f72f04d65,
+        type: 3}
+      propertyPath: m_CellSize.y
+      value: 100
       objectReference: {fileID: 0}
     - target: {fileID: 7146460927897498710, guid: f456b71d7c546d2468f24e8f72f04d65,
         type: 3}
@@ -1829,12 +1849,12 @@ PrefabInstance:
     - target: {fileID: 1867137494011555453, guid: f456b71d7c546d2468f24e8f72f04d65,
         type: 3}
       propertyPath: m_SizeDelta.x
-      value: 300
+      value: 200
       objectReference: {fileID: 0}
     - target: {fileID: 1867137494011555453, guid: f456b71d7c546d2468f24e8f72f04d65,
         type: 3}
       propertyPath: m_SizeDelta.y
-      value: 1000
+      value: 860
       objectReference: {fileID: 0}
     - target: {fileID: 1867137494011555453, guid: f456b71d7c546d2468f24e8f72f04d65,
         type: 3}
@@ -1899,12 +1919,22 @@ PrefabInstance:
     - target: {fileID: 5851073461638536623, guid: f456b71d7c546d2468f24e8f72f04d65,
         type: 3}
       propertyPath: m_SizeDelta.x
-      value: 210
+      value: 160
       objectReference: {fileID: 0}
     - target: {fileID: 6072047751132664813, guid: f456b71d7c546d2468f24e8f72f04d65,
         type: 3}
       propertyPath: m_text
       value: Weapon
+      objectReference: {fileID: 0}
+    - target: {fileID: 6072047751132664813, guid: f456b71d7c546d2468f24e8f72f04d65,
+        type: 3}
+      propertyPath: m_fontSize
+      value: 18
+      objectReference: {fileID: 0}
+    - target: {fileID: 6072047751132664813, guid: f456b71d7c546d2468f24e8f72f04d65,
+        type: 3}
+      propertyPath: m_fontSizeBase
+      value: 18
       objectReference: {fileID: 0}
     - target: {fileID: 6596363237629188188, guid: f456b71d7c546d2468f24e8f72f04d65,
         type: 3}
@@ -1939,12 +1969,12 @@ PrefabInstance:
     - target: {fileID: 7146460927897498710, guid: f456b71d7c546d2468f24e8f72f04d65,
         type: 3}
       propertyPath: m_CellSize.x
-      value: 120
+      value: 100
       objectReference: {fileID: 0}
     - target: {fileID: 7146460927897498710, guid: f456b71d7c546d2468f24e8f72f04d65,
         type: 3}
       propertyPath: m_CellSize.y
-      value: 120
+      value: 100
       objectReference: {fileID: 0}
     - target: {fileID: 7146460927897498710, guid: f456b71d7c546d2468f24e8f72f04d65,
         type: 3}
@@ -2053,12 +2083,12 @@ PrefabInstance:
     - target: {fileID: 1867137494011555453, guid: f456b71d7c546d2468f24e8f72f04d65,
         type: 3}
       propertyPath: m_SizeDelta.x
-      value: 800
+      value: 660
       objectReference: {fileID: 0}
     - target: {fileID: 1867137494011555453, guid: f456b71d7c546d2468f24e8f72f04d65,
         type: 3}
       propertyPath: m_SizeDelta.y
-      value: 600
+      value: 500
       objectReference: {fileID: 0}
     - target: {fileID: 1867137494011555453, guid: f456b71d7c546d2468f24e8f72f04d65,
         type: 3}
@@ -2173,12 +2203,12 @@ PrefabInstance:
     - target: {fileID: 7146460927897498710, guid: f456b71d7c546d2468f24e8f72f04d65,
         type: 3}
       propertyPath: m_CellSize.x
-      value: 120
+      value: 100
       objectReference: {fileID: 0}
     - target: {fileID: 7146460927897498710, guid: f456b71d7c546d2468f24e8f72f04d65,
         type: 3}
       propertyPath: m_CellSize.y
-      value: 120
+      value: 100
       objectReference: {fileID: 0}
     - target: {fileID: 7146460927897498710, guid: f456b71d7c546d2468f24e8f72f04d65,
         type: 3}
@@ -4864,8 +4894,23 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7146460927897498710, guid: f456b71d7c546d2468f24e8f72f04d65,
         type: 3}
+      propertyPath: m_Spacing.x
+      value: 20
+      objectReference: {fileID: 0}
+    - target: {fileID: 7146460927897498710, guid: f456b71d7c546d2468f24e8f72f04d65,
+        type: 3}
       propertyPath: m_Spacing.y
       value: 20
+      objectReference: {fileID: 0}
+    - target: {fileID: 7146460927897498710, guid: f456b71d7c546d2468f24e8f72f04d65,
+        type: 3}
+      propertyPath: m_CellSize.x
+      value: 100
+      objectReference: {fileID: 0}
+    - target: {fileID: 7146460927897498710, guid: f456b71d7c546d2468f24e8f72f04d65,
+        type: 3}
+      propertyPath: m_CellSize.y
+      value: 100
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

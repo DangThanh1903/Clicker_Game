@@ -14,11 +14,15 @@ public class TimeSystem : MonoBehaviour
     [Min(0.01f)] public float updateTick = 0.1f;
     [Min(1f)]    public float dayDuration = 180f;
     [Min(1f)]    public float nightDuration = 180f;
+    [Min(0.01f)] public float timeScale = 1f;
+    public bool smoothTime = true;
+    public bool useUnscaledTime = true;
 
     [Header("Light (Single Directional)")]
     [SerializeField] private Light mainLight;                    // Assign your directional light
     [SerializeField] private Vector3 lightAxis = new Vector3(1f, 0f, 0f);
     [SerializeField, Range(-90f, 90f)] private float tilt = -30f;
+    [SerializeField] private bool autoAssignSunLight = true;
 
     [Header("Directional Color & Intensity (auto-aligned)")]
     [Tooltip("Evaluated over normalized [0..1] where 0 = sunrise, dayPortion = sunset, 1 = next sunrise")]
@@ -75,6 +79,10 @@ public class TimeSystem : MonoBehaviour
 
     private void Start()
     {
+        EnsureMainLight();
+        if (timeScale > 0.05f)
+            timeScale = 0.05f;
+
         // Clamp & apply initial time/state
         startTime = Mathf.Repeat(startTime, CycleLength);
         CurrentTime.Value = startTime;
@@ -93,9 +101,23 @@ public class TimeSystem : MonoBehaviour
         ApplyLighting(CurrentTime.Value / CycleLength);
 
         // Tick
-        Observable.Interval(TimeSpan.FromSeconds(updateTick))
-            .Subscribe(_ => CurrentTime.Value = (CurrentTime.Value + updateTick) % CycleLength)
-            .AddTo(this);
+        if (smoothTime)
+        {
+            Observable.EveryUpdate()
+                .Subscribe(_ =>
+                {
+                    float dt = useUnscaledTime ? Time.unscaledDeltaTime : Time.deltaTime;
+                    AdvanceTime(dt * timeScale);
+                })
+                .AddTo(this);
+        }
+        else
+        {
+            var scheduler = useUnscaledTime ? Scheduler.MainThreadIgnoreTimeScale : Scheduler.MainThread;
+            Observable.Interval(TimeSpan.FromSeconds(updateTick), scheduler)
+                .Subscribe(_ => AdvanceTime(updateTick * timeScale))
+                .AddTo(this);
+        }
 
         // React to time
         CurrentTime
@@ -269,6 +291,51 @@ public class TimeSystem : MonoBehaviour
 
         // Shader Graph float property named "Blend" will be "_Blend" here
         skyboxMaterial.SetFloat("_Blend", blend);
+
+        if (mainLight == null) return;
+
+        Vector3 sunDir = -mainLight.transform.forward;
+
+        if (skyboxMaterial.HasProperty("_SunDirection"))
+            skyboxMaterial.SetVector("_SunDirection", sunDir);
+        if (skyboxMaterial.HasProperty("_LightDirection"))
+            skyboxMaterial.SetVector("_LightDirection", sunDir);
+        if (skyboxMaterial.HasProperty("_MainLightDirection"))
+            skyboxMaterial.SetVector("_MainLightDirection", sunDir);
+        if (skyboxMaterial.HasProperty("_SunDir"))
+            skyboxMaterial.SetVector("_SunDir", sunDir);
+
+        if (skyboxMaterial.HasProperty("_Rotation"))
+        {
+            Vector3 flat = new Vector3(sunDir.x, 0f, sunDir.z);
+            if (flat.sqrMagnitude > 0.0001f)
+            {
+                float rot = Mathf.Atan2(flat.x, flat.z) * Mathf.Rad2Deg;
+                skyboxMaterial.SetFloat("_Rotation", rot);
+            }
+        }
+    }
+
+    private void EnsureMainLight()
+    {
+        if (mainLight == null && RenderSettings.sun != null)
+            mainLight = RenderSettings.sun;
+
+        if (mainLight == null)
+        {
+            var lights = FindObjectsOfType<Light>();
+            foreach (var l in lights)
+            {
+                if (l != null && l.type == LightType.Directional)
+                {
+                    mainLight = l;
+                    break;
+                }
+            }
+        }
+
+        if (autoAssignSunLight && mainLight != null)
+            RenderSettings.sun = mainLight;
     }
 
     private void SwitchToDay()
@@ -285,5 +352,11 @@ public class TimeSystem : MonoBehaviour
         Debug.Log("Switched to Night");
         GameDebugHandler.LogStaticKey("UI_Debug", "time_night");
         WeatherManager.Instance?.ClearSpecialWeatherAndTriggerNext();
+    }
+
+    private void AdvanceTime(float deltaSeconds)
+    {
+        if (deltaSeconds <= 0f) return;
+        CurrentTime.Value = (CurrentTime.Value + deltaSeconds) % CycleLength;
     }
 }

@@ -48,6 +48,11 @@ public class DataSaver : MonoBehaviour
     private float ongoingSaveStartTime;
     private bool pendingSave;
     private bool pendingForce;
+    private bool allowSaves;
+    private bool allowCloudSave;
+    private bool hasLoadedData;
+    private long lastCloudUpdatedUtcTicks;
+    private long lastLocalUpdatedUtcTicks;
     private const string LocalCacheFileName = "local_save.json";
 
     void Awake()
@@ -109,9 +114,21 @@ public class DataSaver : MonoBehaviour
         if (isQuitting && !force) { reason = "quitting"; return false; }
         if (!isReady) { reason = "not ready"; return false; }
         if (db == null) { reason = "db null"; return false; }
+        if (!allowCloudSave) { reason = "data not loaded"; return false; }
 
         uid = GetUid();
         if (string.IsNullOrEmpty(uid)) { reason = "uid missing"; return false; }
+
+        if (lastLocalUpdatedUtcTicks <= 0)
+        {
+            reason = "local updatedAt missing";
+            return false;
+        }
+        if (lastCloudUpdatedUtcTicks > 0 && lastLocalUpdatedUtcTicks <= lastCloudUpdatedUtcTicks)
+        {
+            reason = "local not newer than cloud";
+            return false;
+        }
 
         // cooldown để không spam write
         if (!force)
@@ -138,6 +155,16 @@ public class DataSaver : MonoBehaviour
         if (verboseSaveLogs)
             Debug.Log($"SaveDataFn called (force={force}).");
 
+        if (!allowSaves)
+        {
+            pendingSave = true;
+            pendingForce |= force;
+            if (verboseSaveLogs)
+                Debug.Log("SaveDataFn blocked: initial load not complete.");
+            return;
+        }
+
+        TouchLocalDataUpdated();
         SaveLocalCache();
 
         // reset counter (nhưng chỉ reset khi thật sự save)
@@ -201,6 +228,9 @@ public class DataSaver : MonoBehaviour
         if (verboseSaveLogs)
             Debug.Log($"SaveCloudAsync start (uid={uid}).");
 
+        long updateTicks = lastLocalUpdatedUtcTicks > 0 ? lastLocalUpdatedUtcTicks : DateTime.UtcNow.Ticks;
+        var updatedAt = Timestamp.FromDateTime(new DateTime(updateTicks, DateTimeKind.Utc));
+
         await ExecuteWithRetry(async () =>
         {
             var batch = db.StartBatch();
@@ -209,7 +239,7 @@ public class DataSaver : MonoBehaviour
             var payload = new Dictionary<string, object>
             {
                 ["gameplay"] = gameplay,
-                ["meta.updatedAt"] = Timestamp.GetCurrentTimestamp(),
+                ["meta.updatedAt"] = updatedAt,
                 ["meta.rev"] = FieldValue.Increment(1),
                 ["meta.saveVersion"] = 1
             };
@@ -225,6 +255,7 @@ public class DataSaver : MonoBehaviour
             await AwaitWithTimeout(batch.CommitAsync(), cloudCommitTimeoutSeconds, "Firestore commit");
         }, maxSaveAttempts, retryBaseDelaySeconds, "SaveCloudAsync");
 
+        lastCloudUpdatedUtcTicks = updateTicks;
         if (verboseSaveLogs)
             Debug.Log("SaveCloudAsync completed.");
     }
@@ -328,6 +359,9 @@ public class DataSaver : MonoBehaviour
 
     private void SaveLocalCache()
     {
+        if (!allowSaves)
+            return;
+
         try
         {
             var local = BuildLocalSaveData();
@@ -373,6 +407,9 @@ public class DataSaver : MonoBehaviour
             yield break;
         }
 
+        lastLocalUpdatedUtcTicks = local.savedAtUtcTicks;
+        if (lastCloudUpdatedUtcTicks <= 0)
+            lastCloudUpdatedUtcTicks = lastLocalUpdatedUtcTicks;
         ApplyGameplayData(local.gameplay.ToGameplaySaveData());
 
         if (local.inventories != null)
@@ -386,14 +423,18 @@ public class DataSaver : MonoBehaviour
         }
 
         Debug.Log("✅ Loaded from local cache.");
+        MarkDataLoaded();
         onComplete?.Invoke(true);
     }
 
     private LocalSaveData BuildLocalSaveData()
     {
+        if (lastLocalUpdatedUtcTicks <= 0)
+            lastLocalUpdatedUtcTicks = DateTime.UtcNow.Ticks;
+
         var local = new LocalSaveData
         {
-            savedAtUtcTicks = DateTime.UtcNow.Ticks,
+            savedAtUtcTicks = lastLocalUpdatedUtcTicks,
             gameplay = new LocalGameplayData(BuildGameplaySaveData())
         };
 
@@ -434,6 +475,8 @@ public class DataSaver : MonoBehaviour
             if (!invOk) ok = false;
         }
 
+        if (ok)
+            MarkDataLoaded();
         if (ok) SaveLocalCache();
         Debug.Log("✅ All inventories loaded (Firestore)");
         onComplete?.Invoke(ok);
@@ -497,8 +540,15 @@ public class DataSaver : MonoBehaviour
         if (!snap.Exists)
         {
             Debug.LogWarning("⚠️ No user doc, keep defaults.");
-            onComplete?.Invoke(false);
+            MarkDataLoaded();
+            onComplete?.Invoke(true);
             yield break;
+        }
+
+        if (TryGetCloudUpdatedTicks(snap, out var cloudTicks))
+        {
+            lastCloudUpdatedUtcTicks = cloudTicks;
+            lastLocalUpdatedUtcTicks = cloudTicks;
         }
 
         if (!snap.TryGetValue("gameplay", out GameplaySaveData gameplay) || gameplay == null)
@@ -510,6 +560,7 @@ public class DataSaver : MonoBehaviour
 
         ApplyGameplayData(gameplay);
         Debug.Log("✅ Loaded gameplay (Firestore)");
+        MarkDataLoaded();
         onComplete?.Invoke(true);
     }
 
@@ -536,6 +587,48 @@ public class DataSaver : MonoBehaviour
 
         CurrentTime = gameplay.currentTime;
         AnalyticsManager.Ins?.UpdateUserProperties(this);
+    }
+
+    public void MarkInitialLoadComplete(bool hasData)
+    {
+        allowSaves = true;
+        if (hasData)
+            MarkDataLoaded();
+
+        if (pendingSave && (ongoingSave == null || ongoingSave.IsCompleted))
+        {
+            bool force = pendingForce;
+            pendingSave = false;
+            pendingForce = false;
+            SaveDataFn(force);
+        }
+    }
+
+    private void MarkDataLoaded()
+    {
+        hasLoadedData = true;
+        allowCloudSave = true;
+    }
+
+    private void TouchLocalDataUpdated()
+    {
+        if (!hasLoadedData)
+            return;
+        lastLocalUpdatedUtcTicks = DateTime.UtcNow.Ticks;
+    }
+
+    private bool TryGetCloudUpdatedTicks(DocumentSnapshot snap, out long utcTicks)
+    {
+        utcTicks = 0;
+        if (snap == null) return false;
+
+        if (snap.TryGetValue("meta.updatedAt", out Timestamp updatedAt))
+        {
+            utcTicks = updatedAt.ToDateTime().ToUniversalTime().Ticks;
+            return utcTicks > 0;
+        }
+
+        return false;
     }
 
     private IEnumerator ApplyInventoryData(InventoryData inv, InventorySaveData loadedData)

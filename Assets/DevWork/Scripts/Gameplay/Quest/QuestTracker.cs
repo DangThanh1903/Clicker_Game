@@ -9,6 +9,7 @@ public class QuestTracker : IDisposable
     public readonly ReactiveCollection<StepTracker> Steps = new();
     public readonly BoolReactiveProperty Completed = new(false);
     public readonly BoolReactiveProperty RewardClaimed = new(false);
+    public readonly BoolReactiveProperty Unlocked = new(true);
 
     private readonly CompositeDisposable _cd = new();
 
@@ -20,26 +21,36 @@ public class QuestTracker : IDisposable
         foreach (var sdef in def.steps)
         {
             var sstate = saved?.steps?.FirstOrDefault(s => s.stepId == sdef.stepId);
-            var tracker = new StepTracker(sdef, sstate?.currentAmount ?? 0);
+            var tracker = new StepTracker(sdef, sstate?.currentAmount ?? 0, () => Unlocked.Value);
             Steps.Add(tracker);
 
             // Đồng bộ ngược lại state saved (nếu dùng)
             tracker.Current
+                .Skip(1)
                 .Subscribe(_ => OnStepProgressChanged?.Invoke(this))
                 .AddTo(_cd);
         }
 
         // Completed khi tất cả step completed
-        Steps.ObserveCountChanged().StartWith(Steps.Count)
+        var stepsCompleted = Steps.ObserveCountChanged().StartWith(Steps.Count)
             .Select(_ => Steps.All(s => s.Completed.Value))
             .Merge(Steps.Select(s => s.Completed.AsObservable()).Merge())
             .Select(_ => Steps.All(s => s.Completed.Value))
+            .DistinctUntilChanged();
+
+        stepsCompleted
+            .CombineLatest(Unlocked, (done, unlocked) => done && unlocked)
             .DistinctUntilChanged()
             .Subscribe(done => Completed.Value = done)
             .AddTo(_cd);
     }
 
     public event Action<QuestTracker> OnStepProgressChanged;
+
+    public void SetUnlocked(bool unlocked)
+    {
+        Unlocked.Value = unlocked;
+    }
 
     public void Dispose()
     {

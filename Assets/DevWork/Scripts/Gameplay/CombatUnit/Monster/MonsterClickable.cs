@@ -4,6 +4,7 @@ using System;
 using Lean.Pool;
 using GooglePlayGames.BasicApi;
 using Unity.VisualScripting.Antlr3.Runtime.Misc;
+using DG.Tweening;
 
 public class MonsterClickable : MonoBehaviour, IDamagable
 {
@@ -24,6 +25,30 @@ public class MonsterClickable : MonoBehaviour, IDamagable
     private float accumulatedHoldTime = 0f;
     private readonly float timeHoldReset = 0.1f;
     private readonly float timeIdleReset = 1f;
+    private Vector2 onClickPos;
+    [Header("Visual (child)")]
+    [SerializeField] private Transform visual;
+    [SerializeField] private float hitPunchScale = 0.12f;
+    [SerializeField] private float hitPunchDuration = 0.12f;
+    [SerializeField] private int hitPunchVibrato = 8;
+    [SerializeField] private float hitPunchElasticity = 0.6f;
+    [SerializeField] private Color hitFlashColor = new Color(1f, 0.3f, 0.3f, 1f);
+    [SerializeField] private float hitFlashDuration = 0.12f;
+    [SerializeField] private string hitSfxKey = "Hit";
+    private Vector3 visualBaseScale = Vector3.one;
+    private Tween hitTween;
+    private Tween hitColorTween;
+    private SpriteRenderer[] spriteRenderers;
+    private Color[] baseSpriteColors;
+    private RendererColorInfo[] rendererInfos;
+    private MaterialPropertyBlock mpb;
+
+    private struct RendererColorInfo
+    {
+        public Renderer renderer;
+        public int colorId;
+        public Color baseColor;
+    }
 
     private bool resolved;
 
@@ -33,6 +58,7 @@ public class MonsterClickable : MonoBehaviour, IDamagable
         def = d;
         owner = spawner;
         resolved = false;
+        CacheVisual();
         CacheMovement();
         baseLocalPos = transform.localPosition;
         spawnTime = Time.unscaledTime;
@@ -77,10 +103,13 @@ public class MonsterClickable : MonoBehaviour, IDamagable
         // Mouse Down
         if (Input.GetMouseButtonDown(0))
         {
-            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-            if (Physics.Raycast(ray, out RaycastHit hit) && hit.transform == transform)
+            var cam = Camera.main;
+            if (cam == null) return;
+            Ray ray = cam.ScreenPointToRay(Input.mousePosition);
+            if (Physics.Raycast(ray, out RaycastHit hit) && (hit.transform == transform || hit.transform.IsChildOf(transform)))
             {
                 isPressedOnThis = true;
+                onClickPos = GetUIPosition(hit.point);
                 PlayerController.Instance.OnClick(this);
             }
             else
@@ -94,9 +123,12 @@ public class MonsterClickable : MonoBehaviour, IDamagable
         {
             if (!isMouseHeld && isPressedOnThis) isMouseHeld = true;
 
-            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-            if (isPressedOnThis && Physics.Raycast(ray, out RaycastHit hit) && hit.transform == transform)
+            var cam = Camera.main;
+            if (cam == null) return;
+            Ray ray = cam.ScreenPointToRay(Input.mousePosition);
+            if (isPressedOnThis && Physics.Raycast(ray, out RaycastHit hit) && (hit.transform == transform || hit.transform.IsChildOf(transform)))
             {
+                onClickPos = GetUIPosition(hit.point);
                 PlayerController.Instance.OnHold(this);
             }
         }
@@ -154,7 +186,8 @@ public class MonsterClickable : MonoBehaviour, IDamagable
         StatsManager.Ins.Add(StatType.Clicks, 1);
 
         // Optional: hit feedback (toast / anim)
-        // Toaster.Show($"-{power:F1}", null, 0.2f, somePos);
+        Toaster.Show($"-{power:F1}", null, 0.2f, onClickPos);
+        PlayHitFeedback();
     }
 
     void OnKilled()
@@ -205,11 +238,153 @@ public class MonsterClickable : MonoBehaviour, IDamagable
         accumulatedHoldTime = 0f;
         spawnTime = 0f;
         monsterId = null;
+        if (hitTween != null)
+        {
+            hitTween.Kill(false);
+            hitTween = null;
+        }
+        if (hitColorTween != null)
+        {
+            hitColorTween.Kill(false);
+            hitColorTween = null;
+        }
+        if (visual != null)
+            visual.localScale = visualBaseScale;
+        ResetVisualColor();
     }
 
     void CacheMovement()
     {
         movementComponents = GetComponents<IMonsterMovement>();
+    }
+
+    void CacheVisual()
+    {
+        if (visual == null)
+        {
+            var named = transform.Find("Visual");
+            if (named != null)
+                visual = named;
+            else if (transform.childCount > 0)
+                visual = transform.GetChild(0);
+        }
+
+        if (visual != null)
+            visualBaseScale = visual.localScale;
+
+        CacheVisualRenderers();
+    }
+
+    void PlayHitFeedback()
+    {
+        if (visual == null) return;
+        if (hitTween != null) hitTween.Kill(false);
+        visual.localScale = visualBaseScale;
+        hitTween = visual.DOPunchScale(
+            new Vector3(hitPunchScale, hitPunchScale, 0f),
+            hitPunchDuration,
+            hitPunchVibrato,
+            hitPunchElasticity
+        );
+
+        PlayHitColorFlash();
+        if (!string.IsNullOrEmpty(hitSfxKey))
+            SoundEffectController.Ins?.PlaySFX(hitSfxKey);
+    }
+
+    void CacheVisualRenderers()
+    {
+        spriteRenderers = null;
+        baseSpriteColors = null;
+        rendererInfos = null;
+        mpb = null;
+
+        if (visual == null) return;
+
+        spriteRenderers = visual.GetComponentsInChildren<SpriteRenderer>(true);
+        if (spriteRenderers != null && spriteRenderers.Length > 0)
+        {
+            baseSpriteColors = new Color[spriteRenderers.Length];
+            for (int i = 0; i < spriteRenderers.Length; i++)
+                baseSpriteColors[i] = spriteRenderers[i].color;
+        }
+
+        var renderers = visual.GetComponentsInChildren<Renderer>(true);
+        if (renderers == null || renderers.Length == 0) return;
+
+        var list = new System.Collections.Generic.List<RendererColorInfo>();
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            var r = renderers[i];
+            if (r == null || r is SpriteRenderer) continue;
+            var mat = r.sharedMaterial;
+            if (mat == null) continue;
+
+            int colorId = -1;
+            if (mat.HasProperty("_BaseColor")) colorId = Shader.PropertyToID("_BaseColor");
+            else if (mat.HasProperty("_Color")) colorId = Shader.PropertyToID("_Color");
+            if (colorId == -1) continue;
+
+            list.Add(new RendererColorInfo
+            {
+                renderer = r,
+                colorId = colorId,
+                baseColor = mat.GetColor(colorId)
+            });
+        }
+
+        if (list.Count > 0)
+        {
+            rendererInfos = list.ToArray();
+            mpb = new MaterialPropertyBlock();
+        }
+    }
+
+    void PlayHitColorFlash()
+    {
+        if (!HasColorTargets()) return;
+        if (hitColorTween != null) hitColorTween.Kill(false);
+
+        float half = Mathf.Max(0.01f, hitFlashDuration * 0.5f);
+        hitColorTween = DOTween.To(() => 0f, ApplyHitColor, 1f, half)
+            .SetEase(Ease.OutQuad)
+            .SetLoops(2, LoopType.Yoyo);
+    }
+
+    bool HasColorTargets()
+    {
+        return (spriteRenderers != null && spriteRenderers.Length > 0)
+            || (rendererInfos != null && rendererInfos.Length > 0);
+    }
+
+    void ApplyHitColor(float t)
+    {
+        if (spriteRenderers != null && baseSpriteColors != null)
+        {
+            for (int i = 0; i < spriteRenderers.Length; i++)
+            {
+                var sr = spriteRenderers[i];
+                if (sr == null) continue;
+                sr.color = Color.Lerp(baseSpriteColors[i], hitFlashColor, t);
+            }
+        }
+
+        if (rendererInfos != null && rendererInfos.Length > 0 && mpb != null)
+        {
+            for (int i = 0; i < rendererInfos.Length; i++)
+            {
+                var info = rendererInfos[i];
+                if (info.renderer == null) continue;
+                mpb.Clear();
+                mpb.SetColor(info.colorId, Color.Lerp(info.baseColor, hitFlashColor, t));
+                info.renderer.SetPropertyBlock(mpb);
+            }
+        }
+    }
+
+    void ResetVisualColor()
+    {
+        ApplyHitColor(0f);
     }
 
     void UpdateMovement()
@@ -237,5 +412,23 @@ public class MonsterClickable : MonoBehaviour, IDamagable
     {
         if (d == null) return gameObject.name;
         return string.IsNullOrEmpty(d.id) ? d.name : d.id;
+    }
+
+    private Vector2 GetUIPosition(Vector3 worldPos)
+    {
+        if (Toaster.Ins == null || Toaster.Ins.canvas == null)
+            return Vector2.zero;
+        var cam = Camera.main;
+        if (cam == null)
+            return Vector2.zero;
+
+        Vector2 screenPos = cam.WorldToScreenPoint(worldPos);
+        RectTransformUtility.ScreenPointToLocalPointInRectangle(
+            Toaster.Ins.canvas.transform as RectTransform,
+            screenPos,
+            Toaster.Ins.canvas.worldCamera,
+            out Vector2 localPoint
+        );
+        return localPoint;
     }
 }

@@ -11,8 +11,11 @@ public class StepTracker : IDisposable
 
     private readonly CompositeDisposable _cd = new();
 
-    public StepTracker(QuestStepDef def, int initialProgress)
+    private readonly Func<bool> isUnlocked;
+
+    public StepTracker(QuestStepDef def, int initialProgress, Func<bool> isUnlocked = null)
     {
+        this.isUnlocked = isUnlocked;
         StepId = def.stepId;
         Required.Value = Mathf.Max(1, def.requiredAmount);
         Current.Value  = Mathf.Clamp(initialProgress, 0, Required.Value);
@@ -30,6 +33,7 @@ public class StepTracker : IDisposable
         {
             incStream
                 .Where(_ => !Completed.Value) // dừng cộng khi đã xong
+                .Where(_ => this.isUnlocked == null || this.isUnlocked())
                 .Subscribe(inc =>
                 {
                     Current.Value = Mathf.Clamp(Current.Value + inc, 0, Required.Value);
@@ -45,6 +49,7 @@ public class StepTracker : IDisposable
                 .Select(t => t.value >= def.requiredAmount) // dùng requiredAmount làm ngưỡng
                 .DistinctUntilChanged()
                 .Where(ok => ok && !Completed.Value)
+                .Where(_ => this.isUnlocked == null || this.isUnlocked())
                 .Subscribe(_ =>
                 {
                     Current.Value = Required.Value;
