@@ -124,6 +124,24 @@ public class BlockManager : MonoBehaviour
         );
     }
 
+    public void RefreshBlockForLocationChange()
+    {
+        NormalWeatherName normalName =
+            (WeatherManager.Instance.CurrentNormalWeather.Value as NormalWeatherData)?.weatherName
+            ?? NormalWeatherName.Any;
+
+        SpecialWeatherName specialName =
+            (WeatherManager.Instance.CurrentSpecialWeather.Value as SpecialWeatherData)?.weatherName
+            ?? SpecialWeatherName.Any;
+
+        currentBlock.SetClickableBlockByCondition(
+            locationLoader.currentLocation,
+            TimeSystem.Instance.CurrentTimeState.Value,
+            normalName,
+            specialName
+        );
+    }
+
 
     // Boss
     public bool IsBossOutOfCondition()

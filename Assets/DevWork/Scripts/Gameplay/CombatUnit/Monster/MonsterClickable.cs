@@ -202,6 +202,8 @@ public class MonsterClickable : MonoBehaviour, IDamagable
         if (def != null && def.buffReward != null)
             StatsManager.Ins.ApplyConsumableBuff(def.buffReward);
 
+        HandleItemDrop();
+
         // sfx
         if (def != null && def.successSfx != null)
             SoundEffectController.Ins?.PlaySFX(def.successSfx);
@@ -215,6 +217,31 @@ public class MonsterClickable : MonoBehaviour, IDamagable
         resolved = true;
         AnalyticsManager.Ins?.TrackMonsterMiss(monsterId, Time.unscaledTime - spawnTime);
         ResolveAndDespawn();
+    }
+
+    void HandleItemDrop()
+    {
+        if (def == null || def.drops == null || def.drops.Count == 0) return;
+
+        if (InventoryController.Instance == null)
+        {
+            Debug.LogWarning("[MonsterDrop] InventoryController.Instance is null, cannot add drop.");
+            return;
+        }
+
+        float luck = StatsManager.Ins != null ? StatsManager.Ins.Get(StatType.Lucky) : 0f;
+        var drops = def.GetDroppedItems(luck);
+        if (drops == null || drops.Count == 0) return;
+
+        foreach (var result in drops)
+        {
+            if (result.item == null || result.item.Type == ItemType.None) continue;
+            InventoryController.Instance.TryAddItemToInventory(new InventoryItem(result.item, result.amount));
+            QuestSignals.CollectItem(result.item.itemName, result.amount);
+            var pos = Toaster.GetRandomAnchoredPosition();
+            bool rainbow = result.item.rarity == Rarity.Exclusive;
+            Toaster.Show($"x{result.amount}", result.item.icon, 1.6f, pos, rainbow);
+        }
     }
 
     void ResolveAndDespawn()

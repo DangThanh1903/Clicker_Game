@@ -15,7 +15,7 @@ MonoBehaviour:
   itemName: ResinboundChakram
   description: 
   icon: {fileID: 21300000, guid: c3b9e2ace7716b445bd315c07a20fb04, type: 3}
-  rarity: 3
+  rarity: 5
   modifiers: []
   currentState: 0
   itemPrefix: 0

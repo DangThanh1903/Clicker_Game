@@ -291,6 +291,9 @@ public class ClickableObject : MonoBehaviour, IDamagable
             InventoryController.Instance.TryAddItemToInventory(new InventoryItem(item, result.amount));
 
             QuestSignals.CollectItem(item.itemName, result.amount);
+            var pos = Toaster.GetRandomAnchoredPosition();
+            bool rainbow = item.rarity == Rarity.Exclusive;
+            Toaster.Show($"x{result.amount}", item.icon, 1.6f, pos, rainbow);
 
             var itemId = Game.Discovery.BlockDiscoveryService.GetItemId(item);
             Game.Discovery.BlockDiscoveryService.Ins?.DiscoverDrop(dropBlockName, itemId);

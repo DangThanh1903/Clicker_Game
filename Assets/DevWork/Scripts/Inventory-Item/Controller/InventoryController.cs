@@ -13,7 +13,9 @@ using UnityEngine.ResourceManagement.AsyncOperations;
 public class InventoryController : MonoBehaviour
 {
     public static InventoryController Instance;
-    [SerializeField] private InventoryUIManager uiManager;
+    [SerializeField] private InventoryUIManager inventoryUiManager;
+    [SerializeField] private InventorySlider inventorySlider;
+    [SerializeField] private UIManager mainPageManager;
     [SerializeField] private CraftingController craftingController;
     [SerializeField] private TMP_Text description;
     [SerializeField] private List<TMP_Text> statTexts;
@@ -21,6 +23,10 @@ public class InventoryController : MonoBehaviour
     [SerializeField] private Button sortInventoryButton;
     [SerializeField] private PopupView lootboxPrefab;
     [SerializeField] private CaseRollController caseRollController;
+
+    public InventoryUIManager InventoryUIManager => inventoryUiManager;
+    public InventorySlider InventorySlider => inventorySlider;
+    public CraftingController CraftingController => craftingController;
 
     private void Awake()
     {
@@ -44,16 +50,30 @@ public class InventoryController : MonoBehaviour
 
         sortInventoryButton.onClick.AddListener(() =>
         {
-            uiManager.SortInventory();
+            inventoryUiManager.SortInventory();
         });
 
         StatsManager.Ins.OnStatsRecalculated += UpdateStatDescription;
+
+        if (inventorySlider != null)
+            inventorySlider.OnPageChanged += HandleInventoryPageChanged;
+
+        if (mainPageManager == null)
+            mainPageManager = UIManager.Ins;
+        if (mainPageManager != null)
+            mainPageManager.OnPageChanged += HandleMainPageChanged;
     }
 
     void OnDestroy()
     {
         if (StatsManager.Ins != null)
             StatsManager.Ins.OnStatsRecalculated -= UpdateStatDescription;
+
+        if (inventorySlider != null)
+            inventorySlider.OnPageChanged -= HandleInventoryPageChanged;
+
+        if (mainPageManager != null)
+            mainPageManager.OnPageChanged -= HandleMainPageChanged;
     }
 
     // ==============================
@@ -67,16 +87,16 @@ public class InventoryController : MonoBehaviour
 
     public bool TryAddItemToInventory(InventoryItem inventoryItem)
     {
-        if (uiManager == null)
+        if (inventoryUiManager == null)
         {
             Debug.LogWarning("InventoryUIManager is null, cannot add item.");
             return false;
         }
 
-        bool ok = uiManager.AddItemToInventorySection(inventoryItem);
+        bool ok = inventoryUiManager.AddItemToInventorySection(inventoryItem);
         if (!ok)
         {
-            bool hasSection = uiManager.HasInventorySection();
+            bool hasSection = inventoryUiManager.HasInventorySection();
             Debug.LogWarning(hasSection
                 ? "AddItemToInventory failed (inventory full)."
                 : "AddItemToInventory failed (no Inventory section).");
@@ -200,6 +220,37 @@ public class InventoryController : MonoBehaviour
         description.text = des;
         useButton.gameObject.SetActive(false);
     }
+
+    public void GoToStatsPage()
+    {
+        if (inventorySlider == null)
+        {
+            Debug.LogWarning("InventorySlider is null, cannot go to stats page.");
+            return;
+        }
+
+        inventorySlider.GoToStatsPage();
+    }
+
+    private void HandleInventoryPageChanged(int fromPage, int toPage)
+    {
+        if (craftingController == null)
+            return;
+
+        const int craftingPageIndex = 1;
+        if (toPage != craftingPageIndex)
+            craftingController.ReturnItemsToInventory();
+    }
+
+    private void HandleMainPageChanged(int fromPage, int toPage)
+    {
+        if (craftingController == null)
+            return;
+
+        const int inventoryPageIndex = 0;
+        if (fromPage == inventoryPageIndex && toPage != inventoryPageIndex)
+            craftingController.ReturnItemsToInventory();
+    }
     // ==============================
     // SECTION: Stat Logic
     // ==============================
@@ -307,7 +358,7 @@ public class InventoryController : MonoBehaviour
     void UseSummonBoss(BossSummoner bossSummoner)
     {
         BlockManager.Ins.Summon(bossSummoner.bossLocation, bossSummoner.bossType);
-        UIManager.Ins.MoveToMain();
+        mainPageManager.MoveToMain();
     }
 
     async Task UseLootBox(Lootbox lootbox)

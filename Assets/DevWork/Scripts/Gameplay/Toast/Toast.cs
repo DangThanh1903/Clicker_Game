@@ -22,19 +22,32 @@ public class Toast : MonoBehaviour
     private CanvasGroup cg;
     private RectTransform rt;
     private Tween currentTween;
+    private Color baseTextColor = Color.white;
+    private bool useRainbowRuntime;
+
+    [Header("Rainbow Text")]
+    [SerializeField] private bool useRainbowText = false;
+    [SerializeField] private float rainbowSpeed = 0.6f;
+    [SerializeField] private float rainbowUpdateInterval = 0.05f;
+    [SerializeField] private float rainbowSaturation = 1f;
+    [SerializeField] private float rainbowValue = 1f;
+    private float nextRainbowUpdateAt;
 
     void Awake()
     {
         cg = GetComponent<CanvasGroup>();
         rt = GetComponent<RectTransform>();
+        if (messageText != null) baseTextColor = messageText.color;
     }
 
     void OnDisable()
     {
         currentTween?.Kill();
+        if (messageText != null) messageText.color = baseTextColor;
+        useRainbowRuntime = false;
     }
 
-    public void Play(string msg, Sprite sprite = null, float? durationOverride = null)
+    public void Play(string msg, Sprite sprite = null, float? durationOverride = null, bool? rainbowOverride = null)
     {
         // text + icon
         if (messageText) messageText.text = msg;
@@ -43,6 +56,11 @@ public class Toast : MonoBehaviour
             icon.enabled = sprite != null;
             icon.sprite = sprite;
         }
+
+        useRainbowRuntime = rainbowOverride ?? useRainbowText;
+        if (messageText != null && !useRainbowRuntime)
+            messageText.color = baseTextColor;
+        nextRainbowUpdateAt = 0f;
 
         // reset starting state
         currentTween?.Kill();
@@ -65,5 +83,18 @@ public class Toast : MonoBehaviour
                 // return to pool
                 LeanPool.Despawn(gameObject);
             });
+    }
+
+    void Update()
+    {
+        if (!useRainbowRuntime || messageText == null) return;
+
+        float now = Time.unscaledTime;
+        float interval = Mathf.Max(0f, rainbowUpdateInterval);
+        if (interval > 0f && now < nextRainbowUpdateAt) return;
+
+        nextRainbowUpdateAt = now + interval;
+        float h = Mathf.Repeat(now * rainbowSpeed, 1f);
+        messageText.color = Color.HSVToRGB(h, rainbowSaturation, rainbowValue);
     }
 }

@@ -22,13 +22,18 @@ public class GameplayUIManager : MonoBehaviour
     {
         StatsManager.Ins.GetReactive(StatType.Clicks)
             .ThrottleFirst(TimeSpan.FromSeconds(0.1))
-            .Subscribe(val => clickNumberUI.text = $"{(int)val} click")
+            .DistinctUntilChanged()
+            .Subscribe(val => clickNumberUI.SetText("{0} click", (int)val))
             .AddTo(this);
         StatsManager.Ins.GetReactive(StatType.ClickPerTick)
-            .Subscribe(val => clickPerTickUI.text = $"{val} cpt")
+            .DistinctUntilChanged()
+            .Throttle(TimeSpan.FromSeconds(0.1))
+            .Subscribe(val => clickPerTickUI.SetText("{0} cpt", val))
             .AddTo(this);
         StatsManager.Ins.GetReactive(StatType.Diamond)
-            .Subscribe(val => diamondUI.text = $"{val}")
+            .DistinctUntilChanged()
+            .Throttle(TimeSpan.FromSeconds(0.1))
+            .Subscribe(val => diamondUI.SetText("{0}", val))
             .AddTo(this);
 
         StatsManager.Ins.GetReactive(StatType.CurrentHP)

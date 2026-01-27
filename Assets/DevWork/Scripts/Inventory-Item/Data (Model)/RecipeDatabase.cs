@@ -6,13 +6,6 @@ using UnityEngine;
 [CreateAssetMenu(fileName = "RecipeDatabase", menuName = "Crafting/Recipe Database")]
 public class RecipeDatabase : ScriptableObject
 {
-    [System.Serializable]
-    public class Recipe
-    {
-        public List<InventoryItem> ingredients; // Always 4 for 2x2 grid
-        public InventoryItem result;
-    }
-
     [SerializeField] private List<Recipe> recipes = new();
 
     // Lookup dictionary for quick recipe search by item layout key (ignores quantities)

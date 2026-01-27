@@ -5,12 +5,29 @@ public class QuestDailyUI : MonoBehaviour
 {
     public Transform contentRoot;
     public QuestItemWidget itemPrefab;
+    private CompositeDisposable _cd = new CompositeDisposable();
 
     private void OnEnable()
     {
-        QuestManager.Ins.OnAnyQuestListChanged.Subscribe(_ => Refresh()).AddTo(this);
-        QuestManager.Ins.OnQuestUpdated.Subscribe(_ => Refresh()).AddTo(this);
+        if (QuestManager.Ins == null)
+            return;
+
+        _cd?.Dispose();
+        _cd = new CompositeDisposable();
+
+        Observable.Merge(
+                QuestManager.Ins.OnAnyQuestListChanged,
+                QuestManager.Ins.OnQuestUpdated.Select(_ => Unit.Default)
+            )
+            .ThrottleFrame(1)
+            .Subscribe(_ => Refresh())
+            .AddTo(_cd);
         Refresh();
+    }
+
+    private void OnDisable()
+    {
+        _cd?.Dispose();
     }
 
     private void Refresh()

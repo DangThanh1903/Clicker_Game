@@ -9,22 +9,30 @@ public class QuestProgressUI : MonoBehaviour
     [Header("Prefabs")]
     [SerializeField] private QuestItemWidget itemPrefab;
 
-    private void Awake()
-    {
-        // Subscribe once for lifetime of this UI
-        QuestManager.Ins.OnAnyQuestListChanged
-            .Subscribe(_ => Refresh())
-            .AddTo(this);
-
-        QuestManager.Ins.OnQuestUpdated
-            .Subscribe(_ => Refresh())
-            .AddTo(this);
-    }
+    private CompositeDisposable _cd = new CompositeDisposable();
 
     private void OnEnable()
     {
-        // Make sure UI is correct whenever this panel is shown
+        if (QuestManager.Ins == null)
+            return;
+
+        _cd?.Dispose();
+        _cd = new CompositeDisposable();
+
+        Observable.Merge(
+                QuestManager.Ins.OnAnyQuestListChanged,
+                QuestManager.Ins.OnQuestUpdated.Select(_ => Unit.Default)
+            )
+            .ThrottleFrame(1)
+            .Subscribe(_ => Refresh())
+            .AddTo(_cd);
+
         Refresh();
+    }
+
+    private void OnDisable()
+    {
+        _cd?.Dispose();
     }
 
     private void Refresh()

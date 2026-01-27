@@ -15,7 +15,7 @@ MonoBehaviour:
   itemName: BloomingPike
   description: 
   icon: {fileID: 21300000, guid: e0218cd571e3c8f4dbb3c87db1ead5e9, type: 3}
-  rarity: 3
+  rarity: 5
   modifiers: []
   currentState: 0
   itemPrefix: 0

@@ -1,3 +1,5 @@
+using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
@@ -19,6 +21,20 @@ public class CraftRecipePanel : MonoBehaviour
     public GameObject root;
     [Header("Panel Root")]
     public TMP_Text Description;
+
+    [Header("Auto Craft Refs")]
+    [SerializeField] private InventoryUIManager inventoryUIManager;
+    [SerializeField] private CraftingController craftingController;
+    [SerializeField] private InventorySlider inventorySlider;
+    [SerializeField] private UIManager mainPageManager;
+
+    [Header("Missing Flash")]
+    [SerializeField] private int missingFlashCount = 2;
+    [SerializeField] private float missingFlashInterval = 0.12f;
+
+    public Recipe currentRecipe { get; private set; }
+
+    private Coroutine flashCoroutine;
 
     public void ShowForItem(Item targetItem)
     {
@@ -45,13 +61,15 @@ public class CraftRecipePanel : MonoBehaviour
         ShowRecipe(list[0]);
     }
 
-    public void ShowRecipe(RecipeDatabase.Recipe recipe)
+    public void ShowRecipe(Recipe recipe)
     {
         if (recipe == null)
         {
             ShowEmpty("Null recipe");
             return;
         }
+
+        currentRecipe = recipe;
 
         // Fill ingredients (đã normalize 4 slot trong DB; nếu không, tự bảo vệ null)
         for (int i = 0; i < 4; i++)
@@ -90,8 +108,48 @@ public class CraftRecipePanel : MonoBehaviour
             else gameObject.SetActive(true);
     }
 
+    public void OnClickAutoFillRecipe()
+    {
+        ResolveRefs();
+
+        if (currentRecipe == null)
+        {
+            Debug.LogWarning("CraftRecipePanel: currentRecipe is null.");
+            return;
+        }
+
+        if (inventoryUIManager == null || craftingController == null)
+        {
+            Debug.LogWarning("CraftRecipePanel: missing refs to InventoryUIManager or CraftingController.");
+            return;
+        }
+
+        var inventoryData = inventoryUIManager.GetInventoryData(InventoryType.Inventory);
+        if (inventoryData == null)
+        {
+            Debug.LogWarning("CraftRecipePanel: InventoryData (Inventory) not found.");
+            return;
+        }
+
+        if (!craftingController.CheckRecipeIngredients(currentRecipe, inventoryData, out var missingSlots))
+        {
+            FlashMissingSlots(missingSlots);
+            return;
+        }
+
+        if (mainPageManager != null)
+            mainPageManager.GoToPage(0);
+
+        if (inventorySlider != null)
+            inventorySlider.GoToPage(1);
+
+        if (!craftingController.TryAutoFillRecipe(currentRecipe, inventoryData, out missingSlots))
+            FlashMissingSlots(missingSlots);
+    }
+
     public void ShowEmpty(string reason = "")
     {
+        currentRecipe = null;
         // Xoá/ẩn sạch slot
         for (int i = 0; i < 4; i++)
         {
@@ -123,5 +181,64 @@ public class CraftRecipePanel : MonoBehaviour
     {
         if (root) root.SetActive(false);
         else gameObject.SetActive(false);
+    }
+
+    private void ResolveRefs()
+    {
+        if (mainPageManager == null)
+            mainPageManager = UIManager.Ins;
+
+        if (inventoryUIManager == null && InventoryController.Instance != null)
+            inventoryUIManager = InventoryController.Instance.InventoryUIManager;
+
+        if (craftingController == null && InventoryController.Instance != null)
+            craftingController = InventoryController.Instance.CraftingController;
+
+        if (inventorySlider == null && InventoryController.Instance != null)
+            inventorySlider = InventoryController.Instance.InventorySlider;
+    }
+
+    private void FlashMissingSlots(List<int> slots)
+    {
+        if (slots == null || slots.Count == 0)
+            return;
+
+        if (ingIcons == null || ingIcons.Length == 0)
+            return;
+
+        if (flashCoroutine != null)
+            StopCoroutine(flashCoroutine);
+
+        flashCoroutine = StartCoroutine(FlashMissingSlotsRoutine(slots));
+    }
+
+    private IEnumerator FlashMissingSlotsRoutine(List<int> slots)
+    {
+        var originalColors = new Dictionary<int, Color>();
+
+        foreach (var i in slots)
+        {
+            if (i >= 0 && i < ingIcons.Length && ingIcons[i] != null)
+                originalColors[i] = ingIcons[i].color;
+        }
+
+        for (int t = 0; t < missingFlashCount; t++)
+        {
+            foreach (var i in slots)
+            {
+                if (i >= 0 && i < ingIcons.Length && ingIcons[i] != null)
+                    ingIcons[i].color = Color.red;
+            }
+
+            yield return new WaitForSecondsRealtime(missingFlashInterval);
+
+            foreach (var i in slots)
+            {
+                if (i >= 0 && i < ingIcons.Length && ingIcons[i] != null && originalColors.ContainsKey(i))
+                    ingIcons[i].color = originalColors[i];
+            }
+
+            yield return new WaitForSecondsRealtime(missingFlashInterval);
+        }
     }
 }

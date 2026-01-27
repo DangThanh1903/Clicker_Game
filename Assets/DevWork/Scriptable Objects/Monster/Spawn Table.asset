@@ -17,3 +17,7 @@ MonoBehaviour:
     entries:
     - monster: {fileID: 11400000, guid: 9f260a69d4cb3004ab78703a6e2656f8, type: 2}
       weight: 1
+  - rule: {fileID: 0}
+    entries:
+    - monster: {fileID: 0}
+      weight: 10

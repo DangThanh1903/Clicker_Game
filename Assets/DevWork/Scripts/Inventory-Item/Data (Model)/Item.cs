@@ -17,7 +17,8 @@ public enum Rarity
     Uncommon,
     Rare,
     Epic,
-    Legendary
+    Legendary,
+    Exclusive
 }
 
 public abstract class Item : ScriptableObject
@@ -59,6 +60,7 @@ public static class RarityColors
             Rarity.Rare      => "#0070FF", // blue
             Rarity.Epic      => "#A335EE", // purple
             Rarity.Legendary => "#FF8000", // orange
+            Rarity.Exclusive => "#00FFFF", // cyan (rainbow uses dynamic color)
             _                => "#FFFFFF"
         };
     }

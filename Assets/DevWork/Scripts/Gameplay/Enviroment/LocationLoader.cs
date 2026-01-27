@@ -179,7 +179,7 @@ public class LocationLoader : MonoBehaviour
             anim.PlaySpawn().Subscribe().AddTo(this);
         }
 
-        BlockManager.Ins.OnBlockBroken();
+        BlockManager.Ins.RefreshBlockForLocationChange();
     }
 
     private void DespawnCurrentLocationWithAnim(Action onDone)

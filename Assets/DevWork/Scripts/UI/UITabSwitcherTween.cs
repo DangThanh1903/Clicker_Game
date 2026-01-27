@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using DG.Tweening;
+using System;
 
 public class UITabSwitcherTween : MonoBehaviour
 {
@@ -32,6 +33,8 @@ public class UITabSwitcherTween : MonoBehaviour
     private Tween _contentTween;
 
     private int _currentTab = 0; // 0=progress, 1=daily
+    public event Action<int> OnTabChanged;
+    public int CurrentTabIndex => _currentTab;
 
     private void Awake()
     {
@@ -70,7 +73,7 @@ public class UITabSwitcherTween : MonoBehaviour
         _contentTween?.Kill();
     }
 
-    private void ShowTab(int index)
+    public void ShowTab(int index)
     {
         if (_currentTab == index) return;
         int previous = _currentTab;
@@ -133,6 +136,7 @@ public class UITabSwitcherTween : MonoBehaviour
             });
 
         UpdateButtonInteractable();
+        OnTabChanged?.Invoke(_currentTab);
     }
 
     private void UpdateButtonInteractable()

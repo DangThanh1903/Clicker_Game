@@ -68,6 +68,7 @@ public class DragableItem : MonoBehaviour, IBeginDragHandler, IDragHandler, IEnd
     private void OnSingleTap()
     {
         Debug.Log("Single tap detected");
+        InventoryController.Instance.GoToStatsPage();
         InventoryController.Instance.SetDescription(ItemTextFormatter.GetFormattedDescription(inventoryItem));
         InventoryController.Instance.SetUseButton(inventoryItem.itemData, currenIndex, currentData);
     }

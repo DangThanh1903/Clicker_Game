@@ -15,8 +15,11 @@ public class VFXManager : MonoBehaviour
     [SerializeField] private AudioSource musicSource;          // Loop ON, PlayOnAwake OFF
     [SerializeField] private List<BiomeMusicEntry> biomeMusic; // Map BlockSpawnLocation -> clip
     [SerializeField] private float defaultFadeTime = 1.5f;
+    [SerializeField] private bool preloadBiomeClips = true;
+    [SerializeField] private float preloadTimeoutSeconds = 5f;
 
     private Coroutine _fadeRoutine;
+    private Coroutine _preloadRoutine;
 
     // 🎧 user volume (0–1)
     private float _musicVolume = 1f;
@@ -125,6 +128,13 @@ public class VFXManager : MonoBehaviour
 
         // Apply initial biome
         OnBiomeChanged(LocationLoader.Ins.ReactiveLocation.Value);
+
+        if (preloadBiomeClips)
+        {
+            if (_preloadRoutine != null)
+                StopCoroutine(_preloadRoutine);
+            _preloadRoutine = StartCoroutine(PreloadBiomeMusicClips());
+        }
     }
 
     private void OnBiomeChanged(BlockSpawnLocation biome)
@@ -147,6 +157,14 @@ public class VFXManager : MonoBehaviour
         // Already playing this clip
         if (musicSource != null && musicSource.clip == newClip && musicSource.isPlaying)
             return;
+
+        if (newClip != null && newClip.loadState != AudioDataLoadState.Loaded)
+        {
+            if (_fadeRoutine != null)
+                StopCoroutine(_fadeRoutine);
+            _fadeRoutine = StartCoroutine(WaitThenFadeToClip(newClip, fadeTime));
+            return;
+        }
 
         if (_fadeRoutine != null)
             StopCoroutine(_fadeRoutine);
@@ -196,6 +214,60 @@ public class VFXManager : MonoBehaviour
 
         musicSource.volume = targetVolume;
         _fadeRoutine = null;
+    }
+
+    private IEnumerator PreloadBiomeMusicClips()
+    {
+        var seen = new HashSet<AudioClip>();
+        foreach (var entry in biomeMusic)
+        {
+            var clip = entry?.clip;
+            if (clip == null || !seen.Add(clip))
+                continue;
+
+            if (clip.loadState == AudioDataLoadState.Loaded ||
+                clip.loadState == AudioDataLoadState.Failed)
+                continue;
+
+            clip.LoadAudioData();
+
+            float t = 0f;
+            while (clip.loadState == AudioDataLoadState.Loading &&
+                   t < Mathf.Max(0.1f, preloadTimeoutSeconds))
+            {
+                t += Time.unscaledDeltaTime;
+                yield return null;
+            }
+
+            if (clip.loadState == AudioDataLoadState.Failed)
+                Debug.LogWarning($"[VFXManager] Failed to preload biome music: {clip.name}");
+
+            yield return null;
+        }
+
+        _preloadRoutine = null;
+    }
+
+    private IEnumerator WaitThenFadeToClip(AudioClip newClip, float fadeTime)
+    {
+        if (newClip == null)
+            yield break;
+
+        if (newClip.loadState == AudioDataLoadState.Unloaded)
+            newClip.LoadAudioData();
+
+        float t = 0f;
+        while (newClip.loadState == AudioDataLoadState.Loading &&
+               t < Mathf.Max(0.1f, preloadTimeoutSeconds))
+        {
+            t += Time.unscaledDeltaTime;
+            yield return null;
+        }
+
+        if (newClip.loadState == AudioDataLoadState.Loaded)
+            yield return FadeToClipRoutine(newClip, fadeTime);
+        else
+            Debug.LogWarning($"[VFXManager] Biome clip not ready: {newClip.name}");
     }
 
     /// <summary>

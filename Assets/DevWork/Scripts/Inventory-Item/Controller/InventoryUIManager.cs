@@ -78,6 +78,18 @@ public class InventoryUIManager : MonoBehaviour
         }
         return null;
     }
+
+    public InventoryData GetInventoryData(InventoryType type)
+    {
+        foreach (var section in inventorySections)
+        {
+            if (section == null || section.inventoryData == null)
+                continue;
+            if (section.inventoryData.inventoryType == type)
+                return section.inventoryData;
+        }
+        return null;
+    }
     public InventoryItem GetPickaxe()
     {
         foreach (var section in inventorySections)

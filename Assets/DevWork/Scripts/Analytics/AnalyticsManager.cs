@@ -195,7 +195,7 @@ public class AnalyticsManager : MonoBehaviour
         AnalyticsService.SetUserProperty("peak_location", saver.PeakLocation?.ToString() ?? "unknown");
         AnalyticsService.SetUserProperty("current_block", saver.currentBlock ?? "unknown");
         AnalyticsService.SetUserProperty("progression_tier", GetProgressionTier(saver.PeakLocation ?? saver.currentLocation));
-        AnalyticsService.SetUserProperty("total_playtime_min", Mathf.RoundToInt(saver.CurrentTime / 60f));
+        AnalyticsService.SetUserProperty("total_playtime_min", Mathf.RoundToInt(saver.TotalPlaytime / 60f));
         AnalyticsService.SetUserProperty("payer_status", "non_payer");
         AnalyticsService.SetUserProperty("ad_engaged", false);
     }

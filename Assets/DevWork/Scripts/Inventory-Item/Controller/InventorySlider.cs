@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -14,11 +15,12 @@ public class InventorySlider : MonoBehaviour
     [SerializeField] private float slideDistance = 700f;
     [SerializeField] private float slideDuration = 0.5f;
 
-    private int currentPage = 0;
-    private int maxPage = 0;
+    [SerializeField] private int currentPage = 0;
+    private int maxPage = 3;
 
     private List<RectTransform> panels = new List<RectTransform>();
     private Tween slideTween;
+    public Action<int, int> OnPageChanged;
 
     private void Awake()
     {
@@ -35,27 +37,37 @@ public class InventorySlider : MonoBehaviour
         leftButton.onClick.AddListener(MoveLeft);
         rightButton.onClick.AddListener(MoveRight);
 
+        SyncCurrentPageFromPosition();
         UpdateButtonInteractable();
     }
 
     public void MoveLeft()
     {
-        if (currentPage > 0)
-        {
-            currentPage--;
-            SlideToPage(currentPage);
-            UpdateButtonInteractable();
-        }
+        GoToPage(currentPage - 1);
     }
 
     public void MoveRight()
     {
-        if (currentPage < maxPage)
-        {
-            currentPage++;
-            SlideToPage(currentPage);
-            UpdateButtonInteractable();
-        }
+        GoToPage(currentPage + 1);
+    }
+
+    public void GoToPage(int pageIndex)
+    {
+        SyncCurrentPageFromPosition();
+        int clamped = Mathf.Clamp(pageIndex, 0, maxPage);
+        if (clamped == currentPage)
+            return;
+
+        int previousPage = currentPage;
+        currentPage = clamped;
+        SlideToPage(currentPage);
+        UpdateButtonInteractable();
+        OnPageChanged?.Invoke(previousPage, currentPage);
+    }
+
+    public void GoToStatsPage()
+    {
+        GoToPage(0);
     }
 
     private void SlideToPage(int pageIndex)
@@ -66,6 +78,15 @@ public class InventorySlider : MonoBehaviour
         slideTween?.Kill();
 
         slideTween = contentContainer.DOAnchorPos(targetPos, slideDuration).SetEase(Ease.OutCubic);
+    }
+
+    private void SyncCurrentPageFromPosition()
+    {
+        if (slideDistance <= 0f)
+            return;
+
+        int inferred = Mathf.RoundToInt(-contentContainer.anchoredPosition.x / slideDistance);
+        currentPage = Mathf.Clamp(inferred, 0, maxPage);
     }
 
     private void UpdateButtonInteractable()

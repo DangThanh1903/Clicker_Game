@@ -19,13 +19,13 @@ public class PopupView : MonoBehaviour
 
     void Awake()
     {
-        cg = GetComponent<CanvasGroup>();
-        rt = transform as RectTransform;
+        Init();
     }
 
     // 🔁 Called on each reuse from the pool
     void OnEnable()
     {
+        Init();
         KillTween();
         rt.localScale = fromScale;
         cg.alpha = 0f;
@@ -35,6 +35,7 @@ public class PopupView : MonoBehaviour
 
     public async Task OpenAsync()
     {
+        Init();
         KillTween();
 
         cg.blocksRaycasts = true;
@@ -50,6 +51,7 @@ public class PopupView : MonoBehaviour
 
     public async Task CloseAsync()
     {
+        Init();
         KillTween();
         cg.interactable = false;
 
@@ -71,5 +73,13 @@ public class PopupView : MonoBehaviour
         if (currentTween != null && currentTween.IsActive())
             currentTween.Kill(false);
         currentTween = null;
+    }
+
+    void Init()
+    {
+        if (cg == null)
+            cg = GetComponent<CanvasGroup>() ?? gameObject.AddComponent<CanvasGroup>();
+        if (rt == null)
+            rt = transform as RectTransform;
     }
 }
