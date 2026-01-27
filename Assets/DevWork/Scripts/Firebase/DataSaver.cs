@@ -7,6 +7,7 @@ using System.Collections;
 using System;
 using System.IO;
 using System.Threading.Tasks;
+using System.Text;
 using UniRx;
 
 public class DataSaver : MonoBehaviour
@@ -18,12 +19,18 @@ public class DataSaver : MonoBehaviour
     public BlockSpawnLocation? currentLocation;
     public BlockSpawnLocation? PeakLocation;
     public float CurrentTime;
+    public float TotalPlaytime;
+
+    [Header("Profile")]
+    public string DisplayName;
 
     [Header("Autosave")]
     private IntReactiveProperty blockBreakCounter = new IntReactiveProperty(0);
     private const int SaveThreshold = 10;
 
     [SerializeField] private List<InventoryData> inventoryDatas = new List<InventoryData>();
+    [SerializeField] private CraftNodeManager craftNodeManager;
+    private List<int> pendingCraftNodeStates;
 
     // Firestore
     private FirebaseFirestore db;
@@ -51,9 +58,11 @@ public class DataSaver : MonoBehaviour
     private bool allowSaves;
     private bool allowCloudSave;
     private bool hasLoadedData;
+    private bool playtimeActive;
     private long lastCloudUpdatedUtcTicks;
     private long lastLocalUpdatedUtcTicks;
     private const string LocalCacheFileName = "local_save.json";
+    private const int MaxDisplayNameLength = 16;
 
     void Awake()
     {
@@ -198,6 +207,9 @@ public class DataSaver : MonoBehaviour
 
     void Update()
     {
+        if (playtimeActive)
+            TotalPlaytime += Time.unscaledDeltaTime;
+
         if (ongoingSave != null && !ongoingSave.IsCompleted)
         {
             float timeout = Mathf.Max(0f, cloudSaveTimeoutSeconds);
@@ -223,6 +235,7 @@ public class DataSaver : MonoBehaviour
         if (db == null || string.IsNullOrEmpty(uid)) return;
 
         var gameplay = BuildGameplaySaveData();
+        var profile = BuildProfileSaveData();
         var inventories = BuildAllInventorySaveData();
 
         if (verboseSaveLogs)
@@ -230,6 +243,7 @@ public class DataSaver : MonoBehaviour
 
         long updateTicks = lastLocalUpdatedUtcTicks > 0 ? lastLocalUpdatedUtcTicks : DateTime.UtcNow.Ticks;
         var updatedAt = Timestamp.FromDateTime(new DateTime(updateTicks, DateTimeKind.Utc));
+        var leaderboard = BuildLeaderboardPublicData(gameplay, profile, updatedAt);
 
         await ExecuteWithRetry(async () =>
         {
@@ -239,12 +253,16 @@ public class DataSaver : MonoBehaviour
             var payload = new Dictionary<string, object>
             {
                 ["gameplay"] = gameplay,
+                ["profile"] = profile,
                 ["meta.updatedAt"] = updatedAt,
                 ["meta.rev"] = FieldValue.Increment(1),
                 ["meta.saveVersion"] = 1
             };
 
             batch.Set(userDoc, payload, SetOptions.MergeAll);
+
+            var leaderboardDoc = db.Collection("leaderboards").Document(uid);
+            batch.Set(leaderboardDoc, leaderboard, SetOptions.MergeAll);
 
             foreach (var entry in inventories)
             {
@@ -325,7 +343,28 @@ public class DataSaver : MonoBehaviour
             peakLocation = peakValue,
             clicks = clicks,
             diamonds = diamonds,
-            currentTime = timeValue
+            currentTime = timeValue,
+            totalPlaytime = TotalPlaytime,
+            craftNodeStates = craftNodeManager != null ? craftNodeManager.GetStates() : null
+        };
+    }
+
+    private UserProfileData BuildProfileSaveData()
+    {
+        return new UserProfileData
+        {
+            displayName = SanitizeDisplayName(DisplayName)
+        };
+    }
+
+    private LeaderboardPublicData BuildLeaderboardPublicData(GameplaySaveData gameplay, UserProfileData profile, Timestamp updatedAt)
+    {
+        return new LeaderboardPublicData
+        {
+            displayName = SanitizeDisplayName(profile?.displayName),
+            clicks = gameplay != null ? gameplay.clicks : 0f,
+            totalPlaytime = gameplay != null ? gameplay.totalPlaytime : 0f,
+            updatedAt = updatedAt
         };
     }
 
@@ -411,6 +450,8 @@ public class DataSaver : MonoBehaviour
         if (lastCloudUpdatedUtcTicks <= 0)
             lastCloudUpdatedUtcTicks = lastLocalUpdatedUtcTicks;
         ApplyGameplayData(local.gameplay.ToGameplaySaveData());
+        if (local.profile != null)
+            ApplyProfileData(local.profile.ToProfileSaveData());
 
         if (local.inventories != null)
         {
@@ -435,7 +476,8 @@ public class DataSaver : MonoBehaviour
         var local = new LocalSaveData
         {
             savedAtUtcTicks = lastLocalUpdatedUtcTicks,
-            gameplay = new LocalGameplayData(BuildGameplaySaveData())
+            gameplay = new LocalGameplayData(BuildGameplaySaveData()),
+            profile = new LocalProfileData(BuildProfileSaveData())
         };
 
         foreach (var inv in inventoryDatas)
@@ -559,6 +601,8 @@ public class DataSaver : MonoBehaviour
         }
 
         ApplyGameplayData(gameplay);
+        if (snap.TryGetValue("profile", out UserProfileData profile) && profile != null)
+            ApplyProfileData(profile);
         Debug.Log("✅ Loaded gameplay (Firestore)");
         MarkDataLoaded();
         onComplete?.Invoke(true);
@@ -586,7 +630,46 @@ public class DataSaver : MonoBehaviour
         }
 
         CurrentTime = gameplay.currentTime;
+        TotalPlaytime = Mathf.Max(0f, gameplay.totalPlaytime);
         AnalyticsManager.Ins?.UpdateUserProperties(this);
+
+        if (gameplay.craftNodeStates != null && gameplay.craftNodeStates.Count > 0)
+        {
+            pendingCraftNodeStates = new List<int>(gameplay.craftNodeStates);
+            TryApplyCraftNodeStates();
+        }
+    }
+
+    private void ApplyProfileData(UserProfileData profile)
+    {
+        if (profile == null) return;
+        DisplayName = SanitizeDisplayName(profile.displayName);
+    }
+
+    public void RegisterCraftNodeManager(CraftNodeManager manager)
+    {
+        if (manager == null) return;
+        craftNodeManager = manager;
+        TryApplyCraftNodeStates();
+    }
+
+    private void TryApplyCraftNodeStates()
+    {
+        if (craftNodeManager == null || pendingCraftNodeStates == null)
+            return;
+
+        craftNodeManager.ApplyStates(pendingCraftNodeStates, saveLocal: true);
+        pendingCraftNodeStates = null;
+    }
+
+    public void SetDisplayName(string displayName, bool forceSave = true)
+    {
+        string cleaned = SanitizeDisplayName(displayName);
+        if (string.Equals(DisplayName, cleaned, StringComparison.Ordinal))
+            return;
+
+        DisplayName = cleaned;
+        SaveDataFn(forceSave);
     }
 
     public void MarkInitialLoadComplete(bool hasData)
@@ -608,6 +691,7 @@ public class DataSaver : MonoBehaviour
     {
         hasLoadedData = true;
         allowCloudSave = true;
+        playtimeActive = true;
     }
 
     private void TouchLocalDataUpdated()
@@ -702,6 +786,10 @@ public class DataSaver : MonoBehaviour
 
     void OnApplicationPause(bool paused)
     {
+        if (paused)
+            playtimeActive = false;
+        else if (hasLoadedData)
+            playtimeActive = true;
         if (isQuitting) return;
         if (paused && isReady && db != null && !string.IsNullOrEmpty(GetUid()))
             SaveDataFn();
@@ -709,6 +797,10 @@ public class DataSaver : MonoBehaviour
 
     void OnApplicationFocus(bool hasFocus)
     {
+        if (!hasFocus)
+            playtimeActive = false;
+        else if (hasLoadedData)
+            playtimeActive = true;
         if (isQuitting) return;
         if (!hasFocus && isReady && db != null && !string.IsNullOrEmpty(GetUid()))
             SaveDataFn();
@@ -717,5 +809,25 @@ public class DataSaver : MonoBehaviour
     void OnApplicationQuit()
     {
         isQuitting = true;
+        playtimeActive = false;
+    }
+
+    private string SanitizeDisplayName(string raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+            return string.Empty;
+
+        string trimmed = raw.Trim();
+        if (trimmed.Length > MaxDisplayNameLength)
+            trimmed = trimmed.Substring(0, MaxDisplayNameLength);
+
+        var sb = new StringBuilder(trimmed.Length);
+        foreach (char c in trimmed)
+        {
+            if (!char.IsControl(c))
+                sb.Append(c);
+        }
+
+        return sb.ToString();
     }
 }

@@ -1,4 +1,5 @@
-using DG.Tweening;
+﻿using DG.Tweening;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -8,21 +9,31 @@ public class UIManager : MonoBehaviour
     public static UIManager Ins { get; private set; }
 
     [Header("Nav")]
-    [SerializeField] private List<Button> buttons;          // 5 nút dưới
-    [SerializeField] private List<RectTransform> panels;    // Page_* xếp ngang (con của uIPanel)
-    [SerializeField] private RectTransform uIPanel;         // Content trượt ngang
+    [SerializeField] private List<Button> buttons;
+    [SerializeField] private List<RectTransform> panels;
+    [SerializeField] private RectTransform uIPanel;
+    [SerializeField] private RectTransform viewport;        // Viewport (mask)
     [SerializeField] private float duration = 0.25f;
     [SerializeField] private Ease ease = Ease.OutCubic;
-    [SerializeField] private float pageWidth = 0f;          // = width của viewport
+    [SerializeField] private bool autoPageWidth = true;
+    [SerializeField] private float fallbackPageWidth = 720f;
+    [SerializeField] private float pageWidth = 0f;
+    [SerializeField] private bool keepPanelsActive = true;
+    [SerializeField] private float hiddenAlpha = 0f;
 
     [Header("Bottom button anim")]
     [SerializeField] private Vector3 selectedIconScale = new Vector3(1.2f, 1.2f, 1f);
     [SerializeField] private float iconRiseHeight = 20f;
 
-    private readonly int startIndex = 2;     // vào game ở giữa
+    private readonly int startIndex = 2;     // start page index
     private int currentIndex = -1;
     private Tween moveTween;
     private bool isTweening;
+    public Action<int, int> OnPageChanged;
+    private int lastScreenWidth;
+    private int lastScreenHeight;
+    private readonly List<CanvasGroup> panelGroups = new List<CanvasGroup>();
+    public int CurrentIndex => currentIndex;
 
     [Header("Setting button")]
     private bool isOpenSetting;
@@ -37,23 +48,23 @@ public class UIManager : MonoBehaviour
         if (Ins != null && Ins != this) { Destroy(gameObject); return; }
         Ins = this;
 
-        // Culling theo alpha để UI alpha=0 không vẽ (giảm overdraw khi có fade)
+        // Cull fully transparent graphics to reduce overdraw
         foreach (var g in GetComponentsInChildren<Graphic>(true))
             g.canvasRenderer.cullTransparentMesh = true;
     }
 
     void Start()
     {
-        if (pageWidth <= 0f)
-        {
-            // đo theo parent/viewport nếu chưa set tay
-            var vp = uIPanel.parent as RectTransform;
-            pageWidth = vp ? vp.rect.width : 720f;
-        }
+        if (viewport == null && uIPanel != null)
+            viewport = uIPanel.parent as RectTransform;
+
+        lastScreenWidth = Screen.width;
+        lastScreenHeight = Screen.height;
 
         SetupButtons();
-        // Chỉ bật trang start, tắt còn lại → batching tốt hơn
-        ActivateOnly(startIndex, snap: true);
+        InitPanelGroups();
+        ActivateOnly(startIndex, snap: false);
+        RefreshLayout(snapToCurrent: true);
         BottomButtonAnim(startIndex);
     }
 
@@ -63,10 +74,8 @@ public class UIManager : MonoBehaviour
         {
             int index = i;
 
-            // tránh duplicate listeners nếu hàm này gọi lại
             buttons[index].onClick.RemoveAllListeners();
 
-            // Chỉ giữ raycast ở targetGraphic của button; icon/text con tắt raycast cho nhẹ input
             var keep = buttons[index].targetGraphic;
             foreach (var g in buttons[index].GetComponentsInChildren<Graphic>(true))
                 g.raycastTarget = (g == keep);
@@ -82,25 +91,37 @@ public class UIManager : MonoBehaviour
 
     void SlideTo(int target)
     {
+        RefreshLayout(snapToCurrent: false);
         target = Mathf.Clamp(target, 0, panels.Count - 1);
 
-        // Bật chỉ các page đi ngang qua (hoặc thêm đệm ±1 nếu muốn)
+        int previousIndex = currentIndex;
+        if (previousIndex == target)
+            return;
+
+        OnPageChanged?.Invoke(previousIndex, target);
+
         int a = Mathf.Min(currentIndex < 0 ? target : currentIndex, target);
         int b = Mathf.Max(currentIndex < 0 ? target : currentIndex, target);
-        for (int i = 0; i < panels.Count; i++)
-            panels[i].gameObject.SetActive(i >= a && i <= b);
 
-        // Chặn spam click trong lúc tween
+        if (keepPanelsActive)
+        {
+            SetPanelVisibilityRange(a, b, allowInteract: false);
+        }
+        else
+        {
+            for (int i = 0; i < panels.Count; i++)
+                panels[i].gameObject.SetActive(i >= a && i <= b);
+        }
+
         SetButtonsInteractable(false);
         isTweening = true;
 
-        // Tween chỉ theo trục X (tránh kéo Y → rebuild layout/giật)
         float targetX = -target * pageWidth;
 
         moveTween?.Kill(true);
         moveTween = uIPanel.DOAnchorPosX(targetX, duration)
                            .SetEase(ease)
-                           .SetUpdate(true) // không phụ thuộc timescale nếu cần pause
+                           .SetUpdate(true)
                            .OnComplete(() =>
                            {
                                ActivateOnly(target, snap: false);
@@ -114,15 +135,120 @@ public class UIManager : MonoBehaviour
         SlideTo(startIndex);
         BottomButtonAnim(startIndex);
     }
+
+    public void GoToPage(int index)
+    {
+        if (isTweening || currentIndex == index) return;
+        SlideTo(index);
+        BottomButtonAnim(index);
+    }
+
     void ActivateOnly(int idx, bool snap)
     {
-        for (int i = 0; i < panels.Count; i++)
-            panels[i].gameObject.SetActive(i == idx);
+        if (keepPanelsActive)
+        {
+            SetPanelVisibilityRange(idx, idx, allowInteract: true);
+        }
+        else
+        {
+            for (int i = 0; i < panels.Count; i++)
+                panels[i].gameObject.SetActive(i == idx);
+        }
 
         if (snap)
             uIPanel.anchoredPosition = new Vector2(-idx * pageWidth, uIPanel.anchoredPosition.y);
 
         currentIndex = idx;
+    }
+
+    private void SetPanelVisibilityRange(int from, int to, bool allowInteract)
+    {
+        if (panelGroups.Count != panels.Count)
+            InitPanelGroups();
+
+        for (int i = 0; i < panels.Count; i++)
+        {
+            var panel = panels[i];
+            if (panel == null) continue;
+            var cg = panelGroups.Count > i ? panelGroups[i] : null;
+            if (cg == null) continue;
+
+            bool visible = i >= from && i <= to;
+            bool interact = allowInteract && i == to;
+            cg.alpha = visible ? 1f : hiddenAlpha;
+            cg.interactable = interact;
+            cg.blocksRaycasts = interact;
+        }
+    }
+
+    private void InitPanelGroups()
+    {
+        panelGroups.Clear();
+        if (!keepPanelsActive)
+            return;
+
+        for (int i = 0; i < panels.Count; i++)
+        {
+            var panel = panels[i];
+            if (panel == null)
+            {
+                panelGroups.Add(null);
+                continue;
+            }
+
+            if (!panel.gameObject.activeSelf)
+                panel.gameObject.SetActive(true);
+
+            var cg = panel.GetComponent<CanvasGroup>();
+            if (cg == null)
+                cg = panel.gameObject.AddComponent<CanvasGroup>();
+
+            panelGroups.Add(cg);
+        }
+    }
+
+    void LateUpdate()
+    {
+        if (!autoPageWidth)
+            return;
+
+        if (Screen.width != lastScreenWidth || Screen.height != lastScreenHeight)
+        {
+            lastScreenWidth = Screen.width;
+            lastScreenHeight = Screen.height;
+            RefreshLayout(snapToCurrent: true);
+        }
+    }
+
+    private void RefreshLayout(bool snapToCurrent)
+    {
+        if (uIPanel == null)
+            return;
+
+        if (viewport == null)
+            viewport = uIPanel.parent as RectTransform;
+
+        if (autoPageWidth || pageWidth <= 0f)
+            pageWidth = viewport ? viewport.rect.width : fallbackPageWidth;
+
+        if (pageWidth <= 0f)
+            pageWidth = fallbackPageWidth;
+
+        for (int i = 0; i < panels.Count; i++)
+        {
+            var panel = panels[i];
+            if (panel == null)
+                continue;
+
+            panel.anchoredPosition = new Vector2(i * pageWidth, panel.anchoredPosition.y);
+        }
+
+        if (snapToCurrent)
+        {
+            int idx = currentIndex < 0 ? startIndex : currentIndex;
+            uIPanel.anchoredPosition = new Vector2(-idx * pageWidth, uIPanel.anchoredPosition.y);
+            currentIndex = idx;
+        }
     }
 
     public void SetButtonsInteractable(bool on)
@@ -137,8 +263,8 @@ public class UIManager : MonoBehaviour
             Transform icon = buttons[j].transform.GetChild(0);
             Transform text = buttons[j].transform.GetChild(1);
 
-            // Kill tween cũ để không chồng
-            icon.DOKill(true); text.DOKill(true);
+            icon.DOKill(true);
+            text.DOKill(true);
 
             if (j == index)
             {

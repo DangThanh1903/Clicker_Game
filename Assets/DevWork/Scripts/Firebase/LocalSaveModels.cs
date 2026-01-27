@@ -5,8 +5,31 @@ using System.Collections.Generic;
 public class LocalSaveData
 {
     public LocalGameplayData gameplay = new LocalGameplayData();
+    public LocalProfileData profile = new LocalProfileData();
     public List<LocalInventorySave> inventories = new List<LocalInventorySave>();
     public long savedAtUtcTicks;
+}
+
+[Serializable]
+public class LocalProfileData
+{
+    public string displayName;
+
+    public LocalProfileData() { }
+
+    public LocalProfileData(UserProfileData src)
+    {
+        if (src == null) return;
+        displayName = src.displayName;
+    }
+
+    public UserProfileData ToProfileSaveData()
+    {
+        return new UserProfileData
+        {
+            displayName = displayName
+        };
+    }
 }
 
 [Serializable]
@@ -18,6 +41,8 @@ public class LocalGameplayData
     public float clicks;
     public float diamonds;
     public float currentTime;
+    public float totalPlaytime;
+    public List<int> craftNodeStates;
 
     public LocalGameplayData() { }
 
@@ -30,6 +55,8 @@ public class LocalGameplayData
         clicks = src.clicks;
         diamonds = src.diamonds;
         currentTime = src.currentTime;
+        totalPlaytime = src.totalPlaytime;
+        craftNodeStates = src.craftNodeStates != null ? new List<int>(src.craftNodeStates) : null;
     }
 
     public GameplaySaveData ToGameplaySaveData()
@@ -41,7 +68,9 @@ public class LocalGameplayData
             peakLocation = peakLocation,
             clicks = clicks,
             diamonds = diamonds,
-            currentTime = currentTime
+            currentTime = currentTime,
+            totalPlaytime = totalPlaytime,
+            craftNodeStates = craftNodeStates != null ? new List<int>(craftNodeStates) : null
         };
     }
 }

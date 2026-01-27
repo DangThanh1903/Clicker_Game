@@ -11,14 +11,23 @@ public class CraftNodeManager : MonoBehaviour
     public List<InventoryData> inventoryDependencies = new List<InventoryData>();
 
     private const string SaveKey = "CraftNodeStates";
+    private bool suppressCloudSave;
 
     private void Start()
     {
         LoadNodeStates();
 
+        if (DataSaver.Ins != null)
+            DataSaver.Ins.RegisterCraftNodeManager(this);
+
         foreach (var node in allNodes)
         {
             node.Init(inventoryDependencies);
+        }
+
+        foreach (var node in allNodes)
+        {
+            node.OnStateChanged += (_, __) => SaveNodeStates();
         }
 
         foreach (var node in allNodes)
@@ -42,10 +51,18 @@ public class CraftNodeManager : MonoBehaviour
 
     public void SaveNodeStates()
     {
+        SaveNodeStates(saveCloud: true);
+    }
+
+    public void SaveNodeStates(bool saveCloud)
+    {
         var states = allNodes.Select(n => (int)n.State).ToArray();
         string json = JsonUtility.ToJson(new IntArrayWrapper { array = states });
         PlayerPrefs.SetString(SaveKey, json);
         PlayerPrefs.Save();
+
+        if (saveCloud && !suppressCloudSave && DataSaver.Ins != null)
+            DataSaver.Ins.SaveDataFn();
     }
 
     public void LoadNodeStates()
@@ -59,6 +76,36 @@ public class CraftNodeManager : MonoBehaviour
             allNodes[i].State = (CraftNodeState)wrapper.array[i];
             allNodes[i].UpdateVisual();
         }
+    }
+
+    public List<int> GetStates()
+    {
+        return allNodes.Select(n => (int)n.State).ToList();
+    }
+
+    public void ApplyStates(List<int> states, bool saveLocal = true)
+    {
+        if (states == null || states.Count == 0)
+            return;
+
+        suppressCloudSave = true;
+
+        for (int i = 0; i < states.Count && i < allNodes.Count; i++)
+        {
+            allNodes[i].State = (CraftNodeState)states[i];
+            allNodes[i].UpdateVisual();
+        }
+
+        // Re-evaluate unlocks based on newly applied finished nodes
+        foreach (var node in allNodes)
+        {
+            node?.RecheckState(true);
+        }
+
+        if (saveLocal)
+            SaveNodeStates(saveCloud: false);
+
+        suppressCloudSave = false;
     }
     #endregion
 }

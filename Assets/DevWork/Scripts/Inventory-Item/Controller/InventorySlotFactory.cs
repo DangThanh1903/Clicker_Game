@@ -1,6 +1,7 @@
 using System;
 using UniRx;
 using UnityEngine;
+using Lean.Pool;
 
 public static class InventorySlotFactory
 {
@@ -8,7 +9,7 @@ public static class InventorySlotFactory
     {
         // Clean previous
         foreach (Transform child in section.slotParent)
-            UnityEngine.Object.Destroy(child.gameObject);
+            LeanPool.Despawn(child.gameObject);
         section.slotUIs.Clear();
         section.disposables.Dispose();
         section.disposables = new CompositeDisposable();
@@ -17,13 +18,14 @@ public static class InventorySlotFactory
 
         for (int i = 0; i < inventory.Items.Count; i++)
         {
-            var slotGO = UnityEngine.Object.Instantiate(section.slotPrefab, section.slotParent);
+            var slotGO = LeanPool.Spawn(section.slotPrefab, section.slotParent);
             var slotUI = slotGO.GetComponent<InventorySlotUI>();
             slotUI.Bind(inventory, i);
             slotUI.UpdateSlotUI(inventory.Items[i]);
 
             section.slotUIs.Add(slotUI);
         }
+
 
         // Observe Replace
         inventory.Items

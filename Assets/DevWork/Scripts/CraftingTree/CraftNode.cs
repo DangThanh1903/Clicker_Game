@@ -22,10 +22,10 @@ public class CraftNode : MonoBehaviour, IPointerClickHandler
     public Image ReqUIImage;
     public Image LockedImage;
     public TMP_Text DoneText;
-
     private List<InventoryData> inventoryDependencies = new List<InventoryData>();
     private CompositeDisposable disposables = new CompositeDisposable();
     public Subject<Unit> OnNodeFinished = new Subject<Unit>();
+    public System.Action<CraftNodeState, CraftNodeState> OnStateChanged;
 
     [Header("Show Recipe")]
     public CraftRecipePanel recipePanel;
@@ -92,29 +92,35 @@ public class CraftNode : MonoBehaviour, IPointerClickHandler
         if (State == CraftNodeState.Finished)
             return;
 
+        CraftNodeState nextState;
         if (!AreRequiredNodesFinished())
-        {
-            State = CraftNodeState.Locked;
-        }
-        else if (AreRequiredItemsPresent())
-        {
-            State = CraftNodeState.Finished;
-            OnNodeFinished.OnNext(Unit.Default);
-        }
+            nextState = CraftNodeState.Locked;
         else
-        {
-            State = CraftNodeState.Unlocked;
-            if (!isInitial)
-                GameDebugHandler.LogStaticAfter($"Unlocked {requiredItems[0].GetColoredName()}'s recipe!");
-        }
+            nextState = CraftNodeState.Unlocked;
+
+        if (nextState == State)
+            return;
+
+        var previous = State;
+        State = nextState;
+
+        if (State == CraftNodeState.Unlocked && previous != CraftNodeState.Unlocked && !isInitial)
+            GameDebugHandler.LogStaticAfter($"Unlocked {requiredItems[0].GetColoredName()}'s recipe!");
 
         UpdateVisual();
+        OnStateChanged?.Invoke(previous, State);
+    }
+
+    public void RecheckState(bool isInitial = false)
+    {
+        CheckState(isInitial);
     }
 
     public void FinishNode() // Called by player click
     {
         if (State == CraftNodeState.Unlocked && AreRequiredItemsPresent())
         {
+            var previous = State;
             State = CraftNodeState.Finished;
 
             // Remove items from inventories
@@ -138,28 +144,37 @@ public class CraftNode : MonoBehaviour, IPointerClickHandler
             }
 
             UpdateVisual();
+            OnNodeFinished.OnNext(Unit.Default);
+            OnStateChanged?.Invoke(previous, State);
         }
     }
 
     public void UpdateVisual()
     {
-        var Image = GetComponent<Image>();
-
         switch (State)
         {
             case CraftNodeState.Locked:
-                LockedImage.gameObject.SetActive(true);
-                DoneText.gameObject.SetActive(false);
+                SetGraphicActive(LockedImage, true);
+                SetGraphicActive(DoneText, false);
                 break;
             case CraftNodeState.Unlocked:
-                LockedImage.gameObject.SetActive(false);
-                DoneText.gameObject.SetActive(false);
+                SetGraphicActive(LockedImage, false);
+                SetGraphicActive(DoneText, false);
                 break;
             case CraftNodeState.Finished:
-                LockedImage.gameObject.SetActive(false);
-                DoneText.gameObject.SetActive(true);
+                SetGraphicActive(LockedImage, false);
+                SetGraphicActive(DoneText, true);
                 break;
         }
+    }
+
+    private static void SetGraphicActive(Graphic graphic, bool active)
+    {
+        if (graphic == null)
+            return;
+
+        graphic.enabled = active;
+        graphic.raycastTarget = active;
     }
 
     private void OnDestroy()

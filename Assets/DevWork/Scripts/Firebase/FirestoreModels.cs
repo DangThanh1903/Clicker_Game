@@ -15,6 +15,21 @@ public class InventorySaveData
 }
 
 [FirestoreData]
+public class UserProfileData
+{
+    [FirestoreProperty] public string displayName { get; set; }
+}
+
+[FirestoreData]
+public class LeaderboardPublicData
+{
+    [FirestoreProperty] public string displayName { get; set; }
+    [FirestoreProperty] public float clicks { get; set; }
+    [FirestoreProperty] public float totalPlaytime { get; set; }
+    [FirestoreProperty] public Timestamp updatedAt { get; set; }
+}
+
+[FirestoreData]
 public class GameplaySaveData
 {
     [FirestoreProperty] public string currentBlock { get; set; }
@@ -23,4 +38,6 @@ public class GameplaySaveData
     [FirestoreProperty] public float clicks { get; set; }
     [FirestoreProperty] public float diamonds { get; set; }
     [FirestoreProperty] public float currentTime { get; set; }
+    [FirestoreProperty] public float totalPlaytime { get; set; }
+    [FirestoreProperty] public List<int> craftNodeStates { get; set; }
 }

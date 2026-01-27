@@ -14,8 +14,16 @@ public class InventorySlotUI : MonoBehaviour, IDropHandler
     [Header("UI References")]
     [SerializeField] private GameObject draggable;
     [SerializeField] private TextMeshProUGUI quantityText;
+    private Image iconImage;
+    private DragableItem dragItem;
+    private GameObject cachedDraggable;
 
     private CompositeDisposable disposable = new CompositeDisposable();
+
+    private void Awake()
+    {
+        EnsureCache();
+    }
 
     public void Bind(InventoryData inventory, int index)
     {
@@ -29,12 +37,15 @@ public class InventorySlotUI : MonoBehaviour, IDropHandler
     public void UpdateSlotUI(InventoryItem item)
     {
         disposable.Clear();
+        EnsureCache();
 
         bool hasItem = item != null && item.itemData != null && item.itemData.Type != ItemType.None;
-        var icon = draggable.GetComponent<Image>();
-        icon.enabled = hasItem;
-        icon.sprite = hasItem ? item.itemData.icon : null;
-        draggable.GetComponent<DragableItem>().SetInventoryItem(item, slotIndex, boundInventory);
+        if (iconImage != null)
+        {
+            iconImage.enabled = hasItem;
+            iconImage.sprite = hasItem ? item.itemData.icon : null;
+        }
+        dragItem?.SetInventoryItem(item, slotIndex, boundInventory);
 
         if (hasItem)
         {
@@ -82,5 +93,23 @@ public class InventorySlotUI : MonoBehaviour, IDropHandler
     private void OnDestroy()
     {
         disposable.Dispose();
+    }
+
+    private void EnsureCache()
+    {
+        if (draggable == null)
+        {
+            iconImage = null;
+            dragItem = null;
+            cachedDraggable = null;
+            return;
+        }
+
+        if (cachedDraggable != draggable || iconImage == null || dragItem == null)
+        {
+            cachedDraggable = draggable;
+            iconImage = draggable.GetComponent<Image>();
+            dragItem = draggable.GetComponent<DragableItem>();
+        }
     }
 }
