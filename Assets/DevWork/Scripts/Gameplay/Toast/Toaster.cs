@@ -10,6 +10,8 @@ public class Toaster : MonoBehaviour
     [SerializeField] private Toast toastPrefab;
     [SerializeField] private int preloadCount = 4;
     [SerializeField] private float randomPadding = 60f;
+    [SerializeField] [Range(0.1f, 1f)] private float toastScale = 0.8f;
+    [SerializeField] [Range(0.1f, 1f)] private float spawnAreaScale = 1f;
 
     void Awake()
     {
@@ -52,7 +54,7 @@ public class Toaster : MonoBehaviour
 
         Toast inst = LeanPool.Spawn(toastPrefab, canvas.transform);
         var rt = (RectTransform)inst.transform;
-        rt.localScale = Vector3.one;
+        rt.localScale = Vector3.one * Mathf.Max(0.1f, toastScale);
 
         if (anchoredPos.HasValue)
             rt.anchoredPosition = anchoredPos.Value;
@@ -71,6 +73,14 @@ public class Toaster : MonoBehaviour
         padding = Mathf.Max(0f, padding);
 
         var rect = rt.rect;
+        float scale = Mathf.Clamp01(spawnAreaScale);
+        if (scale < 1f)
+        {
+            Vector2 size = rect.size * scale;
+            Vector2 center = rect.center;
+            rect = new Rect(center - size * 0.5f, size);
+        }
+
         float minX = rect.xMin + padding;
         float maxX = rect.xMax - padding;
         if (minX > maxX) { minX = rect.xMin; maxX = rect.xMax; }
@@ -84,3 +94,4 @@ public class Toaster : MonoBehaviour
 
     public Canvas Canvas => canvas; // expose if needed for conversions
 }
+

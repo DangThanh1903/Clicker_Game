@@ -23,6 +23,7 @@ public class InventoryController : MonoBehaviour
     [SerializeField] private Button sortInventoryButton;
     [SerializeField] private PopupView lootboxPrefab;
     [SerializeField] private CaseRollController caseRollController;
+    private bool isItemDescriptionLocked;
 
     public InventoryUIManager InventoryUIManager => inventoryUiManager;
     public InventorySlider InventorySlider => inventorySlider;
@@ -221,6 +222,28 @@ public class InventoryController : MonoBehaviour
         useButton.gameObject.SetActive(false);
     }
 
+    public void SetItemDescription(InventoryItem item)
+    {
+        if (item == null || item.itemData == null || item.itemData.Type == ItemType.None)
+        {
+            ClearItemDescription();
+            return;
+        }
+
+        isItemDescriptionLocked = true;
+        if (description != null)
+            description.text = item.itemData.GetFormattedDescription();
+    }
+
+    public void ClearItemDescription()
+    {
+        if (!isItemDescriptionLocked)
+            return;
+
+        isItemDescriptionLocked = false;
+        UpdateStatDescription();
+    }
+
     public void GoToStatsPage()
     {
         if (inventorySlider == null)
@@ -238,8 +261,12 @@ public class InventoryController : MonoBehaviour
             return;
 
         const int craftingPageIndex = 1;
+        const int statsPageIndex = 0;
         if (toPage != craftingPageIndex)
             craftingController.ReturnItemsToInventory();
+
+        if (fromPage == statsPageIndex && toPage != statsPageIndex)
+            ClearItemDescription();
     }
 
     private void HandleMainPageChanged(int fromPage, int toPage)
@@ -250,6 +277,9 @@ public class InventoryController : MonoBehaviour
         const int inventoryPageIndex = 0;
         if (fromPage == inventoryPageIndex && toPage != inventoryPageIndex)
             craftingController.ReturnItemsToInventory();
+
+        if (fromPage == inventoryPageIndex && toPage != inventoryPageIndex)
+            ClearItemDescription();
     }
     // ==============================
     // SECTION: Stat Logic
@@ -272,8 +302,11 @@ public class InventoryController : MonoBehaviour
         UpdateStatTextsImmediate();
 
         // ✅ Chỉ show buff vào description
-        string buffText = GetBuffOnlyDescription(activeBuffs, conditionBuffs);
-        SetDescription(buffText);
+        if (!isItemDescriptionLocked)
+        {
+            string buffText = GetBuffOnlyDescription(activeBuffs, conditionBuffs);
+            SetDescription(buffText);
+        }
     }
 
     void UpdateStatTextsImmediate()

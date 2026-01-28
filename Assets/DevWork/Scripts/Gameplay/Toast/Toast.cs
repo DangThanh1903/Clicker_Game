@@ -24,6 +24,8 @@ public class Toast : MonoBehaviour
     private Tween currentTween;
     private Color baseTextColor = Color.white;
     private bool useRainbowRuntime;
+    private RectTransform iconRt;
+    private Vector2 iconBaseSize;
 
     [Header("Rainbow Text")]
     [SerializeField] private bool useRainbowText = false;
@@ -33,11 +35,19 @@ public class Toast : MonoBehaviour
     [SerializeField] private float rainbowValue = 1f;
     private float nextRainbowUpdateAt;
 
+    [Header("Icon Size")]
+    [SerializeField] [Range(0.1f, 1f)] private float iconScaleWithSprite = 0.7f;
+
     void Awake()
     {
         cg = GetComponent<CanvasGroup>();
         rt = GetComponent<RectTransform>();
         if (messageText != null) baseTextColor = messageText.color;
+        if (icon != null)
+        {
+            iconRt = icon.rectTransform;
+            iconBaseSize = iconRt.sizeDelta;
+        }
     }
 
     void OnDisable()
@@ -55,6 +65,8 @@ public class Toast : MonoBehaviour
         {
             icon.enabled = sprite != null;
             icon.sprite = sprite;
+            if (iconRt != null)
+                iconRt.sizeDelta = sprite != null ? iconBaseSize * iconScaleWithSprite : iconBaseSize;
         }
 
         useRainbowRuntime = rainbowOverride ?? useRainbowText;

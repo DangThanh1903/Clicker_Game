@@ -2,6 +2,7 @@ using System.Text;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using System.Collections.Generic;
 
 public class UIMaterialAudit : MonoBehaviour
 {
@@ -18,6 +19,10 @@ public class UIMaterialAudit : MonoBehaviour
     [SerializeField] private bool onlyTMP = false;
     [SerializeField] private bool logSpriteTexture = true;
     [SerializeField] private string pathContains = "";
+    [SerializeField] private bool logUniqueMaterialSummary = true;
+    [SerializeField] private bool logUniqueRenderMaterials = false;
+    [SerializeField] private bool logUniqueActualMaterials = false;
+    [SerializeField] private bool logUniqueDefaultMaterials = false;
 
     private void Start()
     {
@@ -45,6 +50,12 @@ public class UIMaterialAudit : MonoBehaviour
         int total = graphics.Length;
         int logged = 0;
         int diffCount = 0;
+        var uniqueRenderMats = new Dictionary<int, Material>();
+        var uniqueActualMats = new Dictionary<int, Material>();
+        var uniqueDefaultMats = new Dictionary<int, Material>();
+        var uniqueRenderMatPaths = new Dictionary<int, string>();
+        var uniqueActualMatPaths = new Dictionary<int, string>();
+        var uniqueDefaultMatPaths = new Dictionary<int, string>();
 
         foreach (var g in graphics)
         {
@@ -64,6 +75,22 @@ public class UIMaterialAudit : MonoBehaviour
             var renderer = g.canvasRenderer;
             var actualMat = renderer != null ? renderer.GetMaterial() : null;
             bool diff = (renderMat != defaultMat) || (actualMat != null && actualMat != defaultMat);
+
+            if (renderMat != null && !uniqueRenderMats.ContainsKey(renderMat.GetInstanceID()))
+            {
+                uniqueRenderMats[renderMat.GetInstanceID()] = renderMat;
+                uniqueRenderMatPaths[renderMat.GetInstanceID()] = path;
+            }
+            if (actualMat != null && !uniqueActualMats.ContainsKey(actualMat.GetInstanceID()))
+            {
+                uniqueActualMats[actualMat.GetInstanceID()] = actualMat;
+                uniqueActualMatPaths[actualMat.GetInstanceID()] = path;
+            }
+            if (defaultMat != null && !uniqueDefaultMats.ContainsKey(defaultMat.GetInstanceID()))
+            {
+                uniqueDefaultMats[defaultMat.GetInstanceID()] = defaultMat;
+                uniqueDefaultMatPaths[defaultMat.GetInstanceID()] = path;
+            }
 
             if (onlyIfDifferent && !diff && !logEvenIfSameMaterial)
                 continue;
@@ -107,6 +134,29 @@ public class UIMaterialAudit : MonoBehaviour
         {
             string scope = scanAllCanvases ? "ALL" : GetPath(root);
             Debug.Log($"[UIMaterialAudit] scope={scope} totalGraphics={total} diffCount={diffCount} logged={logged} onlyIfDifferent={onlyIfDifferent} logEvenIfSameMaterial={logEvenIfSameMaterial} onlyImages={onlyImages} onlyTMP={onlyTMP} pathContains={pathContains}");
+        }
+
+        if (logUniqueMaterialSummary)
+        {
+            Debug.Log($"[UIMaterialAudit] unique renderMat count={uniqueRenderMats.Count}, actualMat count={uniqueActualMats.Count}, defaultMat count={uniqueDefaultMats.Count}");
+        }
+
+        if (logUniqueRenderMaterials)
+            LogUniqueMaterials("renderMat", uniqueRenderMats, uniqueRenderMatPaths);
+        if (logUniqueActualMaterials)
+            LogUniqueMaterials("actualMat", uniqueActualMats, uniqueActualMatPaths);
+        if (logUniqueDefaultMaterials)
+            LogUniqueMaterials("defaultMat", uniqueDefaultMats, uniqueDefaultMatPaths);
+    }
+
+    private static void LogUniqueMaterials(string label, Dictionary<int, Material> mats, Dictionary<int, string> paths)
+    {
+        foreach (var kvp in mats)
+        {
+            var mat = kvp.Value;
+            var name = mat != null ? mat.name : "null";
+            paths.TryGetValue(kvp.Key, out var path);
+            Debug.Log($"[UIMaterialAudit] unique {label} id={kvp.Key} name={name} firstSeen={path}");
         }
     }
 
