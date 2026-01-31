@@ -94,11 +94,14 @@ public class MonsterClickable : MonoBehaviour, IDamagable
     public void HandleClickDetection()
     {
         if (resolved) return;
-        if (!UIManager.Ins.IsBlockCanClick()) return;
-        if (PopupController.Instance != null && PopupController.Instance.IsAnyPopupOpen()) return;
-
         // giống Boss/Block
-        PlayerController.Instance.OnUpdate(this);
+        var player = PlayerController.Instance;
+        if (player == null) return;
+        player.OnUpdate(this);
+
+        var ui = UIManager.Ins;
+        if (ui == null || !ui.IsBlockCanClick()) return;
+        if (PopupController.Instance != null && PopupController.Instance.IsAnyPopupOpen()) return;
         
         // Mouse Down
         if (Input.GetMouseButtonDown(0))

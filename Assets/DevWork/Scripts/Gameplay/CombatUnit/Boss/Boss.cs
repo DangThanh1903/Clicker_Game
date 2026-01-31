@@ -24,6 +24,7 @@ public class Boss : MonoBehaviour, IDamagable
     [SerializeField] float tickSeconds = 1f;
     [SerializeField] bool useUnscaledTime = true; 
     IDisposable sub;
+    private CompositeDisposable runtimeSubs;
     [Header("Boss Attack Settings")]
     [SerializeField] private float normalAttackInterval  = 2.0f;
     [SerializeField] private float specialAttackInterval = 8.0f;
@@ -41,8 +42,6 @@ public class Boss : MonoBehaviour, IDamagable
     private string bossId;
     void Start()
     {
-        SetUp();
-
         if (bossAnimManager != null)
             bossAnimManager.OnSkillFired += OnBossSkillFired;
 
@@ -96,6 +95,8 @@ public class Boss : MonoBehaviour, IDamagable
         if (spawnTime <= 0f)
             spawnTime = Time.unscaledTime;
 
+        SetUp();
+
         if (enemyStatsManager == null) return;
 
         var scheduler = useUnscaledTime ? Scheduler.MainThreadIgnoreTimeScale : Scheduler.MainThread;
@@ -113,18 +114,23 @@ public class Boss : MonoBehaviour, IDamagable
                 if (gain < 0f && cur <= 0f)  return; 
 
                 enemyStatsManager.Set(StatType.CurrentHP, Mathf.Clamp(cur + gain, 0f, max));
-            })
-            .AddTo(this);
+            });
     }
 
     void OnDisable()
     {
         sub?.Dispose();
         sub = null;
+        runtimeSubs?.Dispose();
+        runtimeSubs = null;
+        clickBuffer.Clear();
     }
 
     void SetUp()
     {
+        runtimeSubs?.Dispose();
+        runtimeSubs = new CompositeDisposable();
+
         Observable.Interval(TimeSpan.FromSeconds(1))
             .Subscribe(_ =>
             {
@@ -134,29 +140,36 @@ public class Boss : MonoBehaviour, IDamagable
 
                 StatsManager.Ins.Set(StatType.ClickPerTick, clickBuffer.Count);
             })
-            .AddTo(this);
+            .AddTo(runtimeSubs);
 
         clickStream.Subscribe(time =>
         {
             clickBuffer.Add(time);
-        }).AddTo(this);
+        }).AddTo(runtimeSubs);
 
-        enemyStatsManager.GetReactive(StatType.CurrentHP)
-            .Subscribe(val =>
-            {
-                float maxHP = enemyStatsManager.Get(StatType.HP);
-                float fill = (maxHP > 0f) ? (val / maxHP) : 0f;
-                HpUI.fillAmount = Mathf.Clamp01(fill);
-                if (val <= 0f)
-                    OnDying();
-            })
-            .AddTo(this);
+        if (enemyStatsManager != null)
+        {
+            enemyStatsManager.GetReactive(StatType.CurrentHP)
+                .Subscribe(val =>
+                {
+                    float maxHP = enemyStatsManager.Get(StatType.HP);
+                    float fill = (maxHP > 0f) ? (val / maxHP) : 0f;
+                    HpUI.fillAmount = Mathf.Clamp01(fill);
+                    if (val <= 0f)
+                        OnDying();
+                })
+                .AddTo(runtimeSubs);
+        }
     }
     public void HandleClickDetection()
     {
-        PlayerController.Instance.OnUpdate(this);
+        var player = PlayerController.Instance;
+        if (player == null) return;
+        player.OnUpdate(this);
 
-        if (!UIManager.Ins.IsBlockCanClick()) return;
+        var ui = UIManager.Ins;
+        if (ui == null || !ui.IsBlockCanClick()) return;
+        if (PopupController.Instance != null && PopupController.Instance.IsAnyPopupOpen()) return;
 
         if (Input.GetMouseButtonDown(0))
         {

@@ -116,6 +116,21 @@ public class PopupController : MonoBehaviour
     }
     public bool IsAnyPopupOpen()
     {
+        PruneStack();
         return stack.Count > 0;
+    }
+
+    void PruneStack()
+    {
+        // Safety: if a popup was deactivated/destroyed without CloseTop,
+        // remove it so queues don't get stuck waiting.
+        while (stack.Count > 0)
+        {
+            var top = stack.Peek();
+            if (top == null || !top.gameObject.activeInHierarchy)
+                stack.Pop();
+            else
+                break;
+        }
     }
 }

@@ -27,15 +27,21 @@ public class BlockDiscoveryPopupView : PopupView
 
         drops.text = BuildDropsPreview(entry);
 
-        closeButton.onClick.RemoveAllListeners();
-        closeButton.onClick.AddListener(() => PopupController.Instance.CloseTop());
-
-        viewDetailsButton.onClick.RemoveAllListeners();
-        viewDetailsButton.onClick.AddListener(() =>
+        if (closeButton != null)
         {
-            OnViewDetailsRequested?.Invoke(_blockName);
-            PopupController.Instance.CloseTop();
-        });
+            closeButton.onClick.RemoveAllListeners();
+            closeButton.onClick.AddListener(() => PopupController.Instance.CloseTop());
+        }
+
+        if (viewDetailsButton != null)
+        {
+            viewDetailsButton.onClick.RemoveAllListeners();
+            viewDetailsButton.onClick.AddListener(() =>
+            {
+                OnViewDetailsRequested?.Invoke(_blockName);
+                PopupController.Instance.CloseTop();
+            });
+        }
     }
 
     private string BuildDropsPreview(BlockUVEntry entry)

@@ -45,7 +45,7 @@ public class PopupView : MonoBehaviour
         seq.Join(rt.DOScale(1f, openDuration).SetEase(openEase));
         seq.Join(cg.DOFade(1f, openDuration));
         currentTween = seq;
-        await seq.AsyncWaitForCompletion();
+        await WaitForTweenOrDisable(seq);
         currentTween = null;
     }
 
@@ -59,7 +59,7 @@ public class PopupView : MonoBehaviour
         seq.Join(rt.DOScale(fromScale, closeDuration).SetEase(closeEase));
         seq.Join(cg.DOFade(0f, closeDuration));
         currentTween = seq;
-        await seq.AsyncWaitForCompletion();
+        await WaitForTweenOrDisable(seq);
         currentTween = null;
 
         // DO NOT deactivate here — controller will Despawn after animation
@@ -81,5 +81,12 @@ public class PopupView : MonoBehaviour
             cg = GetComponent<CanvasGroup>() ?? gameObject.AddComponent<CanvasGroup>();
         if (rt == null)
             rt = transform as RectTransform;
+    }
+
+    async Task WaitForTweenOrDisable(Tween tween)
+    {
+        if (tween == null) return;
+        while (gameObject != null && gameObject.activeInHierarchy && tween.IsActive() && tween.IsPlaying())
+            await Task.Yield();
     }
 }

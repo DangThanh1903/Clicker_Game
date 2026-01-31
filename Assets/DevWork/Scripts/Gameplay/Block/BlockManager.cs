@@ -1,3 +1,5 @@
+using System;
+using System.Collections;
 using Lean.Pool;
 using UnityEngine;
 
@@ -12,17 +14,29 @@ public class BlockManager : MonoBehaviour
     private GameObject activeBoss;
     private BossEntry activeBossInfo;
     Boss activeBossComp;
+    private Action onPlayerDiedHandler;
     void Awake()
     {
         if (Ins && Ins != this) { Destroy(gameObject); return; }
         Ins = this;
         DontDestroyOnLoad(gameObject);
+    }
 
-        currentBlock.SetClickableBlock(DataSaver.Ins.currentBlock ?? "Dirt");
+    void Start()
+    {
+        StartCoroutine(InitWhenReady());
+    }
 
+    private IEnumerator InitWhenReady()
+    {
+        yield return new WaitUntil(() => DataSaver.Ins != null);
 
-        int startIndex = (int?)DataSaver.Ins.currentLocation ?? 1;
-        locationLoader.SetLocation(startIndex, isInitiate: true);
+        if (currentBlock != null)
+            currentBlock.SetClickableBlock(DataSaver.Ins.currentBlock ?? "Dirt");
+
+        int startIndex = DataSaver.Ins.currentLocation.HasValue ? (int)DataSaver.Ins.currentLocation.Value : 1;
+        if (locationLoader != null)
+            locationLoader.SetLocation(startIndex, isInitiate: true);
     }
 
 
@@ -73,20 +87,39 @@ public class BlockManager : MonoBehaviour
         AnalyticsManager.Ins?.TrackBossSpawn(activeBossInfo.bossName, bossLocation.ToString());
         activeBossComp?.SetAnalyticsContext(activeBossInfo.bossName);
 
-        PlayerController.Instance.OnDied += () =>
+        var player = PlayerController.Instance;
+        if (player != null)
         {
-            LeanPool.Despawn(go);
-            activeBoss = null;
-            activeBossComp = null;
-            if (currentBlock) currentBlock.gameObject.SetActive(true);
-            UIManager.Ins.SetButtonsInteractable(true);
-        };
+            if (onPlayerDiedHandler != null)
+                player.OnDied -= onPlayerDiedHandler;
+
+            onPlayerDiedHandler = () =>
+            {
+                player.OnDied -= onPlayerDiedHandler;
+                onPlayerDiedHandler = null;
+
+                if (go != null)
+                    LeanPool.Despawn(go);
+                activeBoss = null;
+                activeBossComp = null;
+                if (currentBlock) currentBlock.gameObject.SetActive(true);
+                UIManager.Ins.SetButtonsInteractable(true);
+            };
+
+            player.OnDied += onPlayerDiedHandler;
+        }
         if (currentBlock) currentBlock.gameObject.SetActive(false);
         return go;
     }
     public void OnBossDied(Boss boss)
     {
         if (activeBossComp != null) activeBossComp.Died -= OnBossDied;
+        var player = PlayerController.Instance;
+        if (player != null && onPlayerDiedHandler != null)
+        {
+            player.OnDied -= onPlayerDiedHandler;
+            onPlayerDiedHandler = null;
+        }
 
         if (boss && boss.gameObject && boss.gameObject.activeInHierarchy)
             LeanPool.Despawn(boss.gameObject);

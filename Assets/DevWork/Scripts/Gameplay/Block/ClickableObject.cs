@@ -22,6 +22,7 @@ public class ClickableObject : MonoBehaviour, IDamagable
     private readonly float timeHoldReset = 0.1f;
     private readonly float timeIdleReset = 1f;
     bool isDyingEffect;
+    private bool breakFinalized;
 
     private bool isMouseHeld = false;
 
@@ -59,6 +60,7 @@ public class ClickableObject : MonoBehaviour, IDamagable
     // 📦 Internal click buffer and stream
     private readonly Subject<long> clickStream = new Subject<long>();
     private readonly List<long> clickBuffer = new List<long>();
+    private CompositeDisposable runtimeSubs;
     void Awake()
     {
         propertyBlock = new MaterialPropertyBlock();
@@ -66,9 +68,20 @@ public class ClickableObject : MonoBehaviour, IDamagable
         if (animCtrl == null) animCtrl = GetComponent<BlockAnimationController>();
     }
 
-    void Start()
+    void OnEnable()
     {
-        ListenerSetup();
+        ListenRuntime();
+    }
+
+    void OnDisable()
+    {
+        runtimeSubs?.Dispose();
+        runtimeSubs = null;
+        clickBuffer.Clear();
+
+        // If pooled/disabled during death, finalize once so discovery + drops still fire.
+        if (isDyingEffect && !breakFinalized)
+            FinalizeBreak();
     }
 
     void Update()
@@ -76,8 +89,11 @@ public class ClickableObject : MonoBehaviour, IDamagable
         HandleClickDetection();
     }
     #region SETUP ---------------------------------------------------------------------------------------------
-    void ListenerSetup()
+    void ListenRuntime()
     {
+        runtimeSubs?.Dispose();
+        runtimeSubs = new CompositeDisposable();
+
         // ⏲️ Reactive CPS update every second
         Observable.Interval(TimeSpan.FromSeconds(1))
             .Subscribe(_ =>
@@ -90,13 +106,13 @@ public class ClickableObject : MonoBehaviour, IDamagable
                 // 👇 Set to StatManager
                 StatsManager.Ins.Set(StatType.ClickPerTick, clickBuffer.Count);
             })
-            .AddTo(this);
+            .AddTo(runtimeSubs);
 
         // Push click timestamp into buffer
         clickStream.Subscribe(time =>
         {
             clickBuffer.Add(time);
-        }).AddTo(this);
+        }).AddTo(runtimeSubs);
 
         // Cracking listen
         CurrentHealth
@@ -109,7 +125,7 @@ public class ClickableObject : MonoBehaviour, IDamagable
                 if (newHealth <= 0f)
                     OnDisappear();
             })
-            .AddTo(this);
+            .AddTo(runtimeSubs);
     }
 
     public void SetClickableBlock(string name)
@@ -119,6 +135,8 @@ public class ClickableObject : MonoBehaviour, IDamagable
         MaxHealth = blockUVDatabase.GetHealth(name);
         CurrentHealth.Value = blockUVDatabase.GetHealth(name);
         BlockWeight = blockUVDatabase.GetWeight(name);
+        isDyingEffect = false;
+        breakFinalized = false;
         GenerateCube();
         OnAppear();
     }
@@ -372,23 +390,27 @@ public class ClickableObject : MonoBehaviour, IDamagable
     void OnDisappear()
     {
         isDyingEffect = true;
+        breakFinalized = false;
         float timeToBreak = Mathf.Max(0f, Time.unscaledTime - blockSpawnTime);
         AnalyticsManager.Ins?.TrackBlockBreak(blockName, GetLocationString(), timeToBreak);
 
         StatsManager.Ins.Add(StatType.TotalBlockBreaked, 1);
 
-        animCtrl?.PlayDeath(() =>
-        {
-            UpdateCrackVisual(MaxHealth); // reset crack
+        animCtrl?.PlayDeath(() => FinalizeBreak());
+    }
 
-            Game.Discovery.BlockDiscoveryService.Ins?.DiscoverBlock(blockName);
+    void FinalizeBreak()
+    {
+        if (breakFinalized) return;
+        breakFinalized = true;
 
-            HandleItemDrop();
-            isDyingEffect = false;
-            PlayBreakedSound();
+        UpdateCrackVisual(MaxHealth); // reset crack
+        Game.Discovery.BlockDiscoveryService.Ins?.DiscoverBlock(blockName);
+        HandleItemDrop();
+        isDyingEffect = false;
+        PlayBreakedSound();
 
-            BlockManager.Ins.OnBlockBroken();
-        });
+        BlockManager.Ins.OnBlockBroken();
     }
     // Crack animation
     void UpdateCrackVisual(float currentHP)
@@ -541,3 +563,6 @@ public class ClickableObject : MonoBehaviour, IDamagable
     }
     #endregion
 }
+
+
+
