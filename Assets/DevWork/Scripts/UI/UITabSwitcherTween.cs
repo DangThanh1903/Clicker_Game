@@ -22,6 +22,9 @@ public class UITabSwitcherTween : MonoBehaviour
     [SerializeField] private float contentSlideDuration = 0.25f;
     [SerializeField] private Ease contentEase = Ease.OutQuad;
     [SerializeField] private float slideOffset = 800f; // how far offscreen to slide
+    [SerializeField] private RectTransform contentViewport;
+    [SerializeField] private bool autoSlideOffset = true;
+    [SerializeField] private bool snapOnResize = true;
 
     private Vector2 _progressTabPos;
     private Vector2 _dailyTabPos;
@@ -38,12 +41,10 @@ public class UITabSwitcherTween : MonoBehaviour
 
     private void Awake()
     {
-        // Cache positions
-        _progressTabPos = ((RectTransform)progressTabButton.transform).anchoredPosition;
-        _dailyTabPos = ((RectTransform)dailyTabButton.transform).anchoredPosition;
+        if (contentViewport == null && progressTabContent != null)
+            contentViewport = progressTabContent.parent as RectTransform;
 
-        _progressContentPos = progressTabContent.anchoredPosition;
-        _dailyContentPos = dailyTabContent.anchoredPosition;
+        CachePositions();
 
         // Button listeners
         progressTabButton.onClick.AddListener(() => ShowTab(0));
@@ -52,17 +53,8 @@ public class UITabSwitcherTween : MonoBehaviour
 
     private void OnEnable()
     {
-        // Default to progress tab
-        // Put progress in center, daily to the right initially
         _currentTab = 0;
-        progressTabContent.anchoredPosition = _progressContentPos;
-        dailyTabContent.anchoredPosition = _dailyContentPos + new Vector2(slideOffset, 0f);
-
-        // Move selector under progress tab
-        if (selectorBar != null)
-        {
-            selectorBar.anchoredPosition = new Vector2(_progressTabPos.x, selectorBar.anchoredPosition.y);
-        }
+        UpdateLayout(true);
 
         UpdateButtonInteractable();
     }
@@ -71,6 +63,16 @@ public class UITabSwitcherTween : MonoBehaviour
     {
         _selectorTween?.Kill();
         _contentTween?.Kill();
+    }
+
+    private void OnRectTransformDimensionsChange()
+    {
+        if (!isActiveAndEnabled)
+            return;
+        if (snapOnResize)
+            UpdateLayout(true);
+        else
+            UpdateLayout(false);
     }
 
     public void ShowTab(int index)
@@ -144,5 +146,59 @@ public class UITabSwitcherTween : MonoBehaviour
         // Active tab = not interactable (looks "selected")
         progressTabButton.interactable = _currentTab != 0;
         dailyTabButton.interactable = _currentTab != 1;
+    }
+
+    private void CachePositions()
+    {
+        if (progressTabButton != null)
+            _progressTabPos = ((RectTransform)progressTabButton.transform).anchoredPosition;
+        if (dailyTabButton != null)
+            _dailyTabPos = ((RectTransform)dailyTabButton.transform).anchoredPosition;
+
+        if (progressTabContent != null)
+            _progressContentPos = progressTabContent.anchoredPosition;
+        if (dailyTabContent != null)
+            _dailyContentPos = dailyTabContent.anchoredPosition;
+    }
+
+    private void UpdateLayout(bool snapToCurrent)
+    {
+        if (contentViewport == null && progressTabContent != null)
+            contentViewport = progressTabContent.parent as RectTransform;
+
+        CachePositions();
+
+        if (autoSlideOffset && contentViewport != null)
+            slideOffset = Mathf.Max(1f, contentViewport.rect.width);
+
+        if (snapToCurrent)
+            SnapToCurrentTab();
+    }
+
+    private void SnapToCurrentTab()
+    {
+        if (progressTabContent == null || dailyTabContent == null)
+            return;
+
+        if (_currentTab == 0)
+        {
+            progressTabContent.anchoredPosition = _progressContentPos;
+            dailyTabContent.anchoredPosition = _dailyContentPos + new Vector2(slideOffset, 0f);
+            progressTabContent.gameObject.SetActive(true);
+            dailyTabContent.gameObject.SetActive(false);
+        }
+        else
+        {
+            progressTabContent.anchoredPosition = _progressContentPos - new Vector2(slideOffset, 0f);
+            dailyTabContent.anchoredPosition = _dailyContentPos;
+            progressTabContent.gameObject.SetActive(false);
+            dailyTabContent.gameObject.SetActive(true);
+        }
+
+        if (selectorBar != null)
+        {
+            float targetX = (_currentTab == 0) ? _progressTabPos.x : _dailyTabPos.x;
+            selectorBar.anchoredPosition = new Vector2(targetX, selectorBar.anchoredPosition.y);
+        }
     }
 }
