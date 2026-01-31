@@ -16,7 +16,12 @@ MonoBehaviour:
   m_Data:
     m_SerializedData: []
   m_GUID: 4188a3b1c04208b4d9ce7de0004ba4a7
-  m_SerializeEntries: []
+  m_SerializeEntries:
+  - m_GUID: f6373e12153beb24e9a18e3458629798
+    m_Address: Assets/DevWork/Graphics/UI-UX/Items/ItemAtlat.spriteatlasv2
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
   m_ReadOnly: 0
   m_Settings: {fileID: 11400000, guid: 2ffd021afb3565d428579abac169495e, type: 2}
   m_SchemaSet:

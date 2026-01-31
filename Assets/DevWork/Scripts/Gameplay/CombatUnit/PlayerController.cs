@@ -14,6 +14,10 @@ public class PlayerController : MonoBehaviour
     public ClickerState currentState = new NormalState();
     public event Action OnDied;
     public bool IsDead { get; private set; }
+    private int lastProcessedFrame = -1;
+    private int pendingFrame = -1;
+    private int pendingPriority = int.MinValue;
+    private IDamagable pendingTarget;
 
     [Header("Tick Settings")]
     [SerializeField] float tickSeconds = 1f;
@@ -37,6 +41,15 @@ public class PlayerController : MonoBehaviour
     {
         StatsManager.Ins.Set(StatType.CurrentHP, StatsManager.Ins.Get(StatType.HP));
         StatsManager.Ins.Set(StatType.CurrentMana, StatsManager.Ins.Get(StatType.Mana));
+    }
+    void Update()
+    {
+        if (pendingFrame != Time.frameCount) return;
+        if (lastProcessedFrame == Time.frameCount) return;
+        if (pendingTarget == null) return;
+
+        lastProcessedFrame = Time.frameCount;
+        currentState.OnUpdate(this, pendingTarget);
     }
     void OnEnable()
     {
@@ -121,7 +134,22 @@ public class PlayerController : MonoBehaviour
     }
     public void OnUpdate(IDamagable clickableObject)
     {
-        currentState.OnUpdate(this, clickableObject);
+        if (clickableObject == null) return;
+
+        int frame = Time.frameCount;
+        if (pendingFrame != frame)
+        {
+            pendingFrame = frame;
+            pendingPriority = int.MinValue;
+            pendingTarget = null;
+        }
+
+        int priority = GetPriority(clickableObject);
+        if (priority >= pendingPriority)
+        {
+            pendingPriority = priority;
+            pendingTarget = clickableObject;
+        }
     }
 
     public void OnClick(IDamagable clickableObject)
@@ -135,6 +163,14 @@ public class PlayerController : MonoBehaviour
         {
             currentState.OnHold(this, clickableObject);
         }
+    }
+
+    private static int GetPriority(IDamagable target)
+    {
+        if (target is Boss) return 2;
+        if (target is MonsterClickable) return 1;
+        if (target is ClickableObject) return 0;
+        return 0;
     }
 
     #region COMBAT_LOGIC -----------------------------------------------------------------------------------

@@ -40,6 +40,7 @@ public class Boss : MonoBehaviour, IDamagable
     private float _nextSpecialTime;
     private float spawnTime;
     private string bossId;
+    private bool hasDied;
     void Start()
     {
         if (bossAnimManager != null)
@@ -92,6 +93,7 @@ public class Boss : MonoBehaviour, IDamagable
     }
     void OnEnable()
     {
+        hasDied = false;
         if (spawnTime <= 0f)
             spawnTime = Time.unscaledTime;
 
@@ -124,6 +126,7 @@ public class Boss : MonoBehaviour, IDamagable
         runtimeSubs?.Dispose();
         runtimeSubs = null;
         clickBuffer.Clear();
+        hasDied = false;
     }
 
     void SetUp()
@@ -254,6 +257,8 @@ public class Boss : MonoBehaviour, IDamagable
 
     void OnDying()
     {
+        if (hasDied) return;
+        hasDied = true;
         StatsManager.Ins.Add(StatType.TotalBlockBreaked, 1);
         string id = string.IsNullOrEmpty(bossId) ? gameObject.name : bossId;
         AnalyticsManager.Ins?.TrackBossKill(id, Mathf.Max(0f, Time.unscaledTime - spawnTime));
