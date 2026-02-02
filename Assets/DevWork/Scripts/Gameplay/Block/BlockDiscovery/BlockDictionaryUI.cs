@@ -1,8 +1,8 @@
 using System.Linq;
-using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 using Game.Discovery;
+using System.Collections.Generic;
 
 namespace Game.UI.Dictionary
 {
@@ -12,60 +12,181 @@ namespace Game.UI.Dictionary
         [SerializeField] private BlockUVDatabase blockDb;
 
         [Header("List UI")]
-        [SerializeField] private Transform listRoot;
+        [SerializeField] private RectTransform listRoot;
+        [SerializeField] private ScrollRect scrollRect;
         [SerializeField] private BlockDictionaryListItem itemPrefab;
+        [SerializeField] private float itemHeight = 0f;
+        [SerializeField] private int buffer = 2;
+        [SerializeField] private BlockPreviewCamera previewCamera;
 
-        [Header("Details UI")]
-        [SerializeField] private TMP_Text detailsTitle;
-        [SerializeField] private TMP_Text detailsSpawn;
-        [SerializeField] private Transform dropsRoot;
-        [SerializeField] private BlockDropRow dropRowPrefab;
+        private readonly Dictionary<int, BlockDictionaryListItem> activeItems = new Dictionary<int, BlockDictionaryListItem>();
+        private readonly Queue<BlockDictionaryListItem> itemPool = new Queue<BlockDictionaryListItem>();
+        private readonly List<BlockUVEntry> entries = new List<BlockUVEntry>();
+        private Coroutine initRoutine;
+        private bool subscribed;
+        private BlockDiscoveryService discoveryService;
+        private bool warnedMissingPreviewCamera;
 
         private void OnEnable()
         {
+            if (initRoutine != null) StopCoroutine(initRoutine);
+            initRoutine = StartCoroutine(InitWhenReady());
+            if (scrollRect != null)
+                scrollRect.onValueChanged.AddListener(OnScrollChanged);
+        }
+
+        private void OnDisable()
+        {
+            if (initRoutine != null)
+            {
+                StopCoroutine(initRoutine);
+                initRoutine = null;
+            }
+            if (scrollRect != null)
+                scrollRect.onValueChanged.RemoveListener(OnScrollChanged);
+            if (previewCamera != null)
+                previewCamera.ReleaseAtlas();
+            UnsubscribeDiscovery();
+            ClearActive();
+        }
+
+        private System.Collections.IEnumerator InitWhenReady()
+        {
+            yield return new WaitUntil(() => BlockDiscoveryService.Ins != null);
+            discoveryService = BlockDiscoveryService.Ins;
+            if (previewCamera == null)
+                previewCamera = FindObjectOfType<BlockPreviewCamera>(true);
+            if (previewCamera == null && !warnedMissingPreviewCamera)
+            {
+                Debug.LogWarning("[BlockDictionaryUI] Preview camera is missing. Assign BlockPreviewCamera in inspector or add one to the scene.", this);
+                warnedMissingPreviewCamera = true;
+            }
+            SubscribeDiscovery();
             RefreshList();
         }
 
         public void RefreshList()
         {
-            foreach (Transform c in listRoot) Destroy(c.gameObject);
+            var ds = discoveryService ?? BlockDiscoveryService.Ins;
+            entries.Clear();
+            if (blockDb != null)
+                entries.AddRange(blockDb.blocks.Where(x => x != null));
 
-            var ds = BlockDiscoveryService.Ins;
-
-            foreach (var b in blockDb.blocks.Where(x => x != null))
-            {
-                bool discovered = ds != null && ds.IsBlockDiscovered(b.blockName);
-                var w = Instantiate(itemPrefab, listRoot);
-                w.Bind(b.blockName, discovered, () => ShowDetails(b.blockName));
-            }
+            EnsureContentHeight();
+            ClearActive();
+            RefreshVisible(ds);
         }
 
-        public void ShowDetails(string blockName)
+        private void OnScrollChanged(Vector2 _)
         {
-            var ds = BlockDiscoveryService.Ins;
-            bool discovered = ds != null && ds.IsBlockDiscovered(blockName);
+            RefreshVisible(discoveryService ?? BlockDiscoveryService.Ins);
+        }
 
-            var entry = blockDb.GetByName(blockName);
+        private void RefreshVisible(BlockDiscoveryService ds)
+        {
+            if (listRoot == null || scrollRect == null || itemPrefab == null) return;
+            if (entries.Count == 0) return;
 
-            detailsTitle.text = discovered ? blockName : "???";
-            detailsSpawn.text = discovered && entry != null
-                ? $"Appears: {entry.locationCondition} • {entry.timeStateCondition} • {entry.normalWeatherCondition} • {entry.specialWeatherCondition}"
-                : "Not discovered.";
+            EnsureItemHeight();
+            float viewportHeight = scrollRect.viewport.rect.height;
+            float contentY = listRoot.anchoredPosition.y;
+            int firstIndex = Mathf.FloorToInt(contentY / Mathf.Max(1f, itemHeight)) - buffer;
+            int visibleCount = Mathf.CeilToInt(viewportHeight / Mathf.Max(1f, itemHeight)) + buffer * 2;
 
-            foreach (Transform c in dropsRoot) Destroy(c.gameObject);
-            if (!discovered || entry == null) return;
+            int start = Mathf.Clamp(firstIndex, 0, Mathf.Max(0, entries.Count - 1));
+            int end = Mathf.Clamp(start + visibleCount - 1, 0, entries.Count - 1);
 
-            foreach (var d in entry.drops)
+            var keys = new List<int>(activeItems.Keys);
+            foreach (var idx in keys)
             {
-                if (d?.item == null) continue;
+                if (idx < start || idx > end)
+                    RecycleItem(idx);
+            }
 
-                string itemId = BlockDiscoveryService.GetItemId(d.item);
-                bool dropDiscovered = ds != null && ds.IsDropDiscovered(blockName, itemId);
-
-                string label = dropDiscovered ? d.item.itemName : "??? (Obtain to reveal)";
-                var row = Instantiate(dropRowPrefab, dropsRoot);
-                row.Bind(label);
+            for (int i = start; i <= end; i++)
+            {
+                if (activeItems.ContainsKey(i)) continue;
+                var item = GetItem();
+                var rt = item.GetComponent<RectTransform>();
+                if (rt != null)
+                {
+                    rt.SetParent(listRoot, false);
+                    rt.anchoredPosition = new Vector2(0f, -i * itemHeight);
+                }
+                var entry = entries[i];
+                bool discovered = ds != null && ds.IsBlockDiscovered(entry.blockName);
+                item.Bind(entry, discovered, ds, previewCamera);
+                activeItems[i] = item;
             }
         }
+
+        private BlockDictionaryListItem GetItem()
+        {
+            BlockDictionaryListItem item = itemPool.Count > 0 ? itemPool.Dequeue() : Instantiate(itemPrefab, listRoot);
+            item.gameObject.SetActive(true);
+            return item;
+        }
+
+        private void RecycleItem(int index)
+        {
+            if (!activeItems.TryGetValue(index, out var item)) return;
+            item.Unbind(previewCamera);
+            item.gameObject.SetActive(false);
+            itemPool.Enqueue(item);
+            activeItems.Remove(index);
+        }
+
+        private void ClearActive()
+        {
+            var keys = new List<int>(activeItems.Keys);
+            foreach (var idx in keys)
+                RecycleItem(idx);
+        }
+
+        private void EnsureContentHeight()
+        {
+            if (listRoot == null) return;
+            EnsureItemHeight();
+            var size = listRoot.sizeDelta;
+            size.y = entries.Count * itemHeight;
+            listRoot.sizeDelta = size;
+        }
+
+        private void EnsureItemHeight()
+        {
+            if (itemHeight > 0f) return;
+            var rt = itemPrefab != null ? itemPrefab.GetComponent<RectTransform>() : null;
+            if (rt != null)
+                itemHeight = Mathf.Max(1f, rt.rect.height);
+            if (itemHeight <= 0f)
+                itemHeight = 140f;
+        }
+
+        private void SubscribeDiscovery()
+        {
+            if (subscribed || discoveryService == null) return;
+            discoveryService.OnBlockDiscovered += OnDiscoveryChanged;
+            discoveryService.OnDropDiscovered += OnDropDiscoveryChanged;
+            subscribed = true;
+        }
+
+        private void UnsubscribeDiscovery()
+        {
+            if (!subscribed || discoveryService == null) return;
+            discoveryService.OnBlockDiscovered -= OnDiscoveryChanged;
+            discoveryService.OnDropDiscovered -= OnDropDiscoveryChanged;
+            subscribed = false;
+        }
+
+        private void OnDiscoveryChanged(string _)
+        {
+            RefreshList();
+        }
+
+        private void OnDropDiscoveryChanged(string _, string __)
+        {
+            RefreshVisible(discoveryService);
+        }
+
     }
 }

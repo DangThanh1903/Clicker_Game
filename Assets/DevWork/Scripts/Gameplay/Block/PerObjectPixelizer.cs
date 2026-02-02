@@ -1,3 +1,4 @@
+using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
 #if UNITY_RENDER_PIPELINE_UNIVERSAL
@@ -22,7 +23,16 @@ public class PerObjectPixelizer : MonoBehaviour
 
     void Awake()
     {
+        if (!mainCamera) mainCamera = GetComponent<Camera>();
         if (!mainCamera) mainCamera = Camera.main;
+        if (!mainCamera)
+            mainCamera = FindObjectsOfType<Camera>().FirstOrDefault(c => c.CompareTag("MainCamera") && c.enabled);
+        if (!mainCamera)
+        {
+            Debug.LogError("[PerObjectPixelizer] Main camera not found. Assign it in Inspector.");
+            enabled = false;
+            return;
+        }
 
         // Create the pixelizer camera as a child of main (so it matches pose)
         var go = new GameObject("PixelizerCamera");

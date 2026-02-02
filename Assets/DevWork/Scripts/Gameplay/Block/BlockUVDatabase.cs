@@ -260,6 +260,8 @@ public class ItemDrop
     public int minAmount = 1;
     public int maxAmount = 1;
     public float dropChance = 1f;
+    [Tooltip("If true, only visible in discovery list after it drops.")]
+    public bool isSecret;
 
     public string GetItemAddress()
     {

@@ -17,6 +17,7 @@ public class TimeSystem : MonoBehaviour
     [Min(0.01f)] public float timeScale = 1f;
     public bool smoothTime = true;
     public bool useUnscaledTime = true;
+    [Min(0f)] public float lightingUpdateInterval = 0.1f;
 
     [Header("Light (Single Directional)")]
     [SerializeField] private Light mainLight;                    // Assign your directional light
@@ -66,6 +67,7 @@ public class TimeSystem : MonoBehaviour
     public ReactiveProperty<float> CurrentTime { get; private set; } = new ReactiveProperty<float>(); // seconds
 
     private float CycleLength => dayDuration + nightDuration;
+    private float lastLightingUpdateAt = -1f;
 
     private void Awake()
     {
@@ -124,7 +126,12 @@ public class TimeSystem : MonoBehaviour
             .Subscribe(time =>
             {
                 float t = time / CycleLength;
-                ApplyLighting(t);
+                float now = useUnscaledTime ? Time.unscaledTime : Time.time;
+                if (lightingUpdateInterval <= 0f || now - lastLightingUpdateAt >= lightingUpdateInterval)
+                {
+                    ApplyLighting(t);
+                    lastLightingUpdateAt = now;
+                }
 
                 if (CurrentTimeState.Value == TimeState.Day && time >= dayDuration)
                     SwitchToNight();

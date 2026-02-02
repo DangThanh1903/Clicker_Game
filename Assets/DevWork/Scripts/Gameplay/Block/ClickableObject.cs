@@ -56,6 +56,7 @@ public class ClickableObject : MonoBehaviour, IDamagable
     [SerializeField] private BlockAnimationController animCtrl;
     private Vector2 onClickPos;
     private float blockSpawnTime;
+    private bool isReady;
 
     // 📦 Internal click buffer and stream
     private readonly Subject<long> clickStream = new Subject<long>();
@@ -70,7 +71,8 @@ public class ClickableObject : MonoBehaviour, IDamagable
 
     void OnEnable()
     {
-        ListenRuntime();
+        if (isReady)
+            ListenRuntime();
     }
 
     void OnDisable()
@@ -137,6 +139,9 @@ public class ClickableObject : MonoBehaviour, IDamagable
         BlockWeight = blockUVDatabase.GetWeight(name);
         isDyingEffect = false;
         breakFinalized = false;
+        accumulatedHoldTime = 0f;
+        isReady = true;
+        ListenRuntime();
         GenerateCube();
         OnAppear();
     }
