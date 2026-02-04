@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using TMPro;
 using UnityEngine;
@@ -13,6 +14,8 @@ namespace Game.UI.Dictionary
         [SerializeField] private Transform dropsRoot;
         [SerializeField] private BlockDropIconItem dropIconPrefab;
 
+        private readonly List<BlockDropIconItem> activeDropIcons = new List<BlockDropIconItem>();
+        private readonly Stack<BlockDropIconItem> dropIconPool = new Stack<BlockDropIconItem>();
         private BlockPreviewCamera.PreviewInstance previewInstance;
         private BlockPreviewCamera.PreviewSlot previewSlot;
         private bool hasSlot;
@@ -22,15 +25,16 @@ namespace Game.UI.Dictionary
         public void Bind(BlockUVEntry entry, bool discovered, BlockDiscoveryService ds, BlockPreviewCamera preview)
         {
             if (label != null)
-                label.text = discovered ? entry.blockName : "??? (Not discovered)";
+                label.text = discovered ? entry.blockName : "???";
 
             BuildDropList(entry, ds);
-            BuildPreview(entry, preview);
+            BuildPreview(entry, preview, discovered);
         }
 
         public void Unbind(BlockPreviewCamera preview)
         {
             ReleasePreview(preview);
+            ClearDropIcons();
             lastBlockName = null;
             lastPreviewCamera = null;
             if (preview != null && previewInstance != null)
@@ -42,8 +46,7 @@ namespace Game.UI.Dictionary
         {
             if (dropsRoot == null || dropIconPrefab == null || entry == null) return;
 
-            foreach (Transform c in dropsRoot)
-                Destroy(c.gameObject);
+            ClearDropIcons();
 
             if (entry.drops == null || entry.drops.Count == 0) return;
 
@@ -60,16 +63,20 @@ namespace Game.UI.Dictionary
                 if (drop.isSecret && !discovered)
                     continue;
 
-                var icon = Instantiate(dropIconPrefab, dropsRoot);
+                var icon = GetDropIcon();
                 icon.Bind(drop.item.icon, discovered);
+                activeDropIcons.Add(icon);
             }
         }
 
-        private void BuildPreview(BlockUVEntry entry, BlockPreviewCamera preview)
+        private void BuildPreview(BlockUVEntry entry, BlockPreviewCamera preview, bool discovered)
         {
             if (previewImage == null || preview == null || entry == null) return;
 
             ReleasePreview(preview);
+
+            // Keep preview texture even if undiscovered, just tint it darker
+            previewImage.color = discovered ? Color.white : Color.black;
             if (previewInstance == null)
                 previewInstance = preview.AcquirePreview();
 
@@ -83,7 +90,7 @@ namespace Game.UI.Dictionary
             hasSlot = true;
             previewImage.texture = preview.AtlasTexture;
             previewImage.uvRect = previewSlot.uvRect;
-            preview.RenderBlock(previewInstance, entry.blockName, previewSlot);
+            preview.RenderBlock(previewInstance, entry.blockName, previewSlot, previewImage.canvasRenderer);
 
             lastBlockName = entry.blockName;
             lastPreviewCamera = preview;
@@ -100,6 +107,29 @@ namespace Game.UI.Dictionary
             if (preview != null && hasSlot)
                 preview.ReleaseSlot(previewSlot);
             hasSlot = false;
+        }
+
+        private BlockDropIconItem GetDropIcon()
+        {
+            BlockDropIconItem icon = dropIconPool.Count > 0 ? dropIconPool.Pop() : Instantiate(dropIconPrefab);
+            icon.transform.SetParent(dropsRoot, false);
+            icon.gameObject.SetActive(true);
+            return icon;
+        }
+
+        private void RecycleDropIcon(BlockDropIconItem icon)
+        {
+            if (icon == null) return;
+            icon.gameObject.SetActive(false);
+            icon.transform.SetParent(dropsRoot, false);
+            dropIconPool.Push(icon);
+        }
+
+        private void ClearDropIcons()
+        {
+            for (int i = 0; i < activeDropIcons.Count; i++)
+                RecycleDropIcon(activeDropIcons[i]);
+            activeDropIcons.Clear();
         }
     }
 }

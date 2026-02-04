@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
-#if UNITY_RENDER_PIPELINE_URP
 using UnityEngine.Rendering;
+#if UNITY_RENDER_PIPELINE_URP || UNITY_RENDER_PIPELINE_UNIVERSAL
 using UnityEngine.Rendering.Universal;
 #endif
 
@@ -25,6 +25,7 @@ namespace Game.UI.Dictionary
         [SerializeField] private int previewCellSize = 128;
         [SerializeField] private int previewCellPadding = 4;
         [SerializeField] private int maxRendersPerFrame = 6;
+        [SerializeField, Min(0f)] private float previewFps = 10f;
 
         [Header("UV Atlas")]
         [SerializeField] private int atlasColumns = 6;
@@ -48,25 +49,41 @@ namespace Game.UI.Dictionary
         [SerializeField] private bool autoPreviewLight = true;
         [SerializeField] private Color previewLightColor = Color.white;
         [SerializeField] private float previewLightIntensity = 1.1f;
-        [SerializeField] private Vector3 previewLightRotation = new Vector3(50f, -30f, 0f);
-        [SerializeField] private float previewLightRange = 10f;
+        [SerializeField, Min(0f)] private float previewLightBoost = 1.5f;
+
+        [Header("Preview Rotation Sync")]
+        [SerializeField] private bool enablePreviewUpdates = true;
+        [SerializeField] private bool copyRotationFromSource = false;
+        [SerializeField] private Transform rotationSource;
+        [SerializeField] private Color previewClearColor = new Color(0f, 0f, 0f, 0f);
+        [SerializeField] private bool debugPreview = false;
 
         private readonly Dictionary<string, Mesh> meshCache = new Dictionary<string, Mesh>();
         private readonly Stack<PreviewInstance> instancePool = new Stack<PreviewInstance>();
         private readonly List<PreviewInstance> activeInstances = new List<PreviewInstance>();
         private readonly Stack<int> freeSlots = new Stack<int>();
+        private readonly Dictionary<int, ActivePreview> activePreviews = new Dictionary<int, ActivePreview>();
+        private readonly HashSet<int> queuedSlots = new HashSet<int>();
         private bool warnedMissingCamera;
         private bool warnedMissingDatabase;
         private bool warnedMissingMaterial;
         private bool warnedMissingAtlas;
         private bool warnedMissingPreviewAtlas;
+        private bool warnedMissingRotationSource;
+        private float nextDebugAt;
+        private Quaternion lastDebugRotation = Quaternion.identity;
         private RenderTexture previewAtlas;
         private int previewColumns;
         private int previewRows;
         private int nextSlotIndex;
         private Light previewLight;
+        private float nextRenderAt;
+        private bool hasNextRenderTime;
+#if UNITY_RENDER_PIPELINE_URP || UNITY_RENDER_PIPELINE_UNIVERSAL
+        private bool renderHooked;
+#endif
 
-#if UNITY_RENDER_PIPELINE_URP
+#if UNITY_RENDER_PIPELINE_URP || UNITY_RENDER_PIPELINE_UNIVERSAL
         private struct RenderRequest
         {
             public PreviewInstance instance;
@@ -74,9 +91,17 @@ namespace Game.UI.Dictionary
             public RenderTexture target;
             public Rect viewportRect;
             public float aspect;
+            public int slotIndex;
         }
         private readonly Queue<RenderRequest> renderQueue = new Queue<RenderRequest>();
 #endif
+        private struct ActivePreview
+        {
+            public PreviewInstance instance;
+            public string blockName;
+            public PreviewSlot slot;
+            public CanvasRenderer canvasRenderer;
+        }
 
         public sealed class PreviewInstance
         {
@@ -93,23 +118,73 @@ namespace Game.UI.Dictionary
         }
 
         public RenderTexture AtlasTexture => previewAtlas;
+        private bool ShouldAnimatePreviews => enablePreviewUpdates && copyRotationFromSource;
+        private bool UseScriptableRenderPipeline => GraphicsSettings.currentRenderPipeline != null;
+#if UNITY_RENDER_PIPELINE_URP || UNITY_RENDER_PIPELINE_UNIVERSAL
+        private const bool SupportsSrpHook = true;
+#else
+        private const bool SupportsSrpHook = false;
+#endif
 
         void Awake()
         {
             EnsurePreviewObjects();
         }
 
+        private void Update()
+        {
+            if (!ShouldAnimatePreviews || activePreviews.Count == 0) return;
+            if (UseScriptableRenderPipeline && SupportsSrpHook) return;
+
+            if (previewFps > 0f)
+            {
+                float interval = 1f / previewFps;
+                float now = Time.unscaledTime;
+                if (hasNextRenderTime && now < nextRenderAt) return;
+                nextRenderAt = now + interval;
+                hasNextRenderTime = true;
+            }
+
+            var previews = new List<ActivePreview>(activePreviews.Values);
+            int limit = Mathf.Max(1, maxRendersPerFrame);
+            int processed = 0;
+            for (int i = 0; i < previews.Count && processed < limit; i++)
+            {
+                var preview = previews[i];
+                if (!IsPreviewVisible(preview))
+                    continue;
+                RenderBlock(preview.instance, preview.blockName, preview.slot);
+                processed++;
+            }
+
+            if (debugPreview && Time.unscaledTime >= nextDebugAt)
+            {
+                nextDebugAt = Time.unscaledTime + 1f;
+                var rot = rotationSource != null ? rotationSource.localRotation : Quaternion.identity;
+                bool rotChanged = rot != lastDebugRotation;
+                lastDebugRotation = rot;
+                Debug.Log($"[BlockPreviewCamera] Update fallback tick. Active={activePreviews.Count}, Limit={limit}, RotChanged={rotChanged}");
+            }
+        }
+
         private void OnEnable()
         {
-#if UNITY_RENDER_PIPELINE_URP
-            RenderPipelineManager.endFrameRendering += OnEndFrameRendering;
+#if UNITY_RENDER_PIPELINE_URP || UNITY_RENDER_PIPELINE_UNIVERSAL
+            EnsureRenderHook();
 #endif
         }
 
         private void OnDisable()
         {
-#if UNITY_RENDER_PIPELINE_URP
-            RenderPipelineManager.endFrameRendering -= OnEndFrameRendering;
+#if UNITY_RENDER_PIPELINE_URP || UNITY_RENDER_PIPELINE_UNIVERSAL
+            ReleaseRenderHook();
+#endif
+        }
+
+        private void OnDestroy()
+        {
+#if UNITY_RENDER_PIPELINE_URP || UNITY_RENDER_PIPELINE_UNIVERSAL
+            ReleaseRenderHook();
 #endif
         }
 
@@ -131,6 +206,7 @@ namespace Game.UI.Dictionary
         {
             if (instance == null) return;
             activeInstances.Remove(instance);
+            UnregisterActivePreview(instance);
             if (instance.gameObject != null)
                 instance.gameObject.SetActive(false);
             instancePool.Push(instance);
@@ -145,7 +221,9 @@ namespace Game.UI.Dictionary
             }
             nextSlotIndex = 0;
             freeSlots.Clear();
-#if UNITY_RENDER_PIPELINE_URP
+            activePreviews.Clear();
+            queuedSlots.Clear();
+#if UNITY_RENDER_PIPELINE_URP || UNITY_RENDER_PIPELINE_UNIVERSAL
             renderQueue.Clear();
 #endif
         }
@@ -188,9 +266,10 @@ namespace Game.UI.Dictionary
         {
             if (slot.index < 0) return;
             freeSlots.Push(slot.index);
+            UnregisterActivePreview(slot.index);
         }
 
-        public void RenderBlock(PreviewInstance instance, string blockName, PreviewSlot slot)
+        public void RenderBlock(PreviewInstance instance, string blockName, PreviewSlot slot, CanvasRenderer canvasRenderer = null)
         {
             if (instance == null) return;
             if (!TryEnsureCamera())
@@ -212,21 +291,25 @@ namespace Game.UI.Dictionary
                 return;
             }
 
+            if (enablePreviewUpdates)
+                RegisterActivePreview(instance, blockName, slot, canvasRenderer);
             EnsurePreviewAtlas();
             if (previewAtlas == null) return;
 
-#if UNITY_RENDER_PIPELINE_URP
-            float cellWidth = slot.viewportRect.width * previewAtlas.width;
-            float cellHeight = slot.viewportRect.height * previewAtlas.height;
-            renderQueue.Enqueue(new RenderRequest
+#if UNITY_RENDER_PIPELINE_URP || UNITY_RENDER_PIPELINE_UNIVERSAL
+            if (UseScriptableRenderPipeline)
             {
-                instance = instance,
-                blockName = blockName,
-                target = previewAtlas,
-                viewportRect = slot.viewportRect,
-                aspect = Mathf.Approximately(cellHeight, 0f) ? 1f : cellWidth / cellHeight
-            });
-            return;
+                EnsureRenderHook();
+                float cellWidth = slot.viewportRect.width * previewAtlas.width;
+                float cellHeight = slot.viewportRect.height * previewAtlas.height;
+                EnqueuePreview(new ActivePreview
+                {
+                    instance = instance,
+                    blockName = blockName,
+                    slot = slot
+                }, cellWidth, cellHeight);
+                return;
+            }
 #endif
 
             EnsurePreviewObjects();
@@ -250,8 +333,9 @@ namespace Game.UI.Dictionary
             previewCamera.rect = slot.viewportRect;
             previewCamera.aspect = Mathf.Approximately(slot.viewportRect.height, 0f) ? prevAspect : slot.viewportRect.width / slot.viewportRect.height;
 
+            ApplyPreviewRotation(instance);
             SetActiveInstance(instance);
-            ClearSlot(previewAtlas, slot.viewportRect);
+            ClearSlot(previewAtlas, slot.viewportRect, previewClearColor);
             previewCamera.targetTexture = previewAtlas;
             previewCamera.Render();
             previewCamera.targetTexture = null;
@@ -260,12 +344,28 @@ namespace Game.UI.Dictionary
             HideInstance(instance);
         }
 
-#if UNITY_RENDER_PIPELINE_URP
+#if UNITY_RENDER_PIPELINE_URP || UNITY_RENDER_PIPELINE_UNIVERSAL
         private void OnEndFrameRendering(ScriptableRenderContext context, Camera[] cameras)
         {
-            if (renderQueue.Count == 0) return;
+            if (!UseScriptableRenderPipeline) return;
+            if (renderQueue.Count == 0 && (!ShouldAnimatePreviews || activePreviews.Count == 0)) return;
             if (!TryEnsureCamera()) return;
             if (blockDb == null) return;
+
+            if (previewFps > 0f)
+            {
+                float interval = 1f / previewFps;
+                float now = Time.unscaledTime;
+                if (hasNextRenderTime && now < nextRenderAt) return;
+                nextRenderAt = now + interval;
+                hasNextRenderTime = true;
+            }
+
+            if (renderQueue.Count == 0 && ShouldAnimatePreviews)
+            {
+                foreach (var preview in activePreviews.Values)
+                    EnqueuePreview(preview, -1f, -1f);
+            }
 
             EnsurePreviewObjects();
 
@@ -277,6 +377,7 @@ namespace Game.UI.Dictionary
             while (renderQueue.Count > 0 && processed < limit)
             {
                 var req = renderQueue.Dequeue();
+                queuedSlots.Remove(req.slotIndex);
                 if (req.instance == null || req.target == null) continue;
                 processed++;
 
@@ -287,8 +388,9 @@ namespace Game.UI.Dictionary
                 previewCamera.rect = req.viewportRect;
                 previewCamera.aspect = req.aspect;
 
+                ApplyPreviewRotation(req.instance);
                 SetActiveInstance(req.instance);
-                ClearSlot(req.target, req.viewportRect);
+                ClearSlot(req.target, req.viewportRect, previewClearColor);
                 previewCamera.targetTexture = req.target;
                 UniversalRenderPipeline.RenderSingleCamera(context, previewCamera);
                 previewCamera.targetTexture = null;
@@ -297,6 +399,15 @@ namespace Game.UI.Dictionary
 
             previewCamera.rect = prevRect;
             previewCamera.aspect = prevAspect;
+
+            if (debugPreview && Time.unscaledTime >= nextDebugAt)
+            {
+                nextDebugAt = Time.unscaledTime + 1f;
+                var rot = rotationSource != null ? rotationSource.localRotation : Quaternion.identity;
+                bool rotChanged = rot != lastDebugRotation;
+                lastDebugRotation = rot;
+                Debug.Log($"[BlockPreviewCamera] SRP tick. Queue={renderQueue.Count}, Active={activePreviews.Count}, RotChanged={rotChanged}");
+            }
         }
 #endif
 
@@ -318,8 +429,8 @@ namespace Game.UI.Dictionary
             if (previewCamera != null)
             {
                 previewCamera.enabled = false;
-                previewCamera.clearFlags = CameraClearFlags.Nothing;
-                previewCamera.backgroundColor = new Color(0f, 0f, 0f, 0f);
+                previewCamera.clearFlags = CameraClearFlags.SolidColor;
+                previewCamera.backgroundColor = previewClearColor;
                 previewCamera.forceIntoRenderTexture = true;
                 previewCamera.allowMSAA = false;
                 previewCamera.allowHDR = false;
@@ -355,7 +466,7 @@ namespace Game.UI.Dictionary
                 nextSlotIndex = 0;
                 freeSlots.Clear();
 
-                ClearAtlas(previewAtlas);
+                ClearAtlas(previewAtlas, previewClearColor);
             }
             else
             {
@@ -385,12 +496,30 @@ namespace Game.UI.Dictionary
 
         private bool TryEnsureCamera()
         {
+            if (previewCamera != null)
+                return true;
             if (previewCamera == null)
                 previewCamera = GetComponentInChildren<Camera>(true);
             if (previewCamera == null)
                 previewCamera = GetComponent<Camera>();
             return previewCamera != null;
         }
+
+#if UNITY_RENDER_PIPELINE_URP || UNITY_RENDER_PIPELINE_UNIVERSAL
+        private void EnsureRenderHook()
+        {
+            if (renderHooked) return;
+            RenderPipelineManager.endFrameRendering += OnEndFrameRendering;
+            renderHooked = true;
+        }
+
+        private void ReleaseRenderHook()
+        {
+            if (!renderHooked) return;
+            RenderPipelineManager.endFrameRendering -= OnEndFrameRendering;
+            renderHooked = false;
+        }
+#endif
 
         private PreviewInstance CreateInstance()
         {
@@ -419,6 +548,98 @@ namespace Game.UI.Dictionary
             };
         }
 
+        private void ApplyPreviewRotation(PreviewInstance instance)
+        {
+            if (!copyRotationFromSource || instance == null || instance.gameObject == null)
+                return;
+            if (rotationSource == null)
+            {
+                if (!warnedMissingRotationSource)
+                {
+                    Debug.LogWarning("[BlockPreviewCamera] Copy rotation enabled but rotation source is missing.", this);
+                    warnedMissingRotationSource = true;
+                }
+                return;
+            }
+
+            instance.gameObject.transform.localRotation = rotationSource.localRotation;
+        }
+
+        private void RegisterActivePreview(PreviewInstance instance, string blockName, PreviewSlot slot, CanvasRenderer canvasRenderer)
+        {
+            if (instance == null || slot.index < 0) return;
+            if (canvasRenderer == null && activePreviews.TryGetValue(slot.index, out var existing))
+                canvasRenderer = existing.canvasRenderer;
+            activePreviews[slot.index] = new ActivePreview
+            {
+                instance = instance,
+                blockName = blockName,
+                slot = slot,
+                canvasRenderer = canvasRenderer
+            };
+        }
+
+        private void UnregisterActivePreview(int slotIndex)
+        {
+            if (slotIndex < 0) return;
+            activePreviews.Remove(slotIndex);
+            queuedSlots.Remove(slotIndex);
+        }
+
+        private void UnregisterActivePreview(PreviewInstance instance)
+        {
+            if (instance == null || activePreviews.Count == 0) return;
+            int foundIndex = -1;
+            foreach (var kvp in activePreviews)
+            {
+                if (kvp.Value.instance == instance)
+                {
+                    foundIndex = kvp.Key;
+                    break;
+                }
+            }
+            if (foundIndex >= 0)
+                UnregisterActivePreview(foundIndex);
+        }
+
+#if UNITY_RENDER_PIPELINE_URP || UNITY_RENDER_PIPELINE_UNIVERSAL
+        private void EnqueuePreview(ActivePreview preview, float cellWidth, float cellHeight)
+        {
+            int slotIndex = preview.slot.index;
+            if (slotIndex < 0) return;
+            if (!IsPreviewVisible(preview)) return;
+            if (!queuedSlots.Add(slotIndex)) return;
+
+            float width = cellWidth;
+            float height = cellHeight;
+            if (width <= 0f || height <= 0f)
+            {
+                EnsurePreviewAtlas();
+                if (previewAtlas != null)
+                {
+                    width = preview.slot.viewportRect.width * previewAtlas.width;
+                    height = preview.slot.viewportRect.height * previewAtlas.height;
+                }
+            }
+
+            renderQueue.Enqueue(new RenderRequest
+            {
+                instance = preview.instance,
+                blockName = preview.blockName,
+                target = previewAtlas,
+                viewportRect = preview.slot.viewportRect,
+                aspect = Mathf.Approximately(height, 0f) ? 1f : width / height,
+                slotIndex = slotIndex
+            });
+        }
+#endif
+
+        private static bool IsPreviewVisible(ActivePreview preview)
+        {
+            var renderer = preview.canvasRenderer;
+            return renderer == null || (renderer.gameObject.activeInHierarchy && !renderer.cull);
+        }
+
         private void EnsurePreviewLight()
         {
             if (!autoPreviewLight || previewRoot == null)
@@ -433,10 +654,8 @@ namespace Game.UI.Dictionary
 
             previewLight.type = LightType.Directional;
             previewLight.color = previewLightColor;
-            previewLight.intensity = previewLightIntensity;
-            previewLight.range = previewLightRange;
+            previewLight.intensity = previewLightIntensity * previewLightBoost;
             previewLight.shadows = LightShadows.None;
-            previewLight.transform.localRotation = Quaternion.Euler(previewLightRotation);
             previewLight.cullingMask = 1 << previewLayer;
         }
 
@@ -565,15 +784,15 @@ namespace Game.UI.Dictionary
             return SetMapByID(atlasIndex);
         }
 
-        private static void ClearAtlas(RenderTexture target)
+        private static void ClearAtlas(RenderTexture target, Color clearColor)
         {
             var prev = RenderTexture.active;
             RenderTexture.active = target;
-            GL.Clear(true, true, new Color(0f, 0f, 0f, 0f));
+            GL.Clear(true, true, clearColor);
             RenderTexture.active = prev;
         }
 
-        private static void ClearSlot(RenderTexture target, Rect viewportRect)
+        private static void ClearSlot(RenderTexture target, Rect viewportRect, Color clearColor)
         {
             if (target == null) return;
             var prev = RenderTexture.active;
@@ -585,7 +804,7 @@ namespace Game.UI.Dictionary
                 viewportRect.height * target.height
             );
             GL.Viewport(pixelRect);
-            GL.Clear(true, true, new Color(0f, 0f, 0f, 0f));
+            GL.Clear(true, true, clearColor);
             GL.Viewport(new Rect(0, 0, target.width, target.height));
             RenderTexture.active = prev;
         }

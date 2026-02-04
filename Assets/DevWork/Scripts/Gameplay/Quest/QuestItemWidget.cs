@@ -28,6 +28,9 @@ public class QuestItemWidget : MonoBehaviour
         _questId = def.id;
         _canClaim = false;
 
+        if (rootButton == null)
+            rootButton = GetComponent<Button>();
+
         // ---- Title ----
         if (titleText)
             titleText.text = def.title;
@@ -64,38 +67,16 @@ public class QuestItemWidget : MonoBehaviour
             .AddTo(_cd);
 
         // ---- Completed / Claimed state ----
+        ApplyClaimState(tr.Completed.Value, tr.RewardClaimed.Value);
         Observable.CombineLatest(tr.Completed, tr.RewardClaimed,
             (completed, rewardClaimed) => (completed, rewardClaimed))
-            .Subscribe(state =>
-            {
-                bool completed = state.completed;
-                bool rewardClaimed = state.rewardClaimed;
-
-                _canClaim = completed && !rewardClaimed;
-
-                // Background color feedback (optional)
-                if (background)
-                {
-                    if (rewardClaimed)
-                        background.color = new Color(0.55f, 0.55f, 0.55f);   // grey for claimed
-                    else if (_canClaim)
-                        background.color = new Color(0.7f, 0.9f, 0.7f);      // green-ish for ready
-                    else
-                        background.color = Color.white;                      // normal
-                }
-
-                if (rootButton != null)
-                    rootButton.interactable = _canClaim;
-            })
+            .Subscribe(state => ApplyClaimState(state.completed, state.rewardClaimed))
             .AddTo(_cd);
 
         // ---- Reward icon ----
         SetupRewardIcon(def);
 
         // ---- Click to claim (whole panel) ----
-        if (rootButton == null)
-            rootButton = GetComponent<Button>();
-
         if (rootButton != null)
         {
             rootButton.onClick.RemoveAllListeners();
@@ -232,6 +213,25 @@ public class QuestItemWidget : MonoBehaviour
             return;
 
         QuestManager.Ins.ClaimReward(_questId);
+    }
+
+    private void ApplyClaimState(bool completed, bool rewardClaimed)
+    {
+        _canClaim = completed && !rewardClaimed;
+
+        // Background color feedback (optional)
+        if (background)
+        {
+            if (rewardClaimed)
+                background.color = new Color(0.55f, 0.55f, 0.55f);   // grey for claimed
+            else if (_canClaim)
+                background.color = new Color(0.7f, 0.9f, 0.7f);      // green-ish for ready
+            else
+                background.color = Color.white;                      // normal
+        }
+
+        if (rootButton != null)
+            rootButton.interactable = _canClaim;
     }
 
     private void OnDisable()

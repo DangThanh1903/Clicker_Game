@@ -70,6 +70,30 @@ public class PopupController : MonoBehaviour
         return popup;
     }
 
+    // Show with pre-open initialization (avoids visible content pop-in)
+    public async Task<PopupView> Show(PopupView popupPrefab, System.Action<PopupView> initBeforeOpen)
+    {
+        if (popupPrefab == null) return null;
+
+        var go = LeanPool.Spawn(popupPrefab.gameObject, popupRoot);
+        var popup = go.GetComponent<PopupView>();
+
+        go.transform.SetAsLastSibling();
+        if (go.transform is RectTransform rt)
+        {
+            rt.anchoredPosition = Vector2.zero;
+            rt.localScale = Vector3.one;
+        }
+
+        initBeforeOpen?.Invoke(popup);
+
+        stack.Push(popup);
+
+        await FadeBackdropTo(1f, enableRaycast: true);
+        await popup.OpenAsync();
+        return popup;
+    }
+
     public async void CloseTop()
     {
         if (stack.Count == 0) return;

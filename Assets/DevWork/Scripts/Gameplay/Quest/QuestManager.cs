@@ -101,6 +101,17 @@ public class QuestManager : MonoBehaviour
         }
         else
         {
+            // Merge with local to avoid cloud overwriting newer claimed states
+            var localProgress = storage.LoadProgressStates();
+            var localDaily = storage.LoadDailyStates();
+            var localDailyKey = storage.LoadDailyKey();
+            var localDailyIds = storage.LoadDailySelectedIds();
+
+            progressStates = MergeStates(progressStates, localProgress);
+            dailyStates = MergeStates(dailyStates, localDaily);
+            if (string.IsNullOrEmpty(savedDailyKey)) savedDailyKey = localDailyKey;
+            if (savedDailyIds == null || savedDailyIds.Count == 0) savedDailyIds = localDailyIds;
+
             storage.SaveProgressStates(progressStates);
             storage.SaveDailyStates(dailyStates);
             storage.SaveDailyKey(savedDailyKey ?? "");
@@ -310,6 +321,47 @@ public class QuestManager : MonoBehaviour
         }
 
         return states;
+    }
+
+    private List<QuestState> MergeStates(List<QuestState> primary, List<QuestState> secondary)
+    {
+        var map = (primary ?? new List<QuestState>()).ToDictionary(s => s.questId);
+        foreach (var s in secondary ?? new List<QuestState>())
+        {
+            if (!map.TryGetValue(s.questId, out var p))
+            {
+                map[s.questId] = s;
+                continue;
+            }
+
+            p.completed = p.completed || s.completed;
+            p.rewardClaimed = p.rewardClaimed || s.rewardClaimed;
+
+            if (s.steps != null)
+            {
+                foreach (var step in s.steps)
+                {
+                    var pStep = p.steps?.FirstOrDefault(x => x.stepId == step.stepId);
+                    if (pStep == null)
+                    {
+                        p.steps ??= new List<QuestStepState>();
+                        p.steps.Add(new QuestStepState
+                        {
+                            stepId = step.stepId,
+                            currentAmount = step.currentAmount,
+                            completed = step.completed
+                        });
+                    }
+                    else
+                    {
+                        pStep.currentAmount = Mathf.Max(pStep.currentAmount, step.currentAmount);
+                        pStep.completed = pStep.completed || step.completed;
+                    }
+                }
+            }
+        }
+
+        return map.Values.ToList();
     }
 
     private void RefreshUnlockStates()

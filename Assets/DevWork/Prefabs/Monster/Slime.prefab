@@ -125,6 +125,9 @@ MonoBehaviour:
   hitPunchDuration: 0.12
   hitPunchVibrato: 8
   hitPunchElasticity: 0.6
+  hitFlashColor: {r: 1, g: 0.3, b: 0.3, a: 1}
+  hitFlashDuration: 0.12
+  hitSfxKey: Hit
 --- !u!114 &5508494618660715028
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -220,6 +223,9 @@ MonoBehaviour:
   hitPunchDuration: 0.12
   hitPunchVibrato: 8
   hitPunchElasticity: 0.6
+  hitFlashColor: {r: 1, g: 0.3, b: 0.3, a: 1}
+  hitFlashDuration: 0.12
+  hitSfxKey: Hit
 --- !u!114 &1053915321751253877
 MonoBehaviour:
   m_ObjectHideFlags: 0

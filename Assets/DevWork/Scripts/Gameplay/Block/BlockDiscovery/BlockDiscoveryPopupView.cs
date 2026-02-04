@@ -21,9 +21,8 @@ public class BlockDiscoveryPopupView : PopupView
     {
         _blockName = entry.blockName;
 
-        title.text = $"Discovered: {entry.blockName}";
-        appears.text =
-            $"Appears: {entry.locationCondition} • {entry.timeStateCondition} • {entry.normalWeatherCondition} • {entry.specialWeatherCondition}";
+        title.text = $"{entry.blockName}";
+        appears.text = BuildAppearsText(entry);
 
         drops.text = BuildDropsPreview(entry);
 
@@ -42,6 +41,28 @@ public class BlockDiscoveryPopupView : PopupView
                 PopupController.Instance.CloseTop();
             });
         }
+    }
+
+    private string BuildAppearsText(BlockUVEntry entry)
+    {
+        if (entry == null)
+            return "Appears: Any";
+
+        var parts = new System.Collections.Generic.List<string>();
+
+        if (entry.locationCondition != BlockSpawnLocation.Any)
+            parts.Add(entry.locationCondition.ToString());
+        if (entry.timeStateCondition != TimeState.Any)
+            parts.Add(entry.timeStateCondition.ToString());
+        if (entry.normalWeatherCondition != NormalWeatherName.Any)
+            parts.Add(entry.normalWeatherCondition.ToString());
+        if (entry.specialWeatherCondition != SpecialWeatherName.Any)
+            parts.Add(entry.specialWeatherCondition.ToString());
+
+        if (parts.Count == 0)
+            return "Appears: Any";
+
+        return "Appears: " + string.Join(" • ", parts);
     }
 
     private string BuildDropsPreview(BlockUVEntry entry)

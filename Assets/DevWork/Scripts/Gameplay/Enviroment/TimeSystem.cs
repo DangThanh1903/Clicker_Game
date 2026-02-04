@@ -312,15 +312,7 @@ public class TimeSystem : MonoBehaviour
         if (skyboxMaterial.HasProperty("_SunDir"))
             skyboxMaterial.SetVector("_SunDir", sunDir);
 
-        if (skyboxMaterial.HasProperty("_Rotation"))
-        {
-            Vector3 flat = new Vector3(sunDir.x, 0f, sunDir.z);
-            if (flat.sqrMagnitude > 0.0001f)
-            {
-                float rot = Mathf.Atan2(flat.x, flat.z) * Mathf.Rad2Deg;
-                skyboxMaterial.SetFloat("_Rotation", rot);
-            }
-        }
+        // Disable skybox rotation updates to avoid fast/unsynced spinning
     }
 
     private void EnsureMainLight()

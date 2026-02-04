@@ -31,6 +31,9 @@ public class QuestTracker : IDisposable
                 .AddTo(_cd);
         }
 
+        // Load claimed state (prevents re-claim after restart)
+        RewardClaimed.Value = saved?.rewardClaimed ?? false;
+
         // Completed khi tất cả step completed
         var stepsCompleted = Steps.ObserveCountChanged().StartWith(Steps.Count)
             .Select(_ => Steps.All(s => s.Completed.Value))
@@ -58,3 +61,4 @@ public class QuestTracker : IDisposable
         _cd.Dispose();
     }
 }
+

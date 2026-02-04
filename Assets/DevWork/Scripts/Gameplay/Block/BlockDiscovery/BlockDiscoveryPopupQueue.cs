@@ -59,9 +59,11 @@ public class BlockDiscoveryPopupQueue : MonoBehaviour
                 continue;
             }
 
-            var popup = await PopupController.Instance.Show(popupPrefab);
-            if (popup is BlockDiscoveryPopupView view)
-                view.Bind(entry);
+            await PopupController.Instance.Show(popupPrefab, popup =>
+            {
+                if (popup is BlockDiscoveryPopupView view)
+                    view.Bind(entry);
+            });
 
             // Wait until the popup stack is empty again
             while (PopupController.Instance.IsAnyPopupOpen())

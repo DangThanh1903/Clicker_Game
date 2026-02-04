@@ -117,10 +117,19 @@ public class LocationLoader : MonoBehaviour
             return;
         }
 
-        BlockSpawnLocation previousLocation = currentLocation;
         BlockSpawnLocation newLoc = (BlockSpawnLocation)index;
 
         UIManager.Ins.SetLocationBackground(index - 1);
+
+        if (isInitiate && _bootstrapped && currentLocation == newLoc)
+        {
+            if (ReactiveLocation != null)
+                ReactiveLocation.Value = newLoc;
+            return;
+        }
+
+        BlockSpawnLocation previousLocation = currentLocation;
+
 
         currentLocation = newLoc;
         DataSaver.Ins.currentLocation = newLoc;

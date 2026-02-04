@@ -35,6 +35,8 @@ public class BlockManager : MonoBehaviour
             currentBlock.SetClickableBlock(DataSaver.Ins.currentBlock ?? "Dirt");
 
         int startIndex = DataSaver.Ins.currentLocation.HasValue ? (int)DataSaver.Ins.currentLocation.Value : 1;
+        if (startIndex == 0)
+            startIndex = 1;
         if (locationLoader != null)
             locationLoader.SetLocation(startIndex, isInitiate: true);
     }

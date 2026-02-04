@@ -285,8 +285,21 @@ public class UIManager : MonoBehaviour
 
     public void SetLocationBackground(int index)
     {
+        if (locationTexture2D == null || locationTexture2D.Length == 0)
+        {
+            Debug.LogWarning("[UIManager] Location textures are not assigned.");
+            return;
+        }
+
+        if (index < 0 || index >= locationTexture2D.Length)
+        {
+            Debug.LogWarning($"[UIManager] Location texture index out of range: {index} (count={locationTexture2D.Length}).");
+            return;
+        }
+
         foreach (var image in locationBackground)
         {
+            if (image == null) continue;
             image.sprite = locationTexture2D[index];
         }
     }
