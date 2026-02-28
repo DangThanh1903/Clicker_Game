@@ -1,7 +1,9 @@
 using System;
+using System.Collections;
 using Sirenix.OdinInspector;
 using UniRx;
 using UnityEngine;
+using Lean.Pool;
 
 public class PlayerController : MonoBehaviour
 {
@@ -27,6 +29,13 @@ public class PlayerController : MonoBehaviour
 
     [Header("Pickaxe")]
     [SerializeField] InventoryData pickaxeData;
+    [SerializeField] private Transform holdBeamOrigin;
+
+    private Pickaxe equippedPickaxe;
+    private GameObject activeHoldBeamObject;
+    private HoldBeamVFX activeHoldBeam;
+    private Vector3 pendingHoldPoint;
+    private float lastHoldUpdateTime = -999f;
 
     // Health and state setup
     private void Awake()
@@ -44,12 +53,23 @@ public class PlayerController : MonoBehaviour
     }
     void Update()
     {
-        if (pendingFrame != Time.frameCount) return;
-        if (lastProcessedFrame == Time.frameCount) return;
-        if (pendingTarget == null) return;
+        if (pendingFrame == Time.frameCount &&
+            lastProcessedFrame != Time.frameCount &&
+            pendingTarget != null)
+        {
+            lastProcessedFrame = Time.frameCount;
+            currentState.OnUpdate(this, pendingTarget);
+        }
 
-        lastProcessedFrame = Time.frameCount;
-        currentState.OnUpdate(this, pendingTarget);
+        // Hold mana regen should not depend on a target dispatch path.
+        if (!IsDead &&
+            currentState is HoldState &&
+            Time.unscaledTime - lastHoldUpdateTime > 0.08f)
+        {
+            RegenMana();
+        }
+
+        UpdateHoldBeamLifecycle();
     }
     void OnEnable()
     {
@@ -82,6 +102,7 @@ public class PlayerController : MonoBehaviour
     {
         regenSub?.Dispose(); regenSub = null;
         deathSub?.Dispose(); deathSub = null;
+        StopHoldBeam(immediate: true);
     }
 
     void SubscribeDeath()
@@ -96,15 +117,7 @@ public class PlayerController : MonoBehaviour
     void SetUpCurrentStateItem()
     {
         var item = pickaxeData.GetItem(0).itemData;
-        if (item == null || item.Type == ItemType.None)
-        {
-            SetState(new NormalState());
-        }
-        else
-        {
-            var temp = item as Pickaxe;
-            SetStateByType(temp.currentState);
-        }
+        SetEquippedPickaxe(item as Pickaxe);
     }
     public void SetStateByType(PickaxeType pickaxeType)
     {
@@ -131,6 +144,9 @@ public class PlayerController : MonoBehaviour
         currentState = newState;
 
         currentState.OnEnter(this);
+
+        if (newState is not HoldState)
+            StopHoldBeam();
     }
     public void OnUpdate(IDamagable clickableObject)
     {
@@ -159,9 +175,26 @@ public class PlayerController : MonoBehaviour
 
     public void OnHold(IDamagable clickableObject)
     {
+        OnHold(clickableObject, Vector3.zero);
+    }
+
+    public void OnHold(IDamagable clickableObject, Vector3 holdPoint)
+    {
         if (StatsManager.Ins.Get(StatType.CurrentMana) > 10f)
         {
+            if (currentState is HoldState)
+            {
+                pendingHoldPoint = holdPoint;
+                lastHoldUpdateTime = Time.unscaledTime;
+                EnsureHoldBeam();
+                UpdateHoldBeamPositions(pendingHoldPoint);
+            }
+
             currentState.OnHold(this, clickableObject);
+        }
+        else
+        {
+            StopHoldBeam();
         }
     }
 
@@ -204,18 +237,138 @@ public class PlayerController : MonoBehaviour
     {
         if (IsDead) return;
         IsDead = true;
+        StopHoldBeam();
 
         OnDied?.Invoke();
 
-        Respawn(100);
+        Respawn(1f);
     }
     public void Respawn(float hpPercent = 1f)
     {
+        float percent = Mathf.Clamp01(hpPercent);
         float max = StatsManager.Ins.Get(StatType.HP);
-        StatsManager.Ins.Set(StatType.CurrentHP, Mathf.Clamp01(hpPercent) * max);
+        StatsManager.Ins.Set(StatType.CurrentHP, max * percent);
+        StatsManager.Ins.ForceNotifyStatsChanged();
         IsDead = false;
 
         SubscribeDeath();
+    }
+
+    public void SetEquippedPickaxe(Pickaxe pickaxe)
+    {
+        equippedPickaxe = pickaxe;
+
+        if (equippedPickaxe == null || equippedPickaxe.Type == ItemType.None)
+        {
+            SetState(new NormalState());
+            StopHoldBeam();
+            return;
+        }
+
+        SetStateByType(equippedPickaxe.currentState);
+    }
+
+    private void UpdateHoldBeamLifecycle()
+    {
+        if (activeHoldBeamObject == null) return;
+
+        bool invalidHold =
+            IsDead ||
+            currentState is not HoldState ||
+            !Input.GetMouseButton(0) ||
+            StatsManager.Ins.Get(StatType.CurrentMana) <= 10f;
+
+        // Small tolerance avoids despawn/spawn jitter when one raycast frame is missed.
+        if (!invalidHold && Time.unscaledTime - lastHoldUpdateTime > 0.15f)
+            invalidHold = true;
+
+        if (invalidHold)
+            StopHoldBeam();
+    }
+
+    private void EnsureHoldBeam()
+    {
+        if (activeHoldBeamObject != null) return;
+        if (equippedPickaxe == null) return;
+        if (equippedPickaxe.HoldBeamVfxPrefab == null) return;
+
+        activeHoldBeamObject = LeanPool.Spawn(equippedPickaxe.HoldBeamVfxPrefab);
+        activeHoldBeam = activeHoldBeamObject.GetComponent<HoldBeamVFX>();
+        Vector3 start = GetHoldBeamStartPosition();
+
+        if (activeHoldBeam != null)
+        {
+            activeHoldBeam.Begin(start);
+        }
+        else
+        {
+            Debug.LogWarning("[PlayerController] Hold beam prefab is missing HoldBeamVFX component.");
+        }
+    }
+
+    private void UpdateHoldBeamPositions(Vector3 endPoint)
+    {
+        if (activeHoldBeamObject == null) return;
+
+        if (activeHoldBeam != null)
+        {
+            activeHoldBeam.SetEndPoint(endPoint);
+        }
+    }
+
+    private Vector3 GetHoldBeamStartPosition()
+    {
+        Transform origin = holdBeamOrigin;
+
+        if (origin == null && Camera.main != null)
+            origin = Camera.main.transform;
+
+        if (origin == null)
+            return Vector3.zero;
+
+        Vector3 offset = equippedPickaxe != null ? equippedPickaxe.HoldBeamStartOffset : Vector3.zero;
+        return origin.position + origin.TransformDirection(offset);
+    }
+
+    private void StopHoldBeam(bool immediate = false)
+    {
+        if (activeHoldBeamObject == null)
+        {
+            activeHoldBeam = null;
+            lastHoldUpdateTime = -999f;
+            return;
+        }
+
+        GameObject beamToStop = activeHoldBeamObject;
+        HoldBeamVFX beamVfx = activeHoldBeam;
+
+        activeHoldBeamObject = null;
+        activeHoldBeam = null;
+        lastHoldUpdateTime = -999f;
+
+        if (immediate || beamVfx == null)
+        {
+            LeanPool.Despawn(beamToStop);
+            return;
+        }
+
+        beamVfx.EndBeam();
+        float delay = beamVfx.EndDespawnDelay;
+        if (delay <= 0f)
+        {
+            LeanPool.Despawn(beamToStop);
+            return;
+        }
+
+        StartCoroutine(DespawnHoldBeamAfterDelay(beamToStop, delay));
+    }
+
+    private IEnumerator DespawnHoldBeamAfterDelay(GameObject beamObject, float delay)
+    {
+        yield return new WaitForSecondsRealtime(delay);
+
+        if (beamObject != null)
+            LeanPool.Despawn(beamObject);
     }
 
     #endregion

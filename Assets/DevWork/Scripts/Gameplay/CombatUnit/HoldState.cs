@@ -22,6 +22,6 @@ public class HoldState : ClickerState
 
     public override void OnUpdate(PlayerController controller, IDamagable clickableObject)
     {
-        controller.RegenMana();
+        // Regen is handled centrally in PlayerController.Update so it does not depend on target callbacks.
     }
 }

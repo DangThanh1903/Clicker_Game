@@ -197,7 +197,7 @@ public class ClickableObject : MonoBehaviour, IDamagable
             if (Physics.Raycast(ray, out RaycastHit hit) && hit.transform == transform)
             {
                 onClickPos = GetUIPosition(hit.point);
-                player.OnHold(this);
+                player.OnHold(this, hit.point);
             }
         }
         else if (Input.GetMouseButtonUp(0))

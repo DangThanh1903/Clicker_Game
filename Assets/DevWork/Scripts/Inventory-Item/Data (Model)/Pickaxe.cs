@@ -13,9 +13,14 @@ public class Pickaxe : Item, IStatProvider
 {
     [SerializeField] private List<StatModifier> modifiers;
     [SerializeField] private List<BuffSO> passiveBuffs;
+    [Header("Hold VFX")]
+    [SerializeField] private GameObject holdBeamVfxPrefab;
+    [SerializeField] private Vector3 holdBeamStartOffset = new Vector3(0f, 0f, 0.1f);
 
     public override ItemType Type => ItemType.Pickaxe;
     public PickaxeType currentState = PickaxeType.Normal;
+    public GameObject HoldBeamVfxPrefab => holdBeamVfxPrefab;
+    public Vector3 HoldBeamStartOffset => holdBeamStartOffset;
 
     public IEnumerable<StatModifier> GetStatModifiers()
     {

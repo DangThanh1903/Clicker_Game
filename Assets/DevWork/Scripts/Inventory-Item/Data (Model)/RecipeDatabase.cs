@@ -10,11 +10,13 @@ public class RecipeDatabase : ScriptableObject
 
     // Lookup dictionary for quick recipe search by item layout key (ignores quantities)
     private Dictionary<string, List<Recipe>> recipeLookupByItems;
+    private Dictionary<string, List<RecipeVariant>> recipeVariantLookupByItems;
     private Dictionary<Item, List<Recipe>> recipeLookupByResult;
 
     public void Initialize()
     {
         recipeLookupByItems = new Dictionary<string, List<Recipe>>();
+        recipeVariantLookupByItems = new Dictionary<string, List<RecipeVariant>>();
 
         foreach (var recipe in recipes)
         {
@@ -28,6 +30,13 @@ public class RecipeDatabase : ScriptableObject
                 }
                 if (!list.Contains(recipe))
                     list.Add(recipe);
+
+                if (!recipeVariantLookupByItems.TryGetValue(keyIgnoringQuantity, out var vlist))
+                {
+                    vlist = new List<RecipeVariant>();
+                    recipeVariantLookupByItems[keyIgnoringQuantity] = vlist;
+                }
+                vlist.Add(new RecipeVariant { recipe = recipe, variant = variant });
             }
         }
 
@@ -134,22 +143,22 @@ public class RecipeDatabase : ScriptableObject
         var normalizedInput = NormalizeIngredients(inputIngredients);
         string inputKey = GenerateKeyIgnoringQuantity(normalizedInput);
 
-        if (recipeLookupByItems.TryGetValue(inputKey, out var possibleRecipes))
+        if (recipeVariantLookupByItems != null && recipeVariantLookupByItems.TryGetValue(inputKey, out var variants))
         {
-            foreach (var recipe in possibleRecipes)
+            foreach (var entry in variants)
             {
-                foreach (var variant in GenerateAllVariants(recipe.ingredients))
-                {
-                    if (GenerateKeyIgnoringQuantity(variant) == inputKey &&
-                        IsQuantityEnough(normalizedInput, variant))
-                    {
-                        return (recipe, variant);
-                    }
-                }
+                if (IsQuantityEnough(normalizedInput, entry.variant))
+                    return (entry.recipe, entry.variant);
             }
         }
 
         return (null, null);
+    }
+
+    private struct RecipeVariant
+    {
+        public Recipe recipe;
+        public List<InventoryItem> variant;
     }
 
     private bool IsQuantityEnough(List<InventoryItem> input, List<InventoryItem> recipe)

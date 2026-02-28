@@ -158,13 +158,29 @@ public class LocationLoader : MonoBehaviour
 
     public void SpawnLocation(LocationSO.LocationData data, bool isInitiate = false)
     {
-        if (isInitiate || currentInstance == null)
+        if (currentInstance == null)
         {
             DoSpawn(data);
             return;
         }
 
+        if (isInitiate)
+        {
+            DespawnCurrentLocationImmediate();
+            DoSpawn(data);
+            return;
+        }
+
         DespawnCurrentLocationWithAnim(() => DoSpawn(data));
+    }
+
+    private void DespawnCurrentLocationImmediate()
+    {
+        if (!currentInstance)
+            return;
+
+        LeanPool.Despawn(currentInstance);
+        currentInstance = null;
     }
 
     private void DoSpawn(LocationSO.LocationData data)

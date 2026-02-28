@@ -33,6 +33,8 @@ public class InventorySlotUI : MonoBehaviour, IDropHandler
 
     public InventoryData GetBoundInventory() => boundInventory;
     public int GetSlotIndex() => slotIndex;
+    public SlotAcceptRuleSO GetAcceptRule() => acceptRule;
+    public void SetAcceptRule(SlotAcceptRuleSO rule) => acceptRule = rule;
 
     public void UpdateSlotUI(InventoryItem item)
     {

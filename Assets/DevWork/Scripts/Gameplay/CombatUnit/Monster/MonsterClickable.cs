@@ -132,7 +132,7 @@ public class MonsterClickable : MonoBehaviour, IDamagable
             if (isPressedOnThis && Physics.Raycast(ray, out RaycastHit hit) && (hit.transform == transform || hit.transform.IsChildOf(transform)))
             {
                 onClickPos = GetUIPosition(hit.point);
-                PlayerController.Instance.OnHold(this);
+                PlayerController.Instance.OnHold(this, hit.point);
             }
         }
         else if (Input.GetMouseButtonUp(0))

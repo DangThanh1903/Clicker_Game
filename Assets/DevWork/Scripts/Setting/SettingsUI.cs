@@ -15,6 +15,10 @@ public class SettingsUI : MonoBehaviour
     [SerializeField] private LocaleSwitcher localeSwitcher;
     [SerializeField] private Toggle fpsToggle;
     [SerializeField] private FpsDisplay fpsDisplay;
+    [Header("Gift Code")]
+    [SerializeField] private TMP_InputField giftCodeInput;
+    [SerializeField] private Button giftCodeRedeemButton;
+    [SerializeField] private TMP_Text giftCodeStatusText;
 
     private const string SFXVolumeKey = "SFXVolume";
 
@@ -60,6 +64,9 @@ public class SettingsUI : MonoBehaviour
 
         if (fpsToggle != null)
             SetupFpsToggle();
+
+        if (giftCodeRedeemButton != null)
+            giftCodeRedeemButton.onClick.AddListener(OnGiftCodeRedeemClicked);
     }
 
     private void OnDestroy()
@@ -75,6 +82,9 @@ public class SettingsUI : MonoBehaviour
 
         if (fpsToggle != null)
             fpsToggle.onValueChanged.RemoveListener(OnFpsToggleChanged);
+
+        if (giftCodeRedeemButton != null)
+            giftCodeRedeemButton.onClick.RemoveListener(OnGiftCodeRedeemClicked);
     }
 
     private void OnSfxSliderChanged(float sliderValue)
@@ -190,5 +200,31 @@ public class SettingsUI : MonoBehaviour
     {
         if (fpsDisplay != null)
             fpsDisplay.SetVisible(show);
+    }
+
+    private async void OnGiftCodeRedeemClicked()
+    {
+        if (giftCodeInput == null) return;
+
+        string code = giftCodeInput.text;
+        if (giftCodeRedeemButton != null)
+            giftCodeRedeemButton.interactable = false;
+
+        SetGiftCodeStatus("Checking...");
+
+        var result = await GiftCodeService.RedeemAsync(code);
+        SetGiftCodeStatus(result.message);
+
+        if (result.status == GiftCodeRedeemStatus.Success)
+            giftCodeInput.text = string.Empty;
+
+        if (giftCodeRedeemButton != null)
+            giftCodeRedeemButton.interactable = true;
+    }
+
+    private void SetGiftCodeStatus(string message)
+    {
+        if (giftCodeStatusText != null)
+            giftCodeStatusText.text = message ?? string.Empty;
     }
 }

@@ -5,6 +5,8 @@ using Lean.Pool;
 
 public static class InventorySlotFactory
 {
+    private static DontAccpetAnyRuleSO craftingOutAcceptRule;
+
     public static void CreateSlots(InventorySection section)
     {
         // Clean previous
@@ -20,6 +22,13 @@ public static class InventorySlotFactory
         {
             var slotGO = LeanPool.Spawn(section.slotPrefab, section.slotParent);
             var slotUI = slotGO.GetComponent<InventorySlotUI>();
+
+            if (inventory.inventoryType == InventoryType.CraftingOut)
+            {
+                craftingOutAcceptRule ??= ScriptableObject.CreateInstance<DontAccpetAnyRuleSO>();
+                slotUI.SetAcceptRule(craftingOutAcceptRule);
+            }
+
             slotUI.Bind(inventory, i);
             slotUI.UpdateSlotUI(inventory.Items[i]);
 
@@ -38,7 +47,7 @@ public static class InventorySlotFactory
                     section.slotUIs[index].UpdateSlotUI(x.NewValue);
                     if (section.inventoryData.inventoryType == InventoryType.Pickaxe)
                     {
-                        HandlePickaxeState(x.NewValue.itemData as Pickaxe ?? ScriptableObject.CreateInstance<Pickaxe>());
+                        HandlePickaxeState(x.NewValue.itemData);
                     }
                 }
             })
@@ -60,13 +69,12 @@ public static class InventorySlotFactory
 
     public static void HandlePickaxeState(Item item)
     {
-        if (item is not Pickaxe pickaxe || item == null || item.Type == ItemType.None)
-        {
-            PlayerController.Instance.SetState(new NormalState());
-        }
+        var player = PlayerController.Instance;
+        if (player == null) return;
+
+        if (item is not Pickaxe pickaxe || item.Type == ItemType.None)
+            player.SetEquippedPickaxe(null);
         else
-        {
-            PlayerController.Instance.SetStateByType(pickaxe.currentState);
-        }
+            player.SetEquippedPickaxe(pickaxe);
     }
 }

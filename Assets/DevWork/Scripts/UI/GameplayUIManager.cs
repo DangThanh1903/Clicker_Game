@@ -13,6 +13,20 @@ public class GameplayUIManager : MonoBehaviour
     [SerializeField] private Image ManaUI;
     private float displayedManaFill = 0f;
 
+    void OnEnable()
+    {
+        if (StatsManager.Ins != null)
+            StatsManager.Ins.OnStatsRecalculated += RefreshBars;
+
+        RefreshBars();
+    }
+
+    void OnDisable()
+    {
+        if (StatsManager.Ins != null)
+            StatsManager.Ins.OnStatsRecalculated -= RefreshBars;
+    }
+
     void Start()
     {
         AddReactToUI();
@@ -36,11 +50,14 @@ public class GameplayUIManager : MonoBehaviour
             .Subscribe(val => diamondUI.SetText("{0}", val))
             .AddTo(this);
 
-        StatsManager.Ins.GetReactive(StatType.CurrentHP)
-            .Subscribe(val =>
+        Observable.CombineLatest(
+                StatsManager.Ins.GetReactive(StatType.CurrentHP),
+                StatsManager.Ins.GetReactive(StatType.HP),
+                (cur, max) => new { cur, max })
+            .Subscribe(x =>
             {
-                float maxHP = StatsManager.Ins.Get(StatType.HP);
-                float fill = (maxHP > 0f) ? (val / maxHP) : 0f;
+                if (HpUI == null) return;
+                float fill = (x.max > 0f) ? (x.cur / x.max) : 0f;
                 HpUI.fillAmount = Mathf.Clamp01(fill);
             })
             .AddTo(this);
@@ -49,12 +66,10 @@ public class GameplayUIManager : MonoBehaviour
     }
     void ManaUISetUp()
     {
-        var manaFillStream = StatsManager.Ins.GetReactive(StatType.CurrentMana)
-            .Select(val =>
-            {
-                float maxValue = StatsManager.Ins.Get(StatType.Mana);
-                return (maxValue > 0f) ? (val / maxValue) : 0f;
-            })
+        var manaFillStream = Observable.CombineLatest(
+                StatsManager.Ins.GetReactive(StatType.CurrentMana),
+                StatsManager.Ins.GetReactive(StatType.Mana),
+                (cur, max) => (max > 0f) ? (cur / max) : 0f)
             .DistinctUntilChanged();
         var targetFill = new ReactiveProperty<float>(0f);
         manaFillStream
@@ -68,4 +83,27 @@ public class GameplayUIManager : MonoBehaviour
             })
             .AddTo(this);
     }
+
+    private void RefreshBars()
+    {
+        if (StatsManager.Ins == null) return;
+
+        if (HpUI != null)
+        {
+            float maxHP = StatsManager.Ins.Get(StatType.HP);
+            float curHP = StatsManager.Ins.Get(StatType.CurrentHP);
+            float fill = (maxHP > 0f) ? (curHP / maxHP) : 0f;
+            HpUI.fillAmount = Mathf.Clamp01(fill);
+        }
+
+        if (ManaUI != null)
+        {
+            float maxMana = StatsManager.Ins.Get(StatType.Mana);
+            float curMana = StatsManager.Ins.Get(StatType.CurrentMana);
+            float fill = (maxMana > 0f) ? (curMana / maxMana) : 0f;
+            displayedManaFill = Mathf.Clamp01(fill);
+            ManaUI.fillAmount = displayedManaFill;
+        }
+    }
+
 }

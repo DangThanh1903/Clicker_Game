@@ -80,7 +80,7 @@ public class BlockManager : MonoBehaviour
         activeBoss = go;
         var stats = go.GetComponent<EnemyStatsManager>();
 
-        UIManager.Ins.SetButtonsInteractable(false);
+        UIManager.Ins.SetNavigationLocked(true, forceToMain: true);
 
         activeBossComp = go.GetComponent<Boss>();
         if (activeBossComp != null)
@@ -105,7 +105,7 @@ public class BlockManager : MonoBehaviour
                 activeBoss = null;
                 activeBossComp = null;
                 if (currentBlock) currentBlock.gameObject.SetActive(true);
-                UIManager.Ins.SetButtonsInteractable(true);
+                UIManager.Ins.SetNavigationLocked(false);
             };
 
             player.OnDied += onPlayerDiedHandler;
@@ -130,7 +130,7 @@ public class BlockManager : MonoBehaviour
         activeBossComp = null;
 
         if (currentBlock) currentBlock.gameObject.SetActive(true);
-        UIManager.Ins.SetButtonsInteractable(true);
+        UIManager.Ins.SetNavigationLocked(false);
     }
     public void OnBlockBroken()
     {

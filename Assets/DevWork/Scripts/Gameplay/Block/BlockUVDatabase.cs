@@ -27,13 +27,18 @@ public class BlockUVDatabase : ScriptableObject
 {
     [Header("Block Entries")]
     public List<BlockUVEntry> blocks = new();
+    private Dictionary<string, BlockUVEntry> blocksByName;
 
     // =========================
     // BASIC LOOKUPS
     // =========================
 
     public BlockUVEntry GetByName(string name)
-        => blocks.Find(b => b.blockName == name);
+    {
+        if (string.IsNullOrEmpty(name)) return null;
+        EnsureCache();
+        return blocksByName.TryGetValue(name, out var entry) ? entry : null;
+    }
 
     public int GetAtlasIndex(string name)
         => GetByName(name)?.atlasIndex ?? -1;
@@ -171,6 +176,7 @@ public class BlockUVDatabase : ScriptableObject
     private void OnValidate()
     {
         if (blocks == null) return;
+        BuildCache();
         bool changed = false;
         foreach (var block in blocks)
         {
@@ -185,6 +191,29 @@ public class BlockUVDatabase : ScriptableObject
             EditorUtility.SetDirty(this);
     }
 #endif
+
+    private void OnEnable()
+    {
+        BuildCache();
+    }
+
+    private void EnsureCache()
+    {
+        if (blocksByName == null || blocksByName.Count != (blocks?.Count ?? 0))
+            BuildCache();
+    }
+
+    private void BuildCache()
+    {
+        blocksByName = new Dictionary<string, BlockUVEntry>(blocks?.Count ?? 0);
+        if (blocks == null) return;
+        foreach (var block in blocks)
+        {
+            if (block == null || string.IsNullOrEmpty(block.blockName)) continue;
+            if (!blocksByName.ContainsKey(block.blockName))
+                blocksByName[block.blockName] = block;
+        }
+    }
 }
 
 

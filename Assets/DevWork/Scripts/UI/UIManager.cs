@@ -29,6 +29,7 @@ public class UIManager : MonoBehaviour
     private int currentIndex = -1;
     private Tween moveTween;
     private bool isTweening;
+    private bool navigationLocked;
     public Action<int, int> OnPageChanged;
     private int lastScreenWidth;
     private int lastScreenHeight;
@@ -91,6 +92,7 @@ public class UIManager : MonoBehaviour
 
     void SlideTo(int target)
     {
+        if (navigationLocked) return;
         RefreshLayout(snapToCurrent: false);
         target = Mathf.Clamp(target, 0, panels.Count - 1);
 
@@ -132,12 +134,14 @@ public class UIManager : MonoBehaviour
 
     public void MoveToMain()
     {
+        if (navigationLocked) return;
         SlideTo(startIndex);
         BottomButtonAnim(startIndex);
     }
 
     public void GoToPage(int index)
     {
+        if (navigationLocked) return;
         if (isTweening || currentIndex == index) return;
         SlideTo(index);
         BottomButtonAnim(index);
@@ -254,6 +258,22 @@ public class UIManager : MonoBehaviour
     public void SetButtonsInteractable(bool on)
     {
         foreach (var b in buttons) b.interactable = on;
+    }
+
+    public void SetNavigationLocked(bool locked, bool forceToMain = false)
+    {
+        navigationLocked = locked;
+        SetButtonsInteractable(!locked);
+
+        if (locked && forceToMain)
+        {
+            moveTween?.Kill(true);
+            isTweening = false;
+
+            RefreshLayout(snapToCurrent: false);
+            ActivateOnly(startIndex, snap: true);
+            BottomButtonAnim(startIndex);
+        }
     }
 
     void BottomButtonAnim(int index)

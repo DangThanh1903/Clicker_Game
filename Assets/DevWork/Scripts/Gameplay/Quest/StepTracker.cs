@@ -12,11 +12,14 @@ public class StepTracker : IDisposable
     private readonly CompositeDisposable _cd = new();
 
     private readonly Func<bool> isUnlocked;
+    private readonly string targetId;
+    private readonly StringComparer comparer = StringComparer.OrdinalIgnoreCase;
 
     public StepTracker(QuestStepDef def, int initialProgress, Func<bool> isUnlocked = null)
     {
         this.isUnlocked = isUnlocked;
         StepId = def.stepId;
+        targetId = def.targetId ?? string.Empty;
         Required.Value = Mathf.Max(1, def.requiredAmount);
         Current.Value  = Mathf.Clamp(initialProgress, 0, Required.Value);
 
@@ -45,7 +48,7 @@ public class StepTracker : IDisposable
         if (def.goalType == GoalType.ReachStat)
         {
             QuestSignals.OnStatChanged
-                .Where(t => string.Equals(t.statKey, def.targetId, StringComparison.OrdinalIgnoreCase))
+                .Where(t => comparer.Equals(t.statKey, targetId))
                 .Select(t => t.value >= def.requiredAmount) // dùng requiredAmount làm ngưỡng
                 .DistinctUntilChanged()
                 .Where(ok => ok && !Completed.Value)
@@ -64,17 +67,17 @@ public class StepTracker : IDisposable
         {
             case GoalType.BreakBlock:
                 return QuestSignals.OnBreakBlock
-                    .Where(t => string.Equals(t.targetId, def.targetId, StringComparison.OrdinalIgnoreCase))
+                    .Where(t => comparer.Equals(t.targetId, targetId))
                     .Select(t => t.amount);
 
             case GoalType.CollectItem:
                 return QuestSignals.OnCollectItem
-                    .Where(t => string.Equals(t.targetId, def.targetId, StringComparison.OrdinalIgnoreCase))
+                    .Where(t => comparer.Equals(t.targetId, targetId))
                     .Select(t => t.amount);
 
             case GoalType.CraftItem:
                 return QuestSignals.OnCraftItem
-                    .Where(t => string.Equals(t.targetId, def.targetId, StringComparison.OrdinalIgnoreCase))
+                    .Where(t => comparer.Equals(t.targetId, targetId))
                     .Select(t => t.amount);
 
             case GoalType.Custom:
@@ -88,3 +91,4 @@ public class StepTracker : IDisposable
 
     public void Dispose() => _cd.Dispose();
 }
+

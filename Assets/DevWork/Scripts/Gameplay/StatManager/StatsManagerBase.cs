@@ -21,17 +21,7 @@ public abstract class StatsManagerBase : MonoBehaviour
 
     protected virtual void Awake()
     {
-        stats = new Dictionary<StatType, ReactiveStat>();
-        foreach (var stat in baseStat.statsList)
-        {
-            stats[stat.statType] = stat;
-        }
-
-        baseStatsDict = new Dictionary<StatType, ReactiveStat>();
-        foreach (var bs in baseStat.baseStats)
-        {
-            baseStatsDict[bs.statType] = bs;
-        }
+        BuildStatsFromBase(overwriteValues: true);
 
         if (!buffManager)
             buffManager = GetComponent<BuffManager>();
@@ -65,11 +55,11 @@ public abstract class StatsManagerBase : MonoBehaviour
         }
     }
 
-    public ReactiveProperty<float> GetReactive(StatType type) => stats[type].value;
-    public float Get(StatType type) => stats[type].Get();
-    public void Set(StatType type, float value) => stats[type].Set(value);
-    public void Add(StatType type, float amount) => stats[type].Add(amount);
-    public void Sub(StatType type, float amount) => stats[type].Sub(amount);
+    public ReactiveProperty<float> GetReactive(StatType type) => GetOrCreateStat(type).value;
+    public float Get(StatType type) => GetOrCreateStat(type).Get();
+    public void Set(StatType type, float value) => GetOrCreateStat(type).Set(value);
+    public void Add(StatType type, float amount) => GetOrCreateStat(type).Add(amount);
+    public void Sub(StatType type, float amount) => GetOrCreateStat(type).Sub(amount);
 
     public void ClearAll()
     {
@@ -80,7 +70,13 @@ public abstract class StatsManagerBase : MonoBehaviour
         }
     }
 
-    public void SetBaseStat(BaseStat insertBaseStat) => baseStat = insertBaseStat;
+    public void SetBaseStat(BaseStat insertBaseStat)
+    {
+        baseStat = insertBaseStat;
+        BuildStatsFromBase(overwriteValues: true);
+        ApplyStarterBuffsOnce();
+        RecalculateAllStats();
+    }
 
     // Starter buffs (permanent passives defined on BaseStat)
     protected virtual void ApplyStarterBuffsOnce()
@@ -105,6 +101,11 @@ public abstract class StatsManagerBase : MonoBehaviour
     protected void RaiseStatsRecalculated()
     {
         OnStatsRecalculated?.Invoke();
+    }
+
+    public void ForceNotifyStatsChanged()
+    {
+        RaiseStatsRecalculated();
     }
 
     // Main rebuild entry point
@@ -140,9 +141,93 @@ public abstract class StatsManagerBase : MonoBehaviour
 
     protected virtual void ReCalculateHPAndMP()
     {
-        if (Get(StatType.CurrentHP) > Get(StatType.HP))
-            Set(StatType.CurrentHP, Get(StatType.HP));
-        if (Get(StatType.CurrentMana) > Get(StatType.Mana))
-            Set(StatType.CurrentMana, Get(StatType.Mana));
+        if (HasStat(StatType.CurrentHP) && HasStat(StatType.HP))
+        {
+            if (Get(StatType.CurrentHP) > Get(StatType.HP))
+                Set(StatType.CurrentHP, Get(StatType.HP));
+        }
+
+        if (HasStat(StatType.CurrentMana) && HasStat(StatType.Mana))
+        {
+            if (Get(StatType.CurrentMana) > Get(StatType.Mana))
+                Set(StatType.CurrentMana, Get(StatType.Mana));
+        }
+    }
+
+    private bool HasStat(StatType type) => stats != null && stats.ContainsKey(type);
+
+    private void EnsureInitialized()
+    {
+        if (stats == null || baseStatsDict == null)
+            BuildStatsFromBase(overwriteValues: false);
+    }
+
+    private ReactiveStat GetOrCreateStat(StatType type)
+    {
+        EnsureInitialized();
+
+        if (stats.TryGetValue(type, out var stat) && stat != null)
+            return stat;
+
+        stat = new ReactiveStat { statType = type };
+        stats[type] = stat;
+        return stat;
+    }
+
+    private void BuildStatsFromBase(bool overwriteValues)
+    {
+        if (stats == null)
+            stats = new Dictionary<StatType, ReactiveStat>();
+
+        if (baseStatsDict == null)
+            baseStatsDict = new Dictionary<StatType, ReactiveStat>();
+        else
+            baseStatsDict.Clear();
+
+        if (baseStat == null) return;
+
+        HashSet<StatType> activeTypes = overwriteValues ? new HashSet<StatType>() : null;
+
+        if (baseStat.statsList != null)
+        {
+            foreach (var stat in baseStat.statsList)
+            {
+                if (stat == null) continue;
+                activeTypes?.Add(stat.statType);
+
+                if (stats.TryGetValue(stat.statType, out var existing))
+                {
+                    if (overwriteValues)
+                        existing.Set(stat.Get());
+                }
+                else
+                {
+                    stats[stat.statType] = stat;
+                }
+            }
+        }
+
+        if (baseStat.baseStats != null)
+        {
+            foreach (var bs in baseStat.baseStats)
+            {
+                if (bs == null) continue;
+                activeTypes?.Add(bs.statType);
+
+                baseStatsDict[bs.statType] = bs;
+
+                if (!stats.ContainsKey(bs.statType))
+                    stats[bs.statType] = bs;
+            }
+        }
+
+        if (activeTypes != null && activeTypes.Count > 0)
+        {
+            foreach (var kvp in stats)
+            {
+                if (!activeTypes.Contains(kvp.Key))
+                    kvp.Value.Set(0f);
+            }
+        }
     }
 }
