@@ -1,5 +1,5 @@
+using System.Collections;
 using System.Collections.Generic;
-using System.Threading.Tasks;
 using UnityEngine;
 using Game.Discovery;
 
@@ -12,40 +12,63 @@ public class BlockDiscoveryPopupQueue : MonoBehaviour
     [SerializeField] private BlockDiscoveryPopupView popupPrefab;
 
     private readonly Queue<string> _queue = new Queue<string>();
+    private Coroutine _runRoutine;
+    private Coroutine _subscribeRoutine;
     private bool _running;
     private bool _subscribed;
 
-    private async void Start()
+    private void OnEnable()
     {
-        // Wait until the discovery service exists
-        while (BlockDiscoveryService.Ins == null)
-            await Task.Yield();
+        if (_subscribeRoutine == null)
+            _subscribeRoutine = StartCoroutine(WaitAndSubscribe());
+    }
 
-        // Subscribe once
+    private void OnDisable()
+    {
+        if (_subscribeRoutine != null)
+        {
+            StopCoroutine(_subscribeRoutine);
+            _subscribeRoutine = null;
+        }
+
+        if (_runRoutine != null)
+        {
+            StopCoroutine(_runRoutine);
+            _runRoutine = null;
+            _running = false;
+        }
+
+        if (_subscribed && BlockDiscoveryService.Ins != null)
+            BlockDiscoveryService.Ins.OnBlockDiscovered -= Enqueue;
+        _subscribed = false;
+    }
+
+    private IEnumerator WaitAndSubscribe()
+    {
+        while (BlockDiscoveryService.Ins == null)
+            yield return null;
+
         if (!_subscribed)
         {
             BlockDiscoveryService.Ins.OnBlockDiscovered += Enqueue;
             _subscribed = true;
             Debug.Log("[DiscoveryPopupQueue] Subscribed to OnBlockDiscovered");
         }
-    }
 
-    private void OnDestroy()
-    {
-        if (_subscribed && BlockDiscoveryService.Ins != null)
-            BlockDiscoveryService.Ins.OnBlockDiscovered -= Enqueue;
+        _subscribeRoutine = null;
     }
 
     private void Enqueue(string blockName)
     {
         Debug.Log($"[DiscoveryPopupQueue] Enqueue {blockName}");
         _queue.Enqueue(blockName);
-        _ = RunQueue();
+        if (_runRoutine == null)
+            _runRoutine = StartCoroutine(RunQueue());
     }
 
-    private async Task RunQueue()
+    private IEnumerator RunQueue()
     {
-        if (_running) return;
+        if (_running) yield break;
         _running = true;
 
         while (_queue.Count > 0)
@@ -59,17 +82,34 @@ public class BlockDiscoveryPopupQueue : MonoBehaviour
                 continue;
             }
 
-            await PopupController.Instance.Show(popupPrefab, popup =>
+            var popupController = PopupController.Instance;
+            if (popupController == null)
+            {
+                Debug.LogWarning("[DiscoveryPopupQueue] PopupController is missing.");
+                yield return null;
+                continue;
+            }
+
+            var showTask = popupController.Show(popupPrefab, popup =>
             {
                 if (popup is BlockDiscoveryPopupView view)
                     view.Bind(entry);
             });
+            while (!showTask.IsCompleted)
+                yield return null;
+
+            if (showTask.IsFaulted)
+            {
+                Debug.LogWarning("[DiscoveryPopupQueue] Failed to show popup.");
+                continue;
+            }
 
             // Wait until the popup stack is empty again
-            while (PopupController.Instance.IsAnyPopupOpen())
-                await Task.Yield();
+            while (popupController != null && popupController.IsAnyPopupOpen())
+                yield return null;
         }
 
         _running = false;
+        _runRoutine = null;
     }
 }

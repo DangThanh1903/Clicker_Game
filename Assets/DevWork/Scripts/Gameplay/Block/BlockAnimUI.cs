@@ -20,10 +20,7 @@ public class BlockAnimUI : MonoBehaviour
     void Awake()
     {
         if (!blockAnimationController)
-            blockAnimationController = FindObjectOfType<BlockAnimationController>();
-
-        if (!blockAnimationController)
-            Debug.LogError("[BlockAnimUI] No BlockAnimationController found in scene.");
+            Debug.LogWarning("[BlockAnimUI] BlockAnimationController is not assigned.", this);
     }
 
     void Start()

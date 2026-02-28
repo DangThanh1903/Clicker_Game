@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using System.Threading.Tasks;
 
 public class PopupButtons : MonoBehaviour
 {
@@ -15,11 +16,23 @@ public class PopupButtons : MonoBehaviour
             button.onClick.AddListener(OpenPopup);
     }
 
-    private async void OpenPopup()
+    private void OpenPopup()
+    {
+        _ = OpenPopupAsync();
+    }
+
+    private async Task OpenPopupAsync()
     {
         if (PopupController.Instance && popupPrefab)
         {
-            await PopupController.Instance.Show(popupPrefab);
+            try
+            {
+                await PopupController.Instance.Show(popupPrefab);
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogWarning($"[PopupButton] Failed to open popup: {ex.Message}");
+            }
         }
         else
         {

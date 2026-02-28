@@ -23,6 +23,17 @@ public struct GiftCodeRedeemResult
 
 public static class GiftCodeService
 {
+    private const string RedeemedStatusPending = "pending";
+    private const string RedeemedStatusApplied = "applied";
+
+    private enum RedeemFlowState
+    {
+        Error,
+        Invalid,
+        AlreadyRedeemed,
+        PendingApply
+    }
+
     // Firestore schema:
     // giftcodes/{CODE}:
     //   enabled: bool
@@ -59,44 +70,51 @@ public static class GiftCodeService
         var redeemedDoc = db.Collection("users").Document(bootstrap.Uid).Collection("giftcodes").Document(code);
 
         GiftCodePayload payload = null;
-        GiftCodeRedeemStatus status = GiftCodeRedeemStatus.Error;
+        RedeemFlowState flowState = RedeemFlowState.Error;
 
         try
         {
             await db.RunTransactionAsync(async tx =>
             {
-                var codeSnap = await tx.GetSnapshotAsync(codeDoc);
-                if (!codeSnap.Exists)
-                {
-                    status = GiftCodeRedeemStatus.Invalid;
-                    return;
-                }
-
-                if (!TryParsePayload(codeSnap, out payload) || payload == null)
-                {
-                    status = GiftCodeRedeemStatus.Invalid;
-                    return;
-                }
-
-                if (!payload.enabled)
-                {
-                    status = GiftCodeRedeemStatus.Invalid;
-                    return;
-                }
-
                 var redeemedSnap = await tx.GetSnapshotAsync(redeemedDoc);
                 if (redeemedSnap.Exists)
                 {
-                    status = GiftCodeRedeemStatus.AlreadyRedeemed;
+                    string redeemedStatus = GetRedeemedStatus(redeemedSnap);
+                    if (redeemedStatus == RedeemedStatusApplied)
+                    {
+                        flowState = RedeemFlowState.AlreadyRedeemed;
+                        return;
+                    }
+
+                    if (TryParsePayload(redeemedSnap, out var pendingPayload) && pendingPayload != null)
+                        payload = pendingPayload;
+
+                    flowState = RedeemFlowState.PendingApply;
                     return;
                 }
 
-                tx.Set(redeemedDoc, new Dictionary<string, object>
+                var codeSnap = await tx.GetSnapshotAsync(codeDoc);
+                if (!codeSnap.Exists)
                 {
-                    ["redeemedAt"] = Timestamp.GetCurrentTimestamp()
-                });
+                    flowState = RedeemFlowState.Invalid;
+                    return;
+                }
 
-                status = GiftCodeRedeemStatus.Success;
+                if (!TryParsePayload(codeSnap, out var codePayload) || codePayload == null)
+                {
+                    flowState = RedeemFlowState.Invalid;
+                    return;
+                }
+
+                if (!codePayload.enabled)
+                {
+                    flowState = RedeemFlowState.Invalid;
+                    return;
+                }
+
+                payload = codePayload;
+                tx.Set(redeemedDoc, BuildPendingRedeemedRecord(payload));
+                flowState = RedeemFlowState.PendingApply;
             });
         }
         catch (Exception ex)
@@ -105,18 +123,38 @@ public static class GiftCodeService
             return new GiftCodeRedeemResult { status = GiftCodeRedeemStatus.Error, message = "Redeem failed." };
         }
 
-        if (status == GiftCodeRedeemStatus.Success)
+        if (flowState == RedeemFlowState.Invalid)
+            return new GiftCodeRedeemResult { status = GiftCodeRedeemStatus.Invalid, message = "Invalid code." };
+
+        if (flowState == RedeemFlowState.AlreadyRedeemed)
+            return new GiftCodeRedeemResult { status = GiftCodeRedeemStatus.AlreadyRedeemed, message = "Already redeemed." };
+
+        if (flowState != RedeemFlowState.PendingApply || payload == null)
+            return new GiftCodeRedeemResult { status = GiftCodeRedeemStatus.Error, message = "Redeem failed." };
+
+        bool alreadyAppliedLocally = IsRewardAppliedLocally(code);
+        bool applied = alreadyAppliedLocally || await TryApplyRewardsAsync(payload);
+        if (!applied)
+            return new GiftCodeRedeemResult { status = GiftCodeRedeemStatus.Error, message = "Redeem is pending. Please try again." };
+
+        if (!alreadyAppliedLocally)
+            MarkRewardAppliedLocally(code);
+
+        try
         {
-            await ApplyRewardsAsync(payload);
-            return new GiftCodeRedeemResult { status = status, message = "Redeemed." };
+            await redeemedDoc.SetAsync(new Dictionary<string, object>
+            {
+                ["status"] = RedeemedStatusApplied,
+                ["appliedAt"] = Timestamp.GetCurrentTimestamp()
+            }, SetOptions.MergeAll);
+        }
+        catch (Exception ex)
+        {
+            Debug.LogWarning($"[GiftCode] Finalize redeem state failed: {ex.Message}");
+            return new GiftCodeRedeemResult { status = GiftCodeRedeemStatus.Error, message = "Redeemed locally. Retry to sync." };
         }
 
-        return status switch
-        {
-            GiftCodeRedeemStatus.AlreadyRedeemed => new GiftCodeRedeemResult { status = status, message = "Already redeemed." },
-            GiftCodeRedeemStatus.Invalid => new GiftCodeRedeemResult { status = status, message = "Invalid code." },
-            _ => new GiftCodeRedeemResult { status = status, message = "Redeem failed." }
-        };
+        return new GiftCodeRedeemResult { status = GiftCodeRedeemStatus.Success, message = "Redeemed." };
     }
 
     private static string Normalize(string code)
@@ -176,34 +214,115 @@ public static class GiftCodeService
         return true;
     }
 
-    private static async Task ApplyRewardsAsync(GiftCodePayload payload)
+    private static async Task<bool> TryApplyRewardsAsync(GiftCodePayload payload)
     {
-        if (payload == null) return;
+        if (payload == null) return false;
 
-        if (payload.gems > 0)
-            StatsManager.Ins?.Add(StatType.Diamond, payload.gems);
-
-        if (payload.items == null || payload.items.Count == 0)
-            return;
-
-        foreach (var it in payload.items)
+        if (payload.gems > 0 && StatsManager.Ins == null)
         {
-            if (string.IsNullOrEmpty(it.itemAddress) || it.quantity <= 0) continue;
+            Debug.LogWarning("[GiftCode] StatsManager is missing. Cannot grant gems now.");
+            return false;
+        }
 
-            AsyncOperationHandle<Item> handle = Addressables.LoadAssetAsync<Item>(it.itemAddress);
-            await handle.Task;
-            if (handle.Status == AsyncOperationStatus.Succeeded && handle.Result != null)
+        if (payload.items != null && payload.items.Count > 0 && InventoryController.Instance == null)
+        {
+            Debug.LogWarning("[GiftCode] InventoryController is missing. Cannot grant items now.");
+            return false;
+        }
+
+        List<(AsyncOperationHandle<Item> handle, int quantity)> loadedItems = new List<(AsyncOperationHandle<Item>, int)>();
+
+        try
+        {
+            if (payload.items != null && payload.items.Count > 0)
             {
-                var invItem = new InventoryItem(handle.Result, it.quantity);
+                foreach (var it in payload.items)
+                {
+                    if (string.IsNullOrEmpty(it.itemAddress) || it.quantity <= 0) continue;
+
+                    AsyncOperationHandle<Item> handle = Addressables.LoadAssetAsync<Item>(it.itemAddress);
+                    await handle.Task;
+                    if (handle.Status == AsyncOperationStatus.Succeeded && handle.Result != null)
+                    {
+                        loadedItems.Add((handle, it.quantity));
+                    }
+                    else
+                    {
+                        Debug.LogWarning($"[GiftCode] Item not found: {it.itemAddress}");
+                        Addressables.Release(handle);
+                        return false;
+                    }
+                }
+            }
+
+            if (payload.gems > 0)
+                StatsManager.Ins.Add(StatType.Diamond, payload.gems);
+
+            foreach (var entry in loadedItems)
+            {
+                var invItem = new InventoryItem(entry.handle.Result, entry.quantity);
                 InventoryController.Instance?.AddItemToInventory(invItem);
             }
-            else
-            {
-                Debug.LogWarning($"[GiftCode] Item not found: {it.itemAddress}");
-            }
 
-            Addressables.Release(handle);
+            return true;
         }
+        finally
+        {
+            foreach (var entry in loadedItems)
+            {
+                Addressables.Release(entry.handle);
+            }
+        }
+    }
+
+    private static Dictionary<string, object> BuildPendingRedeemedRecord(GiftCodePayload payload)
+    {
+        List<Dictionary<string, object>> items = new List<Dictionary<string, object>>();
+        if (payload?.items != null)
+        {
+            foreach (var it in payload.items)
+            {
+                if (string.IsNullOrEmpty(it.itemAddress) || it.quantity <= 0) continue;
+                items.Add(new Dictionary<string, object>
+                {
+                    ["itemAddress"] = it.itemAddress,
+                    ["quantity"] = it.quantity
+                });
+            }
+        }
+
+        return new Dictionary<string, object>
+        {
+            ["status"] = RedeemedStatusPending,
+            ["createdAt"] = Timestamp.GetCurrentTimestamp(),
+            ["gems"] = Mathf.Max(0, payload?.gems ?? 0),
+            ["items"] = items
+        };
+    }
+
+    private static string GetRedeemedStatus(DocumentSnapshot snap)
+    {
+        if (snap != null && snap.TryGetValue("status", out string status) && !string.IsNullOrWhiteSpace(status))
+            return status.Trim().ToLowerInvariant();
+        return RedeemedStatusPending;
+    }
+
+    private static bool IsRewardAppliedLocally(string code)
+    {
+        if (string.IsNullOrEmpty(code)) return false;
+        return PlayerPrefs.GetInt(GetLocalReceiptKey(code), 0) == 1;
+    }
+
+    private static void MarkRewardAppliedLocally(string code)
+    {
+        if (string.IsNullOrEmpty(code)) return;
+        PlayerPrefs.SetInt(GetLocalReceiptKey(code), 1);
+        PlayerPrefs.Save();
+    }
+
+    private static string GetLocalReceiptKey(string code)
+    {
+        return $"GIFT_CODE_APPLIED_{code}";
     }
 
     private class GiftCodePayload

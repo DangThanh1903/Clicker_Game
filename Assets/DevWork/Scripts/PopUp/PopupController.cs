@@ -19,6 +19,7 @@ public class PopupController : MonoBehaviour
 
     readonly Stack<PopupView> stack = new Stack<PopupView>();
     Tween backdropTween;
+    bool isClosingTop;
 
     void Awake()
     {
@@ -94,18 +95,32 @@ public class PopupController : MonoBehaviour
         return popup;
     }
 
-    public async void CloseTop()
+    public void CloseTop()
     {
+        _ = CloseTopAsync();
+    }
+
+    public async Task CloseTopAsync()
+    {
+        if (isClosingTop) return;
         if (stack.Count == 0) return;
+        isClosingTop = true;
 
-        var top = stack.Pop();
-        await top.CloseAsync();              // wait for close animation
-        LeanPool.Despawn(top.gameObject);    // then return to pool
+        try
+        {
+            var top = stack.Pop();
+            await top.CloseAsync();              // wait for close animation
+            LeanPool.Despawn(top.gameObject);    // then return to pool
 
-        if (stack.Count == 0)
-            await FadeBackdropTo(0f, enableRaycast: false);
-        else
-            await FadeBackdropTo(1f, enableRaycast: true);
+            if (stack.Count == 0)
+                await FadeBackdropTo(0f, enableRaycast: false);
+            else
+                await FadeBackdropTo(1f, enableRaycast: true);
+        }
+        finally
+        {
+            isClosingTop = false;
+        }
     }
 
     public async Task CloseAll()

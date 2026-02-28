@@ -1,5 +1,7 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Localization;
@@ -27,6 +29,7 @@ public class SettingsUI : MonoBehaviour
     private readonly List<Locale> supportedLocales = new List<Locale>();
     private bool ignoreLanguageChange;
     private bool ignoreFpsChange;
+    private bool isRedeemingGiftCode;
 
     private void Awake()
     {
@@ -121,7 +124,11 @@ public class SettingsUI : MonoBehaviour
             yield return init;
 
         if (localeSwitcher == null)
-            localeSwitcher = FindObjectOfType<LocaleSwitcher>();
+        {
+            Debug.LogWarning("[SettingsUI] LocaleSwitcher is not assigned. Language switching is disabled.", this);
+            languageDropdown.interactable = false;
+            yield break;
+        }
 
         supportedLocales.Clear();
         foreach (var loc in LocalizationSettings.AvailableLocales.Locales)
@@ -202,24 +209,41 @@ public class SettingsUI : MonoBehaviour
             fpsDisplay.SetVisible(show);
     }
 
-    private async void OnGiftCodeRedeemClicked()
+    private void OnGiftCodeRedeemClicked()
     {
-        if (giftCodeInput == null) return;
+        _ = RedeemGiftCodeAsync();
+    }
 
-        string code = giftCodeInput.text;
+    private async Task RedeemGiftCodeAsync()
+    {
+        if (giftCodeInput == null || isRedeemingGiftCode) return;
+
+        isRedeemingGiftCode = true;
         if (giftCodeRedeemButton != null)
             giftCodeRedeemButton.interactable = false;
 
         SetGiftCodeStatus("Checking...");
 
-        var result = await GiftCodeService.RedeemAsync(code);
-        SetGiftCodeStatus(result.message);
+        try
+        {
+            string code = giftCodeInput.text;
+            var result = await GiftCodeService.RedeemAsync(code);
+            SetGiftCodeStatus(result.message);
 
-        if (result.status == GiftCodeRedeemStatus.Success)
-            giftCodeInput.text = string.Empty;
-
-        if (giftCodeRedeemButton != null)
-            giftCodeRedeemButton.interactable = true;
+            if (result.status == GiftCodeRedeemStatus.Success)
+                giftCodeInput.text = string.Empty;
+        }
+        catch (Exception ex)
+        {
+            Debug.LogWarning($"[SettingsUI] Gift code redeem failed: {ex.Message}", this);
+            SetGiftCodeStatus("Redeem failed.");
+        }
+        finally
+        {
+            isRedeemingGiftCode = false;
+            if (giftCodeRedeemButton != null)
+                giftCodeRedeemButton.interactable = true;
+        }
     }
 
     private void SetGiftCodeStatus(string message)

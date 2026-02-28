@@ -245,7 +245,7 @@ public class DataSaver : MonoBehaviour
         var updatedAt = Timestamp.FromDateTime(new DateTime(updateTicks, DateTimeKind.Utc));
         var leaderboard = BuildLeaderboardPublicData(gameplay, profile, updatedAt);
 
-        await ExecuteWithRetry(async () =>
+        bool saveSucceeded = await ExecuteWithRetry(async () =>
         {
             var batch = db.StartBatch();
             var userDoc = db.Collection("users").Document(uid);
@@ -273,12 +273,19 @@ public class DataSaver : MonoBehaviour
             await AwaitWithTimeout(batch.CommitAsync(), cloudCommitTimeoutSeconds, "Firestore commit");
         }, maxSaveAttempts, retryBaseDelaySeconds, "SaveCloudAsync");
 
+        if (!saveSucceeded)
+        {
+            if (verboseSaveLogs)
+                Debug.LogWarning("SaveCloudAsync failed. Cloud updatedAt was not advanced.");
+            return;
+        }
+
         lastCloudUpdatedUtcTicks = updateTicks;
         if (verboseSaveLogs)
             Debug.Log("SaveCloudAsync completed.");
     }
 
-    private async Task ExecuteWithRetry(Func<Task> action, int maxAttempts, float baseDelaySeconds, string opName)
+    private async Task<bool> ExecuteWithRetry(Func<Task> action, int maxAttempts, float baseDelaySeconds, string opName)
     {
         int attempts = Mathf.Max(1, maxAttempts);
         float delay = Mathf.Max(0.05f, baseDelaySeconds);
@@ -288,14 +295,14 @@ public class DataSaver : MonoBehaviour
             try
             {
                 await action();
-                return;
+                return true;
             }
             catch (Exception ex)
             {
                 if (i >= attempts)
                 {
                     Debug.LogError($"❌ {opName} failed after {attempts} attempts: {ex}");
-                    return;
+                    return false;
                 }
 
                 if (verboseSaveLogs)
@@ -305,6 +312,8 @@ public class DataSaver : MonoBehaviour
                 await Task.Delay(TimeSpan.FromSeconds(wait));
             }
         }
+
+        return false;
     }
 
     private async Task AwaitWithTimeout(Task task, float timeoutSeconds, string opName)

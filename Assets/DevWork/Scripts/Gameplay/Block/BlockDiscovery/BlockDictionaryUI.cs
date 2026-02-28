@@ -1,5 +1,4 @@
 using System;
-using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
 using Game.Discovery;
@@ -39,6 +38,7 @@ namespace Game.UI.Dictionary
         private readonly Queue<BlockDictionaryListItem> itemPool = new Queue<BlockDictionaryListItem>();
         private readonly List<BlockUVEntry> entries = new List<BlockUVEntry>();
         private readonly List<BlockSpawnLocation> availableLocations = new List<BlockSpawnLocation>();
+        private readonly List<int> activeIndexBuffer = new List<int>();
         private Coroutine initRoutine;
         private bool subscribed;
         private bool buttonListenersBound;
@@ -87,8 +87,6 @@ namespace Game.UI.Dictionary
         {
             yield return new WaitUntil(() => BlockDiscoveryService.Ins != null);
             discoveryService = BlockDiscoveryService.Ins;
-            if (previewCamera == null)
-                previewCamera = FindObjectOfType<BlockPreviewCamera>(true);
             if (previewCamera == null && !warnedMissingPreviewCamera)
             {
                 Debug.LogWarning("[BlockDictionaryUI] Preview camera is missing. Assign BlockPreviewCamera in inspector or add one to the scene.", this);
@@ -113,9 +111,19 @@ namespace Game.UI.Dictionary
             if (blockDb != null)
             {
                 var location = hasViewedLocation ? viewedLocation : BlockSpawnLocation.Plain;
-                entries.AddRange(blockDb.blocks.Where(x =>
-                    x != null &&
-                    (x.locationCondition == location || x.locationCondition == BlockSpawnLocation.Any)));
+                var blockEntries = blockDb.blocks;
+                if (blockEntries != null)
+                {
+                    for (int i = 0; i < blockEntries.Count; i++)
+                    {
+                        var entry = blockEntries[i];
+                        if (entry == null)
+                            continue;
+
+                        if (entry.locationCondition == location || entry.locationCondition == BlockSpawnLocation.Any)
+                            entries.Add(entry);
+                    }
+                }
             }
 
             BuildAvailableLocations();
@@ -146,9 +154,10 @@ namespace Game.UI.Dictionary
             int start = Mathf.Clamp(firstIndex, 0, Mathf.Max(0, entries.Count - 1));
             int end = Mathf.Clamp(start + visibleCount - 1, 0, entries.Count - 1);
 
-            var keys = new List<int>(activeItems.Keys);
-            foreach (var idx in keys)
+            CollectActiveIndexes();
+            for (int i = 0; i < activeIndexBuffer.Count; i++)
             {
+                int idx = activeIndexBuffer[i];
                 if (idx < start || idx > end)
                     RecycleItem(idx);
             }
@@ -191,10 +200,17 @@ namespace Game.UI.Dictionary
 
         private void ClearActive()
         {
-            var keys = new List<int>(activeItems.Keys);
-            foreach (var idx in keys)
-                RecycleItem(idx);
+            CollectActiveIndexes();
+            for (int i = 0; i < activeIndexBuffer.Count; i++)
+                RecycleItem(activeIndexBuffer[i]);
             TrimPool();
+        }
+
+        private void CollectActiveIndexes()
+        {
+            activeIndexBuffer.Clear();
+            foreach (var idx in activeItems.Keys)
+                activeIndexBuffer.Add(idx);
         }
 
         private void TrimPool()
