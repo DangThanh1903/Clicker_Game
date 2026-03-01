@@ -23,6 +23,10 @@ public class LocationSO : ScriptableObject
         [BoxGroup("Settings")]
         [LabelText("Spawn Rot (Euler)")]
         public Vector3 spawnRotationEuler;
+
+        [BoxGroup("Settings")]
+        [LabelText("Crafting Tree Prefab")]
+        public GameObject craftingTreePrefab;
     }
 
 

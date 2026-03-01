@@ -115,6 +115,13 @@ public class BlockManager : MonoBehaviour
     }
     public void OnBossDied(Boss boss)
     {
+        BlockSpawnLocation clearedLocation = activeBossInfo != null
+            ? activeBossInfo.biome
+            : (locationLoader != null ? locationLoader.currentLocation : BlockSpawnLocation.Plain);
+
+        if (locationLoader != null)
+            locationLoader.TryUnlockNextLocationFromBoss(clearedLocation);
+
         if (activeBossComp != null) activeBossComp.Died -= OnBossDied;
         var player = PlayerController.Instance;
         if (player != null && onPlayerDiedHandler != null)

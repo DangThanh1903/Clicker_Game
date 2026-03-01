@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using System;
 
 public class CraftNodeManager : MonoBehaviour
 {
@@ -10,8 +11,20 @@ public class CraftNodeManager : MonoBehaviour
     [Header("Inventories to watch for items")]
     public List<InventoryData> inventoryDependencies = new List<InventoryData>();
 
-    private const string SaveKey = "CraftNodeStates";
+    [Header("Save Scope")]
+    [SerializeField] private string saveScope = "Default";
+
+    private const string SaveKeyPrefix = "CraftNodeStates";
     private bool suppressCloudSave;
+    public string CurrentSaveScope => string.IsNullOrWhiteSpace(saveScope) ? "Default" : saveScope.Trim();
+
+    private string SaveKey
+    {
+        get
+        {
+            return $"{SaveKeyPrefix}_{CurrentSaveScope}";
+        }
+    }
 
     private void Start()
     {
@@ -33,6 +46,24 @@ public class CraftNodeManager : MonoBehaviour
         foreach (var node in allNodes)
         {
             node.UpdateVisual();
+        }
+    }
+
+    public void ConfigureSaveScope(string scope, bool reload = true)
+    {
+        string nextScope = string.IsNullOrWhiteSpace(scope) ? "Default" : scope.Trim();
+        if (string.Equals(saveScope, nextScope, StringComparison.Ordinal))
+            return;
+
+        saveScope = nextScope;
+        if (!reload)
+            return;
+
+        LoadNodeStates();
+        foreach (var node in allNodes)
+        {
+            node?.RecheckState(true);
+            node?.UpdateVisual();
         }
     }
 

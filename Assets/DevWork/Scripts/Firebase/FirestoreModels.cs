@@ -39,5 +39,13 @@ public class GameplaySaveData
     [FirestoreProperty] public float diamonds { get; set; }
     [FirestoreProperty] public float currentTime { get; set; }
     [FirestoreProperty] public float totalPlaytime { get; set; }
+    [FirestoreProperty] public List<BiomeCraftNodeState> craftNodeStatesByBiome { get; set; }
     [FirestoreProperty] public List<int> craftNodeStates { get; set; }
+}
+
+[FirestoreData]
+public class BiomeCraftNodeState
+{
+    [FirestoreProperty] public string biome { get; set; }
+    [FirestoreProperty] public List<int> states { get; set; }
 }

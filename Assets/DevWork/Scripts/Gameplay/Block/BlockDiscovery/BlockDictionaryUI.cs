@@ -25,6 +25,7 @@ namespace Game.UI.Dictionary
 
         [Header("Biome Controls")]
         [SerializeField] private TMP_Text biomeNameText;
+        [SerializeField] private TMP_Text selectedBiomeNameText;
         [SerializeField] private Button previousBiomeButton;
         [SerializeField] private Button nextBiomeButton;
         [SerializeField] private Button moveToBiomeButton;
@@ -33,6 +34,7 @@ namespace Game.UI.Dictionary
         [SerializeField] private bool cycleBiomeNavigation = true;
         [SerializeField] private string moveHereText = "Move Here";
         [SerializeField] private string currentBiomeText = "Current";
+        [SerializeField] private string lockedBiomeText = "Locked";
 
         private readonly Dictionary<int, BlockDictionaryListItem> activeItems = new Dictionary<int, BlockDictionaryListItem>();
         private readonly Queue<BlockDictionaryListItem> itemPool = new Queue<BlockDictionaryListItem>();
@@ -421,14 +423,26 @@ namespace Game.UI.Dictionary
                 return;
             }
 
+            if (!LocationLoader.Ins.IsLocationUnlocked(viewedLocation))
+            {
+                RefreshBiomeControls();
+                return;
+            }
+
             LocationLoader.Ins.SetLocation((int)viewedLocation);
             RefreshBiomeControls();
         }
 
         private void RefreshBiomeControls()
         {
+            BlockSpawnLocation currentLocation = LocationLoader.Ins != null
+                ? LocationLoader.Ins.currentLocation
+                : viewedLocation;
+
             if (biomeNameText != null)
-                biomeNameText.text = viewedLocation.ToString();
+                biomeNameText.text = currentLocation.ToString();
+            if (selectedBiomeNameText != null)
+                selectedBiomeNameText.text = viewedLocation.ToString();
 
             bool hasChoices = availableLocations.Count > 1;
             if (previousBiomeButton != null)
@@ -436,11 +450,20 @@ namespace Game.UI.Dictionary
             if (nextBiomeButton != null)
                 nextBiomeButton.interactable = hasChoices;
 
-            bool canMove = LocationLoader.Ins != null && LocationLoader.Ins.currentLocation != viewedLocation;
+            bool isCurrent = currentLocation == viewedLocation;
+            bool isUnlocked = LocationLoader.Ins == null || LocationLoader.Ins.IsLocationUnlocked(viewedLocation);
+            bool canMove = !isCurrent && isUnlocked;
             if (moveToBiomeButton != null)
                 moveToBiomeButton.interactable = canMove;
             if (moveToBiomeLabel != null)
-                moveToBiomeLabel.text = canMove ? moveHereText : currentBiomeText;
+            {
+                if (isCurrent)
+                    moveToBiomeLabel.text = currentBiomeText;
+                else
+                    moveToBiomeLabel.text = isUnlocked
+                        ? (selectedBiomeNameText == null ? $"{moveHereText} {viewedLocation}" : moveHereText)
+                        : lockedBiomeText;
+            }
         }
 
         private void EnsureBiomeControls()
@@ -485,10 +508,11 @@ namespace Game.UI.Dictionary
 
             var font = ResolveControlFont();
 
+            biomeNameText = CreateRuntimeLabel(root.transform, "CurrentBiomeNameText", viewedLocation.ToString(), font, 180f);
             previousBiomeButton = CreateRuntimeButton(root.transform, "PrevBiomeButton", "<", font, 64f);
-            biomeNameText = CreateRuntimeLabel(root.transform, "BiomeNameText", viewedLocation.ToString(), font, 260f);
+            selectedBiomeNameText = CreateRuntimeLabel(root.transform, "SelectedBiomeNameText", viewedLocation.ToString(), font, 180f);
             nextBiomeButton = CreateRuntimeButton(root.transform, "NextBiomeButton", ">", font, 64f);
-            moveToBiomeButton = CreateRuntimeButton(root.transform, "MoveToBiomeButton", moveHereText, font, 180f);
+            moveToBiomeButton = CreateRuntimeButton(root.transform, "MoveToBiomeButton", moveHereText, font, 120f);
             moveToBiomeLabel = moveToBiomeButton.GetComponentInChildren<TMP_Text>(true);
 
             runtimeControlsRoot.SetAsLastSibling();

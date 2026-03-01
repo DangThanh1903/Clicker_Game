@@ -169,7 +169,7 @@ public abstract class StatsManagerBase : MonoBehaviour
         if (stats.TryGetValue(type, out var stat) && stat != null)
             return stat;
 
-        stat = new ReactiveStat { statType = type };
+        stat = CreateRuntimeStat(type, 0f);
         stats[type] = stat;
         return stat;
     }
@@ -194,15 +194,16 @@ public abstract class StatsManagerBase : MonoBehaviour
             {
                 if (stat == null) continue;
                 activeTypes?.Add(stat.statType);
+                float value = ReadStatValue(stat);
 
                 if (stats.TryGetValue(stat.statType, out var existing))
                 {
                     if (overwriteValues)
-                        existing.Set(stat.Get());
+                        existing.Set(value);
                 }
                 else
                 {
-                    stats[stat.statType] = stat;
+                    stats[stat.statType] = CreateRuntimeStat(stat.statType, value);
                 }
             }
         }
@@ -213,11 +214,15 @@ public abstract class StatsManagerBase : MonoBehaviour
             {
                 if (bs == null) continue;
                 activeTypes?.Add(bs.statType);
+                float baseValue = ReadStatValue(bs);
 
-                baseStatsDict[bs.statType] = bs;
+                if (baseStatsDict.TryGetValue(bs.statType, out var existingBase))
+                    existingBase.Set(baseValue);
+                else
+                    baseStatsDict[bs.statType] = CreateRuntimeStat(bs.statType, baseValue);
 
                 if (!stats.ContainsKey(bs.statType))
-                    stats[bs.statType] = bs;
+                    stats[bs.statType] = CreateRuntimeStat(bs.statType, baseValue);
             }
         }
 
@@ -229,5 +234,21 @@ public abstract class StatsManagerBase : MonoBehaviour
                     kvp.Value.Set(0f);
             }
         }
+    }
+
+    private static float ReadStatValue(ReactiveStat stat)
+    {
+        if (stat == null)
+            return 0f;
+        return stat.value != null ? stat.value.Value : 0f;
+    }
+
+    private static ReactiveStat CreateRuntimeStat(StatType type, float value)
+    {
+        return new ReactiveStat
+        {
+            statType = type,
+            value = new ReactiveProperty<float>(value)
+        };
     }
 }

@@ -18,44 +18,57 @@ MonoBehaviour:
       type: 3}
     spawnPosition: {x: -2, y: -4, z: 35}
     spawnRotationEuler: {x: 0, y: 180, z: 0}
+    craftingTreePrefab: {fileID: 6219676124160121893, guid: 80b6b1c1cdd09c54191f6b813d3f06f3,
+      type: 3}
   - location: 2
     prefab: {fileID: 8409039171786953899, guid: dc84f78c210149d4cab10cedf3ce96c0,
       type: 3}
     spawnPosition: {x: -2, y: -4, z: 36}
     spawnRotationEuler: {x: 0, y: 180, z: 0}
+    craftingTreePrefab: {fileID: 6219676124160121893, guid: 80b6b1c1cdd09c54191f6b813d3f06f3,
+      type: 3}
   - location: 3
     prefab: {fileID: 0}
     spawnPosition: {x: 0, y: 0, z: 0}
     spawnRotationEuler: {x: 0, y: 0, z: 0}
+    craftingTreePrefab: {fileID: 0}
   - location: 4
     prefab: {fileID: 0}
     spawnPosition: {x: 0, y: 0, z: 0}
     spawnRotationEuler: {x: 0, y: 0, z: 0}
+    craftingTreePrefab: {fileID: 0}
   - location: 5
     prefab: {fileID: 0}
     spawnPosition: {x: 0, y: 0, z: 0}
     spawnRotationEuler: {x: 0, y: 0, z: 0}
+    craftingTreePrefab: {fileID: 0}
   - location: 6
     prefab: {fileID: 0}
     spawnPosition: {x: 0, y: 0, z: 0}
     spawnRotationEuler: {x: 0, y: 0, z: 0}
+    craftingTreePrefab: {fileID: 0}
   - location: 7
     prefab: {fileID: 0}
     spawnPosition: {x: 0, y: 0, z: 0}
     spawnRotationEuler: {x: 0, y: 0, z: 0}
+    craftingTreePrefab: {fileID: 0}
   - location: 8
     prefab: {fileID: 0}
     spawnPosition: {x: 0, y: 0, z: 0}
     spawnRotationEuler: {x: 0, y: 0, z: 0}
+    craftingTreePrefab: {fileID: 0}
   - location: 9
     prefab: {fileID: 0}
     spawnPosition: {x: 0, y: 0, z: 0}
     spawnRotationEuler: {x: 0, y: 0, z: 0}
+    craftingTreePrefab: {fileID: 0}
   - location: 10
     prefab: {fileID: 0}
     spawnPosition: {x: 0, y: 0, z: 0}
     spawnRotationEuler: {x: 0, y: 0, z: 0}
+    craftingTreePrefab: {fileID: 0}
   - location: 11
     prefab: {fileID: 0}
     spawnPosition: {x: 0, y: 0, z: 0}
     spawnRotationEuler: {x: 0, y: 0, z: 0}
+    craftingTreePrefab: {fileID: 0}

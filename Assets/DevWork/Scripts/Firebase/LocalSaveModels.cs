@@ -42,6 +42,7 @@ public class LocalGameplayData
     public float diamonds;
     public float currentTime;
     public float totalPlaytime;
+    public List<LocalBiomeCraftNodeState> craftNodeStatesByBiome;
     public List<int> craftNodeStates;
 
     public LocalGameplayData() { }
@@ -56,6 +57,19 @@ public class LocalGameplayData
         diamonds = src.diamonds;
         currentTime = src.currentTime;
         totalPlaytime = src.totalPlaytime;
+        if (src.craftNodeStatesByBiome != null)
+        {
+            craftNodeStatesByBiome = new List<LocalBiomeCraftNodeState>(src.craftNodeStatesByBiome.Count);
+            foreach (var state in src.craftNodeStatesByBiome)
+            {
+                if (state == null) continue;
+                craftNodeStatesByBiome.Add(new LocalBiomeCraftNodeState
+                {
+                    biome = state.biome,
+                    states = state.states != null ? new List<int>(state.states) : null
+                });
+            }
+        }
         craftNodeStates = src.craftNodeStates != null ? new List<int>(src.craftNodeStates) : null;
     }
 
@@ -70,9 +84,36 @@ public class LocalGameplayData
             diamonds = diamonds,
             currentTime = currentTime,
             totalPlaytime = totalPlaytime,
+            craftNodeStatesByBiome = BuildBiomeCraftNodeStates(),
             craftNodeStates = craftNodeStates != null ? new List<int>(craftNodeStates) : null
         };
     }
+
+    private List<BiomeCraftNodeState> BuildBiomeCraftNodeStates()
+    {
+        if (craftNodeStatesByBiome == null)
+            return null;
+
+        var result = new List<BiomeCraftNodeState>(craftNodeStatesByBiome.Count);
+        foreach (var state in craftNodeStatesByBiome)
+        {
+            if (state == null) continue;
+            result.Add(new BiomeCraftNodeState
+            {
+                biome = state.biome,
+                states = state.states != null ? new List<int>(state.states) : null
+            });
+        }
+
+        return result;
+    }
+}
+
+[Serializable]
+public class LocalBiomeCraftNodeState
+{
+    public string biome;
+    public List<int> states;
 }
 
 [Serializable]

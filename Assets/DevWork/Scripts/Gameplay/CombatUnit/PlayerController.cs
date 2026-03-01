@@ -30,10 +30,13 @@ public class PlayerController : MonoBehaviour
     [Header("Pickaxe")]
     [SerializeField] InventoryData pickaxeData;
     [SerializeField] private Transform holdBeamOrigin;
+    [SerializeField] private Transform idlePetVisualAnchor;
 
     private Pickaxe equippedPickaxe;
     private GameObject activeHoldBeamObject;
     private HoldBeamVFX activeHoldBeam;
+    private GameObject activeIdlePetObject;
+    private GameObject activeIdlePetPrefab;
     private Vector3 pendingHoldPoint;
     private float lastHoldUpdateTime = -999f;
 
@@ -103,6 +106,7 @@ public class PlayerController : MonoBehaviour
         regenSub?.Dispose(); regenSub = null;
         deathSub?.Dispose(); deathSub = null;
         StopHoldBeam(immediate: true);
+        StopIdlePetVisual(immediate: true);
     }
 
     void SubscribeDeath()
@@ -116,7 +120,14 @@ public class PlayerController : MonoBehaviour
     }
     void SetUpCurrentStateItem()
     {
-        var item = pickaxeData.GetItem(0).itemData;
+        if (pickaxeData == null || pickaxeData.GetSize() <= 0)
+        {
+            SetEquippedPickaxe(null);
+            return;
+        }
+
+        var slot = pickaxeData.GetItem(0);
+        var item = slot != null ? slot.itemData : null;
         SetEquippedPickaxe(item as Pickaxe);
     }
     public void SetStateByType(PickaxeType pickaxeType)
@@ -147,6 +158,8 @@ public class PlayerController : MonoBehaviour
 
         if (newState is not HoldState)
             StopHoldBeam();
+
+        RefreshIdlePetVisual();
     }
     public void OnUpdate(IDamagable clickableObject)
     {
@@ -238,6 +251,7 @@ public class PlayerController : MonoBehaviour
         if (IsDead) return;
         IsDead = true;
         StopHoldBeam();
+        StopIdlePetVisual();
 
         OnDied?.Invoke();
 
@@ -262,10 +276,65 @@ public class PlayerController : MonoBehaviour
         {
             SetState(new NormalState());
             StopHoldBeam();
+            StopIdlePetVisual();
             return;
         }
 
         SetStateByType(equippedPickaxe.currentState);
+        RefreshIdlePetVisual();
+    }
+
+    private void RefreshIdlePetVisual()
+    {
+        bool shouldShow =
+            !IsDead &&
+            equippedPickaxe != null &&
+            equippedPickaxe.Type != ItemType.None &&
+            currentState is IdleState &&
+            equippedPickaxe.IdlePetVisualPrefab != null;
+
+        if (!shouldShow)
+        {
+            StopIdlePetVisual();
+            return;
+        }
+
+        GameObject prefab = equippedPickaxe.IdlePetVisualPrefab;
+        if (activeIdlePetObject == null || activeIdlePetPrefab != prefab)
+        {
+            StopIdlePetVisual(immediate: true);
+
+            Transform anchor = idlePetVisualAnchor != null ? idlePetVisualAnchor : transform;
+            activeIdlePetObject = LeanPool.Spawn(prefab, anchor.position, anchor.rotation, anchor);
+            activeIdlePetPrefab = prefab;
+        }
+
+        if (activeIdlePetObject == null)
+            return;
+
+        Transform petTransform = activeIdlePetObject.transform;
+        petTransform.localPosition = equippedPickaxe.IdlePetLocalOffset;
+        petTransform.localRotation = Quaternion.Euler(equippedPickaxe.IdlePetLocalEuler);
+        petTransform.localScale = equippedPickaxe.IdlePetLocalScale;
+    }
+
+    private void StopIdlePetVisual(bool immediate = false)
+    {
+        if (activeIdlePetObject == null)
+        {
+            activeIdlePetPrefab = null;
+            return;
+        }
+
+        GameObject petToDespawn = activeIdlePetObject;
+        activeIdlePetObject = null;
+        activeIdlePetPrefab = null;
+
+        // No custom fade-out contract yet, keep lifecycle simple.
+        if (immediate)
+            LeanPool.Despawn(petToDespawn);
+        else
+            LeanPool.Despawn(petToDespawn);
     }
 
     private void UpdateHoldBeamLifecycle()

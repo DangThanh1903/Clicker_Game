@@ -53,7 +53,7 @@ public class BuffManager : MonoBehaviour
         }
 
         // 2) No existing buff instance → create a new one
-        var inst = new BuffInstance(buff, statsManager)
+        var inst = new BuffInstance(buff, statsManager, HandleBuffExpired)
         {
             SourceItem = srcItem
         };
@@ -73,13 +73,14 @@ public class BuffManager : MonoBehaviour
     public void RemoveBuff(BuffInstance buff)
     {
         if (buff == null) return;
-        if (activeBuffs.Remove(buff))
-            buff.Dispose();
+        buff.Dispose();
+        activeBuffs.Remove(buff);
     }
 
     public void ClearAllBuffs()
     {
-        foreach (var b in activeBuffs)
+        var snapshot = activeBuffs.ToArray();
+        foreach (var b in snapshot)
             b?.Dispose();
 
         activeBuffs.Clear();
@@ -110,7 +111,7 @@ public class BuffManager : MonoBehaviour
             if (itemBuffMap[item].ContainsKey(buff)) continue;
             if (activeBuffs.Any(b => b.buffData == buff && b.SourceItem == item)) continue;
 
-            var inst = new BuffInstance(buff, statsManager) { SourceItem = item };
+            var inst = new BuffInstance(buff, statsManager, HandleBuffExpired) { SourceItem = item };
             activeBuffs.Add(inst);
             itemBuffMap[item][buff] = inst;
 
@@ -125,15 +126,36 @@ public class BuffManager : MonoBehaviour
     {
         if (!itemBuffMap.TryGetValue(item, out var map)) return;
 
-        foreach (var kvp in map)
-            kvp.Value?.Deactivate(); // each Deactivate() triggers RecalculateAllStats()
+        var buffs = map.Values.ToArray();
+        foreach (var buff in buffs)
+            buff?.Dispose();
 
-        activeBuffs.RemoveAll(b => b.SourceItem == item);
+        activeBuffs.RemoveAll(b => b != null && b.SourceItem == item);
         itemBuffMap.Remove(item);
     }
 
     void OnDisable()
     {
         ClearAllBuffs(); // good for pooled enemies
+    }
+
+    private void HandleBuffExpired(BuffInstance buff)
+    {
+        if (buff == null)
+            return;
+
+        activeBuffs.Remove(buff);
+
+        if (buff.SourceItem == null)
+            return;
+
+        if (!itemBuffMap.TryGetValue(buff.SourceItem, out var map))
+            return;
+
+        if (map.ContainsKey(buff.buffData))
+            map.Remove(buff.buffData);
+
+        if (map.Count == 0)
+            itemBuffMap.Remove(buff.SourceItem);
     }
 }

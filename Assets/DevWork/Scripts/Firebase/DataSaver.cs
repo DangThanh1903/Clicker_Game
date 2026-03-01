@@ -30,7 +30,8 @@ public class DataSaver : MonoBehaviour
 
     [SerializeField] private List<InventoryData> inventoryDatas = new List<InventoryData>();
     [SerializeField] private CraftNodeManager craftNodeManager;
-    private List<int> pendingCraftNodeStates;
+    private readonly Dictionary<string, List<int>> craftNodeStatesByBiomeCache = new Dictionary<string, List<int>>();
+    private List<int> pendingLegacyCraftNodeStates;
 
     // Firestore
     private FirebaseFirestore db;
@@ -63,6 +64,7 @@ public class DataSaver : MonoBehaviour
     private long lastLocalUpdatedUtcTicks;
     private const string LocalCacheFileName = "local_save.json";
     private const int MaxDisplayNameLength = 16;
+    private const string DefaultCraftScope = "Default";
 
     void Awake()
     {
@@ -345,6 +347,9 @@ public class DataSaver : MonoBehaviour
         if (TimeSystem.Instance != null)
             timeValue = TimeSystem.Instance.CurrentTime.Value;
 
+        SyncCraftNodeStateToCache(craftNodeManager);
+        List<int> currentScopeStates = craftNodeManager != null ? craftNodeManager.GetStates() : null;
+
         return new GameplaySaveData
         {
             currentBlock = blockValue,
@@ -354,7 +359,9 @@ public class DataSaver : MonoBehaviour
             diamonds = diamonds,
             currentTime = timeValue,
             totalPlaytime = TotalPlaytime,
-            craftNodeStates = craftNodeManager != null ? craftNodeManager.GetStates() : null
+            craftNodeStatesByBiome = BuildCraftNodeStatesByBiomePayload(),
+            // Keep legacy field for backward compatibility/migration safety.
+            craftNodeStates = currentScopeStates
         };
     }
 
@@ -641,12 +648,7 @@ public class DataSaver : MonoBehaviour
         CurrentTime = gameplay.currentTime;
         TotalPlaytime = Mathf.Max(0f, gameplay.totalPlaytime);
         AnalyticsManager.Ins?.UpdateUserProperties(this);
-
-        if (gameplay.craftNodeStates != null && gameplay.craftNodeStates.Count > 0)
-        {
-            pendingCraftNodeStates = new List<int>(gameplay.craftNodeStates);
-            TryApplyCraftNodeStates();
-        }
+        LoadCraftNodeStates(gameplay);
     }
 
     private void ApplyProfileData(UserProfileData profile)
@@ -658,17 +660,108 @@ public class DataSaver : MonoBehaviour
     public void RegisterCraftNodeManager(CraftNodeManager manager)
     {
         if (manager == null) return;
+
+        if (craftNodeManager != null && craftNodeManager != manager)
+            SyncCraftNodeStateToCache(craftNodeManager);
+
         craftNodeManager = manager;
         TryApplyCraftNodeStates();
     }
 
     private void TryApplyCraftNodeStates()
     {
-        if (craftNodeManager == null || pendingCraftNodeStates == null)
+        if (craftNodeManager == null)
             return;
 
-        craftNodeManager.ApplyStates(pendingCraftNodeStates, saveLocal: true);
-        pendingCraftNodeStates = null;
+        string scope = GetCraftScope(craftNodeManager);
+        if (craftNodeStatesByBiomeCache.TryGetValue(scope, out var scopedStates) &&
+            scopedStates != null &&
+            scopedStates.Count > 0)
+        {
+            craftNodeManager.ApplyStates(scopedStates, saveLocal: true);
+            return;
+        }
+
+        if (pendingLegacyCraftNodeStates == null || pendingLegacyCraftNodeStates.Count == 0)
+        {
+            // No cloud state for this scope yet: seed cache from current local tree state.
+            SyncCraftNodeStateToCache(craftNodeManager);
+            return;
+        }
+
+        craftNodeManager.ApplyStates(pendingLegacyCraftNodeStates, saveLocal: true);
+        craftNodeStatesByBiomeCache[scope] = new List<int>(pendingLegacyCraftNodeStates);
+        pendingLegacyCraftNodeStates = null;
+    }
+
+    private void LoadCraftNodeStates(GameplaySaveData gameplay)
+    {
+        craftNodeStatesByBiomeCache.Clear();
+        pendingLegacyCraftNodeStates = null;
+
+        if (gameplay.craftNodeStatesByBiome != null)
+        {
+            foreach (var scopedState in gameplay.craftNodeStatesByBiome)
+            {
+                if (scopedState == null || scopedState.states == null)
+                    continue;
+
+                string scope = NormalizeCraftScope(scopedState.biome);
+                craftNodeStatesByBiomeCache[scope] = new List<int>(scopedState.states);
+            }
+        }
+
+        if (craftNodeStatesByBiomeCache.Count == 0 &&
+            gameplay.craftNodeStates != null &&
+            gameplay.craftNodeStates.Count > 0)
+        {
+            pendingLegacyCraftNodeStates = new List<int>(gameplay.craftNodeStates);
+        }
+
+        TryApplyCraftNodeStates();
+    }
+
+    private List<BiomeCraftNodeState> BuildCraftNodeStatesByBiomePayload()
+    {
+        if (craftNodeStatesByBiomeCache.Count == 0)
+            return null;
+
+        var result = new List<BiomeCraftNodeState>(craftNodeStatesByBiomeCache.Count);
+        foreach (var entry in craftNodeStatesByBiomeCache)
+        {
+            result.Add(new BiomeCraftNodeState
+            {
+                biome = entry.Key,
+                states = entry.Value != null ? new List<int>(entry.Value) : null
+            });
+        }
+
+        return result;
+    }
+
+    private void SyncCraftNodeStateToCache(CraftNodeManager manager)
+    {
+        if (manager == null)
+            return;
+
+        string scope = GetCraftScope(manager);
+        var states = manager.GetStates();
+        if (states == null)
+            return;
+
+        craftNodeStatesByBiomeCache[scope] = new List<int>(states);
+    }
+
+    private string GetCraftScope(CraftNodeManager manager)
+    {
+        if (manager == null)
+            return DefaultCraftScope;
+        return NormalizeCraftScope(manager.CurrentSaveScope);
+    }
+
+    private string NormalizeCraftScope(string scope)
+    {
+        return string.IsNullOrWhiteSpace(scope) ? DefaultCraftScope : scope.Trim();
     }
 
     public void SetDisplayName(string displayName, bool forceSave = true)

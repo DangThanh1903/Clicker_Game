@@ -1,6 +1,4 @@
-using TMPro;
 using UnityEngine;
-using UnityEngine.UI;
 using Lean.Pool;
 using System;
 using UniRx;
@@ -10,13 +8,10 @@ public class LocationLoader : MonoBehaviour
     public static LocationLoader Ins { get; private set; }
 
     public BlockSpawnLocation currentLocation;
+    private const BlockSpawnLocation DefaultUnlockedLocation = BlockSpawnLocation.Plain;
 
     // Reactive stream for other systems (music, etc.)
     public ReactiveProperty<BlockSpawnLocation> ReactiveLocation { get; private set; }
-
-    [Header("UI")]
-    [SerializeField] private Button[] LocationButton;
-    [SerializeField] private TMP_Text[] LocationText;
 
     [Header("Data")]
     [SerializeField] private LocationSO locationSO;
@@ -24,8 +19,13 @@ public class LocationLoader : MonoBehaviour
     [Header("Spawn Settings")]
     [SerializeField] private Transform locationParent;
 
+    [Header("Biome Crafting Tree")]
+    [SerializeField] private Transform craftingTreeParent;
+    [SerializeField] private GameObject fallbackCraftingTreeRoot;
+
     // runtime
     private GameObject currentInstance;
+    private GameObject currentCraftingTreeInstance;
     private bool _bootstrapped = false;
 
     private void Awake()
@@ -44,10 +44,27 @@ public class LocationLoader : MonoBehaviour
 
     private void Start()
     {
-        InitializeLocationButton();
+        EnsureProgressInitialized();
 
         if (!_bootstrapped)
             InitialLocation();
+    }
+
+    private void EnsureProgressInitialized()
+    {
+        if (DataSaver.Ins == null)
+            return;
+
+        var peak = DataSaver.Ins.PeakLocation;
+        if (!peak.HasValue || peak.Value < DefaultUnlockedLocation)
+            DataSaver.Ins.PeakLocation = DefaultUnlockedLocation;
+
+        if (DataSaver.Ins.currentLocation.HasValue &&
+            DataSaver.Ins.PeakLocation.HasValue &&
+            DataSaver.Ins.PeakLocation.Value < DataSaver.Ins.currentLocation.Value)
+        {
+            DataSaver.Ins.PeakLocation = DataSaver.Ins.currentLocation.Value;
+        }
     }
 
     private void InitialLocation()
@@ -60,53 +77,11 @@ public class LocationLoader : MonoBehaviour
         }
 
         SpawnLocation(loc.Value, isInitiate: true);
+        SwapCraftingTree(loc.Value);
         _bootstrapped = true;
 
         // Ensure reactive matches current
         ReactiveLocation.Value = currentLocation;
-    }
-
-    private void InitializeLocationButton()
-    {
-        for (int i = 1; i < LocationButton.Length + 1; i++)
-        {
-            int cachedIndex = i;
-            if (!Enum.IsDefined(typeof(BlockSpawnLocation), cachedIndex))
-                continue;
-
-            if (cachedIndex - 1 < LocationText.Length)
-                LocationText[cachedIndex - 1].text = ((BlockSpawnLocation)cachedIndex).ToString();
-
-            if (cachedIndex - 1 < LocationButton.Length)
-            {
-                LocationButton[cachedIndex - 1].onClick.AddListener(() =>
-                {
-                    UIManager.Ins.MoveToMain();
-                    BlockSpawnLocation target = (BlockSpawnLocation)cachedIndex;
-
-                    var locEnum = target.ToLocalized();
-                    var handle = locEnum.GetLocalizedStringAsync();
-
-                    if (currentLocation == target)
-                    {
-                        handle.Completed += h =>
-                        {
-                            GameDebugHandler.LogStaticKey("UI_Debug", "block_already_in", new { loc = h.Result });
-                            UnityEngine.AddressableAssets.Addressables.Release(h);
-                        };
-                        return;
-                    }
-
-                    SetLocation(cachedIndex);
-
-                    handle.Completed += h =>
-                    {
-                        GameDebugHandler.LogStaticKey("UI_Debug", "block_move_to", new { loc = h.Result });
-                        UnityEngine.AddressableAssets.Addressables.Release(h);
-                    };
-                });
-            }
-        }
     }
 
     public void SetLocation(int index, bool isInitiate = false)
@@ -119,7 +94,13 @@ public class LocationLoader : MonoBehaviour
 
         BlockSpawnLocation newLoc = (BlockSpawnLocation)index;
 
-        UIManager.Ins.SetLocationBackground(index - 1);
+        if (!isInitiate && !IsLocationUnlocked(newLoc))
+        {
+            Debug.Log($"Location is locked: {newLoc}");
+            return;
+        }
+
+        UIManager.Ins?.SetLocationBackground(index - 1);
 
         if (isInitiate && _bootstrapped && currentLocation == newLoc)
         {
@@ -132,9 +113,8 @@ public class LocationLoader : MonoBehaviour
 
 
         currentLocation = newLoc;
-        DataSaver.Ins.currentLocation = newLoc;
-        if (DataSaver.Ins.PeakLocation == null || DataSaver.Ins.PeakLocation < newLoc)
-            DataSaver.Ins.PeakLocation = newLoc;
+        if (DataSaver.Ins != null)
+            DataSaver.Ins.currentLocation = newLoc;
 
         // Update reactive stream for music / other systems
         if (ReactiveLocation != null)
@@ -148,10 +128,49 @@ public class LocationLoader : MonoBehaviour
         }
 
         SpawnLocation(data.Value, isInitiate);
+        SwapCraftingTree(data.Value);
         _bootstrapped = true;
 
         if (!isInitiate && previousLocation != newLoc)
             AnalyticsManager.Ins?.TrackLocationChange(previousLocation.ToString(), newLoc.ToString());
+    }
+
+    public BlockSpawnLocation GetHighestUnlockedLocation()
+    {
+        var peak = DataSaver.Ins != null ? DataSaver.Ins.PeakLocation : null;
+        if (!peak.HasValue || peak.Value < DefaultUnlockedLocation)
+            return DefaultUnlockedLocation;
+        return peak.Value;
+    }
+
+    public bool IsLocationUnlocked(BlockSpawnLocation location)
+    {
+        if (location == BlockSpawnLocation.Any)
+            return true;
+        return location <= GetHighestUnlockedLocation();
+    }
+
+    public bool TryUnlockNextLocationFromBoss(BlockSpawnLocation clearedLocation)
+    {
+        int nextIndex = (int)clearedLocation + 1;
+        if (!Enum.IsDefined(typeof(BlockSpawnLocation), nextIndex))
+            return false;
+
+        BlockSpawnLocation nextLocation = (BlockSpawnLocation)nextIndex;
+        if (nextLocation == BlockSpawnLocation.Any)
+            return false;
+
+        BlockSpawnLocation peak = GetHighestUnlockedLocation();
+        if (peak >= nextLocation)
+            return false;
+
+        if (DataSaver.Ins != null)
+        {
+            DataSaver.Ins.PeakLocation = nextLocation;
+            DataSaver.Ins.SaveDataFn(true);
+        }
+
+        return true;
     }
 
     // ================= LeanPool helpers =================
@@ -204,7 +223,56 @@ public class LocationLoader : MonoBehaviour
             anim.PlaySpawn().Subscribe().AddTo(this);
         }
 
-        BlockManager.Ins.RefreshBlockForLocationChange();
+        if (BlockManager.Ins != null)
+            BlockManager.Ins.RefreshBlockForLocationChange();
+    }
+
+    private void SwapCraftingTree(LocationSO.LocationData data)
+    {
+        GameObject prefab = data.craftingTreePrefab;
+
+        if (prefab == null)
+        {
+            ClearCraftingTreeInstance();
+            if (fallbackCraftingTreeRoot != null)
+                fallbackCraftingTreeRoot.SetActive(true);
+            return;
+        }
+
+        if (fallbackCraftingTreeRoot != null)
+            fallbackCraftingTreeRoot.SetActive(false);
+
+        ClearCraftingTreeInstance();
+
+        Transform parent = craftingTreeParent != null ? craftingTreeParent : null;
+        currentCraftingTreeInstance = parent != null
+            ? Instantiate(prefab, parent, false)
+            : Instantiate(prefab);
+
+        if (currentCraftingTreeInstance == null)
+            return;
+
+        if (!currentCraftingTreeInstance.activeSelf)
+            currentCraftingTreeInstance.SetActive(true);
+
+        CraftNodeManager manager = currentCraftingTreeInstance.GetComponent<CraftNodeManager>();
+        if (manager == null)
+            manager = currentCraftingTreeInstance.GetComponentInChildren<CraftNodeManager>(true);
+        if (manager == null)
+            return;
+
+        manager.ConfigureSaveScope(data.location.ToString(), reload: true);
+        if (DataSaver.Ins != null)
+            DataSaver.Ins.RegisterCraftNodeManager(manager);
+    }
+
+    private void ClearCraftingTreeInstance()
+    {
+        if (currentCraftingTreeInstance == null)
+            return;
+
+        Destroy(currentCraftingTreeInstance);
+        currentCraftingTreeInstance = null;
     }
 
     private void DespawnCurrentLocationWithAnim(Action onDone)

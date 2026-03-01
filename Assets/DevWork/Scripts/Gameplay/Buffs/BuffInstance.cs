@@ -95,14 +95,18 @@ public class BuffInstance : IDisposable
         if (disposed) return;
         disposed = true;
 
+        bool wasActive = IsActive;
         IsActive = false;
 
         durationTimer?.Dispose();
+        durationTimer = null;
         conditionCheck?.Dispose();
+        conditionCheck = null;
 
         onExpireCallback?.Invoke(this);
 
-        stats.RecalculateAllStats();
+        if (wasActive && stats != null)
+            stats.RecalculateAllStats();
     }
     // -------------------------
     // Helpers
