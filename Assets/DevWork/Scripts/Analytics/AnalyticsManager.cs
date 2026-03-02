@@ -2,14 +2,21 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
+public enum AnalyticsFlushMode
+{
+    PeriodicAndLifecycle,
+    LifecycleOnly
+}
+
 public class AnalyticsManager : MonoBehaviour
 {
     public static AnalyticsManager Ins { get; private set; }
 
     [Header("Click Aggregation")]
-    [SerializeField] private float clickFlushInterval = 0.5f;
+    [SerializeField] private AnalyticsFlushMode clickFlushMode = AnalyticsFlushMode.PeriodicAndLifecycle;
+    [SerializeField, Min(10f)] private float clickFlushInterval = 300f;
 
-    private readonly Dictionary<string, ClickAggregate> clickAgg = new Dictionary<string, ClickAggregate>();
+    private readonly Dictionary<ClickKey, ClickAggregate> clickAgg = new Dictionary<ClickKey, ClickAggregate>(64);
     private float lastFlushTime;
 
     private string sessionId;
@@ -38,6 +45,9 @@ public class AnalyticsManager : MonoBehaviour
 
     void Update()
     {
+        if (clickFlushMode == AnalyticsFlushMode.LifecycleOnly)
+            return;
+
         if (Time.unscaledTime - lastFlushTime >= clickFlushInterval)
         {
             FlushClicks();
@@ -51,6 +61,12 @@ public class AnalyticsManager : MonoBehaviour
             EndSession("pause");
         else
             StartSession("resume");
+    }
+
+    void OnApplicationFocus(bool hasFocus)
+    {
+        if (!hasFocus)
+            FlushClicks();
     }
 
     void OnApplicationQuit()
@@ -89,7 +105,11 @@ public class AnalyticsManager : MonoBehaviour
 
     public void TrackBlockClick(string blockId, string location, float damage, string source)
     {
-        string key = $"{blockId}@{location}@{source}";
+        blockId = string.IsNullOrEmpty(blockId) ? "unknown" : blockId;
+        location = string.IsNullOrEmpty(location) ? "unknown" : location;
+        source = string.IsNullOrEmpty(source) ? "unknown" : source;
+
+        var key = new ClickKey(blockId, location, source);
         if (!clickAgg.TryGetValue(key, out var agg))
             agg = new ClickAggregate { blockId = blockId, location = location, source = source };
 
@@ -238,5 +258,43 @@ public class AnalyticsManager : MonoBehaviour
         public string source;
         public int count;
         public float damageSum;
+    }
+
+    private struct ClickKey : IEquatable<ClickKey>
+    {
+        private readonly string blockId;
+        private readonly string location;
+        private readonly string source;
+
+        public ClickKey(string blockId, string location, string source)
+        {
+            this.blockId = blockId;
+            this.location = location;
+            this.source = source;
+        }
+
+        public bool Equals(ClickKey other)
+        {
+            return string.Equals(blockId, other.blockId, StringComparison.Ordinal) &&
+                   string.Equals(location, other.location, StringComparison.Ordinal) &&
+                   string.Equals(source, other.source, StringComparison.Ordinal);
+        }
+
+        public override bool Equals(object obj)
+        {
+            return obj is ClickKey other && Equals(other);
+        }
+
+        public override int GetHashCode()
+        {
+            unchecked
+            {
+                int hash = 17;
+                hash = (hash * 31) + (blockId != null ? blockId.GetHashCode() : 0);
+                hash = (hash * 31) + (location != null ? location.GetHashCode() : 0);
+                hash = (hash * 31) + (source != null ? source.GetHashCode() : 0);
+                return hash;
+            }
+        }
     }
 }

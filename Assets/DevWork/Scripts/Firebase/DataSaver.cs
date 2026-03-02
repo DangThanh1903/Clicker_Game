@@ -10,6 +10,12 @@ using System.Threading.Tasks;
 using System.Text;
 using UniRx;
 
+public enum CloudSyncMode
+{
+    PeriodicAndLifecycle,
+    LifecycleOnly
+}
+
 public class DataSaver : MonoBehaviour
 {
     public static DataSaver Ins { get; private set; }
@@ -33,12 +39,20 @@ public class DataSaver : MonoBehaviour
     private readonly Dictionary<string, List<int>> craftNodeStatesByBiomeCache = new Dictionary<string, List<int>>();
     private List<int> pendingLegacyCraftNodeStates;
 
+    [Header("Local Save")]
+    [SerializeField, Min(0.1f)] private float localSaveCooldown = 2f;
+
     // Firestore
     private FirebaseFirestore db;
 
     // Throttle chống spam write (clicker)
-    [SerializeField] private float cloudSaveCooldown = 15f;
+    [Header("Cloud Sync Policy")]
+    [SerializeField] private CloudSyncMode cloudSyncMode = CloudSyncMode.PeriodicAndLifecycle;
+    [SerializeField] private bool forceCloudSyncOnLifecycle = true;
+    [SerializeField, Min(30f)] private float cloudSaveCooldown = 900f;
     private float nextCloudSaveTime = 0f;
+    private float nextLocalSaveTime = 0f;
+    private bool pendingLocalSave;
 
     [Header("Cloud Save Retry")]
     [SerializeField] private int maxSaveAttempts = 3;
@@ -140,6 +154,11 @@ public class DataSaver : MonoBehaviour
             reason = "local not newer than cloud";
             return false;
         }
+        if (!force && cloudSyncMode == CloudSyncMode.LifecycleOnly)
+        {
+            reason = "lifecycle-only cloud sync mode";
+            return false;
+        }
 
         // cooldown để không spam write
         if (!force)
@@ -161,7 +180,24 @@ public class DataSaver : MonoBehaviour
         blockBreakCounter.Value += amount;
     }
 
-    public void SaveDataFn(bool force = false)
+    private void QueueLocalSave(bool forceImmediate = false)
+    {
+        TouchLocalDataUpdated();
+
+        float now = Time.unscaledTime;
+        float localCooldown = Mathf.Max(0.1f, localSaveCooldown);
+        if (forceImmediate || now >= nextLocalSaveTime)
+        {
+            SaveLocalCache();
+            pendingLocalSave = false;
+            nextLocalSaveTime = now + localCooldown;
+            return;
+        }
+
+        pendingLocalSave = true;
+    }
+
+    public void SaveDataFn(bool force = false, bool forceLocalWrite = false)
     {
         if (verboseSaveLogs)
             Debug.Log($"SaveDataFn called (force={force}).");
@@ -175,8 +211,7 @@ public class DataSaver : MonoBehaviour
             return;
         }
 
-        TouchLocalDataUpdated();
-        SaveLocalCache();
+        QueueLocalSave(forceLocalWrite || force);
 
         // reset counter (nhưng chỉ reset khi thật sự save)
         if (!CanCloudSaveNow(out var uid, force, out var reason))
@@ -211,6 +246,9 @@ public class DataSaver : MonoBehaviour
     {
         if (playtimeActive)
             TotalPlaytime += Time.unscaledDeltaTime;
+
+        if (pendingLocalSave && Time.unscaledTime >= nextLocalSaveTime)
+            QueueLocalSave(forceImmediate: true);
 
         if (ongoingSave != null && !ongoingSave.IsCompleted)
         {
@@ -893,8 +931,8 @@ public class DataSaver : MonoBehaviour
         else if (hasLoadedData)
             playtimeActive = true;
         if (isQuitting) return;
-        if (paused && isReady && db != null && !string.IsNullOrEmpty(GetUid()))
-            SaveDataFn();
+        if (paused)
+            SaveDataFn(forceCloudSyncOnLifecycle, forceLocalWrite: true);
     }
 
     void OnApplicationFocus(bool hasFocus)
@@ -904,14 +942,18 @@ public class DataSaver : MonoBehaviour
         else if (hasLoadedData)
             playtimeActive = true;
         if (isQuitting) return;
-        if (!hasFocus && isReady && db != null && !string.IsNullOrEmpty(GetUid()))
-            SaveDataFn();
+        if (!hasFocus)
+            SaveDataFn(forceCloudSyncOnLifecycle, forceLocalWrite: true);
     }
 
     void OnApplicationQuit()
     {
         isQuitting = true;
         playtimeActive = false;
+        if (!allowSaves)
+            return;
+
+        SaveDataFn(forceCloudSyncOnLifecycle, forceLocalWrite: true);
     }
 
     private string SanitizeDisplayName(string raw)

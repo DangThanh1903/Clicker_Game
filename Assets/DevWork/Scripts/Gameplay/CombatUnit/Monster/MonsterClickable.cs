@@ -17,6 +17,7 @@ public class MonsterClickable : MonoBehaviour, IDamagable
     private IDisposable healthSub;
     private float spawnTime;
     private string monsterId;
+    private Collider aimCollider;
 
     private bool isMouseHeld;
     private bool isPressedOnThis;
@@ -166,9 +167,10 @@ public class MonsterClickable : MonoBehaviour, IDamagable
     public void HandleIdle()
     {
         float power = StatsManager.Ins.Get(StatType.IdlePower) * timeIdleReset;
-        onClickPos = GetUIPosition(transform.position);
+        Vector3 aimPoint = GetAimWorldPosition();
+        onClickPos = GetUIPosition(aimPoint);
         TakeDamage(power);
-        PlayerController.Instance?.NotifyIdleDamageDealt(power, transform.position);
+        PlayerController.Instance?.NotifyIdleDamageDealt(power, aimPoint);
     }
 
     // ===== Combat =====
@@ -298,7 +300,21 @@ public class MonsterClickable : MonoBehaviour, IDamagable
         if (visual != null)
             visualBaseScale = visual.localScale;
 
+        if (aimCollider == null)
+            aimCollider = GetComponentInChildren<Collider>(true);
+
         CacheVisualRenderers();
+    }
+
+    private Vector3 GetAimWorldPosition()
+    {
+        if (aimCollider != null)
+            return aimCollider.bounds.center;
+
+        if (visual != null)
+            return visual.position;
+
+        return transform.position;
     }
 
     void PlayHitFeedback()

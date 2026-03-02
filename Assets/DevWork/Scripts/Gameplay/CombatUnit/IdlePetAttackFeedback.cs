@@ -26,6 +26,7 @@ public class IdlePetAttackFeedback : MonoBehaviour, IIdlePetAttackFeedback
     [SerializeField] private bool rotateTowardTarget = true;
     [FormerlySerializedAs("lockYAxis")]
     [SerializeField] private bool lockXAxis = true;
+    [SerializeField] private float lookYawOffset = 160f;
 
     [Header("Dotween Idle")]
     [SerializeField] private bool dotweenIdleEnabled = true;
@@ -77,14 +78,15 @@ public class IdlePetAttackFeedback : MonoBehaviour, IIdlePetAttackFeedback
         if (rotateTowardTarget && lookRoot != null)
         {
             Vector3 direction = targetWorldPosition - lookRoot.position;
+            direction.y = 0f;
             if (direction.sqrMagnitude > 0.0001f)
             {
-                Quaternion targetRotation = Quaternion.LookRotation(direction.normalized, Vector3.up);
+                Quaternion targetRotation = Quaternion.LookRotation(direction.normalized, Vector3.up) * Quaternion.Euler(0f, lookYawOffset, 0f);
                 if (lockXAxis)
                 {
                     Vector3 currentEuler = lookRoot.rotation.eulerAngles;
                     Vector3 targetEuler = targetRotation.eulerAngles;
-                    lookRoot.rotation = Quaternion.Euler(currentEuler.x, targetEuler.y, targetEuler.z);
+                    lookRoot.rotation = Quaternion.Euler(currentEuler.x, targetEuler.y, currentEuler.z);
                 }
                 else
                 {

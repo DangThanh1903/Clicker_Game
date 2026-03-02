@@ -11,6 +11,7 @@ public class IdlePetAttackFeedbackEditor : Editor
     private SerializedProperty attackTriggerNameProp;
     private SerializedProperty rotateTowardTargetProp;
     private SerializedProperty lockXAxisProp;
+    private SerializedProperty lookYawOffsetProp;
 
     private SerializedProperty dotweenIdleEnabledProp;
     private SerializedProperty dotweenIdleOffsetProp;
@@ -34,6 +35,7 @@ public class IdlePetAttackFeedbackEditor : Editor
         attackTriggerNameProp = serializedObject.FindProperty("attackTriggerName");
         rotateTowardTargetProp = serializedObject.FindProperty("rotateTowardTarget");
         lockXAxisProp = serializedObject.FindProperty("lockXAxis");
+        lookYawOffsetProp = serializedObject.FindProperty("lookYawOffset");
 
         dotweenIdleEnabledProp = serializedObject.FindProperty("dotweenIdleEnabled");
         dotweenIdleOffsetProp = serializedObject.FindProperty("dotweenIdleOffset");
@@ -66,6 +68,7 @@ public class IdlePetAttackFeedbackEditor : Editor
         EditorGUILayout.PropertyField(lookRootProp);
         EditorGUILayout.PropertyField(rotateTowardTargetProp);
         EditorGUILayout.PropertyField(lockXAxisProp);
+        EditorGUILayout.PropertyField(lookYawOffsetProp);
 
         var mode = (PetAttackVisualMode)visualModeProp.enumValueIndex;
         if (mode == PetAttackVisualMode.Animator)
