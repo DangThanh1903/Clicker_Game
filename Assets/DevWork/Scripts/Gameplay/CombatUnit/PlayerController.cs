@@ -1,6 +1,5 @@
 using System;
 using System.Collections;
-using Sirenix.OdinInspector;
 using UniRx;
 using UnityEngine;
 using Lean.Pool;
@@ -9,6 +8,7 @@ public class PlayerController : MonoBehaviour
 {
     private static PlayerController _instance;
     public static PlayerController Instance => _instance;
+    private const float HoldManaThreshold = 10f;
     private float manaRegenTimer = 0f;
     private float manaUsageTimer = 0f;
     private readonly float timeManaReset = 0.1f;
@@ -24,6 +24,7 @@ public class PlayerController : MonoBehaviour
     [Header("Tick Settings")]
     [SerializeField] float tickSeconds = 1f;
     [SerializeField] bool useUnscaledTime = true;
+    [SerializeField, Min(0.05f)] private float idleAttackInterval = 1f;
     IDisposable regenSub;
     IDisposable deathSub;
 
@@ -37,8 +38,12 @@ public class PlayerController : MonoBehaviour
     private HoldBeamVFX activeHoldBeam;
     private GameObject activeIdlePetObject;
     private GameObject activeIdlePetPrefab;
+    private IIdlePetAttackFeedback activeIdlePetFeedback;
+    private Animator activeIdlePetAnimatorFallback;
     private Vector3 pendingHoldPoint;
     private float lastHoldUpdateTime = -999f;
+    private float idleAttackTimer;
+    private static readonly int AttackTriggerHash = Animator.StringToHash("Attack");
 
     // Health and state setup
     private void Awake()
@@ -56,14 +61,6 @@ public class PlayerController : MonoBehaviour
     }
     void Update()
     {
-        if (pendingFrame == Time.frameCount &&
-            lastProcessedFrame != Time.frameCount &&
-            pendingTarget != null)
-        {
-            lastProcessedFrame = Time.frameCount;
-            currentState.OnUpdate(this, pendingTarget);
-        }
-
         // Hold mana regen should not depend on a target dispatch path.
         if (!IsDead &&
             currentState is HoldState &&
@@ -73,6 +70,25 @@ public class PlayerController : MonoBehaviour
         }
 
         UpdateHoldBeamLifecycle();
+    }
+
+    void LateUpdate()
+    {
+        int frame = Time.frameCount;
+        bool hasFreshTargetFrame = pendingFrame == frame || pendingFrame == frame - 1;
+        bool isPendingTargetDamageable = IsTargetDamageable(pendingTarget);
+        if (pendingTarget == null ||
+            !isPendingTargetDamageable ||
+            !hasFreshTargetFrame ||
+            lastProcessedFrame == frame)
+        {
+            if (pendingTarget != null && !isPendingTargetDamageable)
+                pendingTarget = null;
+            return;
+        }
+
+        lastProcessedFrame = frame;
+        currentState.OnUpdate(this, pendingTarget);
     }
     void OnEnable()
     {
@@ -105,6 +121,10 @@ public class PlayerController : MonoBehaviour
     {
         regenSub?.Dispose(); regenSub = null;
         deathSub?.Dispose(); deathSub = null;
+        pendingTarget = null;
+        pendingFrame = -1;
+        pendingPriority = int.MinValue;
+        lastProcessedFrame = -1;
         StopHoldBeam(immediate: true);
         StopIdlePetVisual(immediate: true);
     }
@@ -156,6 +176,11 @@ public class PlayerController : MonoBehaviour
 
         currentState.OnEnter(this);
 
+        if (newState is IdleState)
+            idleAttackTimer = Mathf.Max(0.05f, idleAttackInterval); // first idle hit can happen immediately
+        else
+            idleAttackTimer = 0f;
+
         if (newState is not HoldState)
             StopHoldBeam();
 
@@ -164,6 +189,7 @@ public class PlayerController : MonoBehaviour
     public void OnUpdate(IDamagable clickableObject)
     {
         if (clickableObject == null) return;
+        if (!IsTargetDamageable(clickableObject)) return;
 
         int frame = Time.frameCount;
         if (pendingFrame != frame)
@@ -193,7 +219,7 @@ public class PlayerController : MonoBehaviour
 
     public void OnHold(IDamagable clickableObject, Vector3 holdPoint)
     {
-        if (StatsManager.Ins.Get(StatType.CurrentMana) > 10f)
+        if (StatsManager.Ins.Get(StatType.CurrentMana) > HoldManaThreshold)
         {
             if (currentState is HoldState)
             {
@@ -217,6 +243,32 @@ public class PlayerController : MonoBehaviour
         if (target is MonsterClickable) return 1;
         if (target is ClickableObject) return 0;
         return 0;
+    }
+
+    private static bool IsTargetDamageable(IDamagable target)
+    {
+        if (target == null)
+            return false;
+
+        if (target is MonsterClickable monster)
+            return monster.isActiveAndEnabled &&
+                   monster.MaxHealth > 0f &&
+                   monster.CurrentHealth != null &&
+                   monster.CurrentHealth.Value > 0f;
+
+        if (target is ClickableObject block)
+            return block.isActiveAndEnabled &&
+                   block.MaxHealth > 0f &&
+                   block.CurrentHealth != null &&
+                   block.CurrentHealth.Value > 0f;
+
+        if (target is Boss boss)
+            return boss.isActiveAndEnabled;
+
+        if (target is MonoBehaviour mb)
+            return mb.isActiveAndEnabled;
+
+        return true;
     }
 
     #region COMBAT_LOGIC -----------------------------------------------------------------------------------
@@ -284,6 +336,44 @@ public class PlayerController : MonoBehaviour
         RefreshIdlePetVisual();
     }
 
+    public void NotifyIdleDamageDealt(float damage, Vector3 targetWorldPosition)
+    {
+        if (IsDead || currentState is not IdleState)
+            return;
+        if (activeIdlePetObject == null)
+            return;
+
+        if (activeIdlePetFeedback == null && activeIdlePetAnimatorFallback == null)
+            CacheIdlePetFeedbackRefs();
+
+        if (activeIdlePetFeedback != null)
+        {
+            activeIdlePetFeedback.PlayIdleAttack(Mathf.Max(0f, damage), targetWorldPosition);
+            return;
+        }
+
+        if (activeIdlePetAnimatorFallback != null)
+            activeIdlePetAnimatorFallback.SetTrigger(AttackTriggerHash);
+    }
+
+    public void ProcessIdleAttack(IDamagable target)
+    {
+        if (target == null || currentState is not IdleState || IsDead)
+            return;
+
+        float interval = Mathf.Max(0.05f, idleAttackInterval);
+        float dt = useUnscaledTime ? Time.unscaledDeltaTime : Time.deltaTime;
+        idleAttackTimer += dt;
+        if (idleAttackTimer < interval)
+            return;
+
+        int ticks = Mathf.Min(3, Mathf.FloorToInt(idleAttackTimer / interval));
+        idleAttackTimer -= ticks * interval;
+
+        for (int i = 0; i < ticks; i++)
+            target.HandleIdle();
+    }
+
     private void RefreshIdlePetVisual()
     {
         bool shouldShow =
@@ -300,22 +390,33 @@ public class PlayerController : MonoBehaviour
         }
 
         GameObject prefab = equippedPickaxe.IdlePetVisualPrefab;
+        Transform anchor = idlePetVisualAnchor != null ? idlePetVisualAnchor : transform;
+
         if (activeIdlePetObject == null || activeIdlePetPrefab != prefab)
         {
             StopIdlePetVisual(immediate: true);
+            activeIdlePetObject = LeanPool.Spawn(
+                prefab,
+                anchor.position,
+                anchor.rotation,
+                anchor);
 
-            Transform anchor = idlePetVisualAnchor != null ? idlePetVisualAnchor : transform;
-            activeIdlePetObject = LeanPool.Spawn(prefab, anchor.position, anchor.rotation, anchor);
+            // Ensure pooled instance starts exactly at anchor local origin.
+            Transform spawnedPetTransform = activeIdlePetObject.transform;
+            if (spawnedPetTransform.parent != anchor)
+                spawnedPetTransform.SetParent(anchor, false);
+            spawnedPetTransform.localPosition = Vector3.zero;
+
             activeIdlePetPrefab = prefab;
+            CacheIdlePetFeedbackRefs();
         }
 
         if (activeIdlePetObject == null)
             return;
 
         Transform petTransform = activeIdlePetObject.transform;
-        petTransform.localPosition = equippedPickaxe.IdlePetLocalOffset;
-        petTransform.localRotation = Quaternion.Euler(equippedPickaxe.IdlePetLocalEuler);
-        petTransform.localScale = equippedPickaxe.IdlePetLocalScale;
+        if (petTransform.parent != anchor)
+            petTransform.SetParent(anchor, false);
     }
 
     private void StopIdlePetVisual(bool immediate = false)
@@ -323,18 +424,41 @@ public class PlayerController : MonoBehaviour
         if (activeIdlePetObject == null)
         {
             activeIdlePetPrefab = null;
+            activeIdlePetFeedback = null;
+            activeIdlePetAnimatorFallback = null;
             return;
         }
 
         GameObject petToDespawn = activeIdlePetObject;
         activeIdlePetObject = null;
         activeIdlePetPrefab = null;
+        activeIdlePetFeedback = null;
+        activeIdlePetAnimatorFallback = null;
 
         // No custom fade-out contract yet, keep lifecycle simple.
         if (immediate)
             LeanPool.Despawn(petToDespawn);
         else
             LeanPool.Despawn(petToDespawn);
+    }
+
+    private void CacheIdlePetFeedbackRefs()
+    {
+        activeIdlePetFeedback = null;
+        activeIdlePetAnimatorFallback = null;
+
+        if (activeIdlePetObject == null)
+            return;
+
+        var petBehaviours = activeIdlePetObject.GetComponentsInChildren<MonoBehaviour>(true);
+        for (int i = 0; i < petBehaviours.Length; i++)
+        {
+            if (activeIdlePetFeedback == null && petBehaviours[i] is IIdlePetAttackFeedback feedback)
+                activeIdlePetFeedback = feedback;
+        }
+
+        if (activeIdlePetFeedback == null)
+            activeIdlePetAnimatorFallback = activeIdlePetObject.GetComponentInChildren<Animator>(true);
     }
 
     private void UpdateHoldBeamLifecycle()
@@ -345,7 +469,7 @@ public class PlayerController : MonoBehaviour
             IsDead ||
             currentState is not HoldState ||
             !Input.GetMouseButton(0) ||
-            StatsManager.Ins.Get(StatType.CurrentMana) <= 10f;
+            StatsManager.Ins.Get(StatType.CurrentMana) <= HoldManaThreshold;
 
         // Small tolerance avoids despawn/spawn jitter when one raycast frame is missed.
         if (!invalidHold && Time.unscaledTime - lastHoldUpdateTime > 0.15f)

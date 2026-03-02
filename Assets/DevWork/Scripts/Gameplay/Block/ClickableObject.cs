@@ -245,17 +245,16 @@ public class ClickableObject : MonoBehaviour, IDamagable
 
     public void HandleIdle()
     {
-        accumulatedHoldTime += Time.deltaTime;
-        if (accumulatedHoldTime >= timeIdleReset)
-        {
-            float power = StatsManager.Ins.Get(StatType.IdlePower) * timeIdleReset;
-            TakeDamage(power, "idle", timeIdleReset);
-            accumulatedHoldTime = 0f;
-        }
+        float power = StatsManager.Ins.Get(StatType.IdlePower) * timeIdleReset;
+        TakeDamage(power, "idle", timeIdleReset);
+        PlayerController.Instance?.NotifyIdleDamageDealt(power, transform.position);
     }
 
     void TakeDamage(float power, string source, float timeReset = 1)
     {
+        if (power <= 0f)
+            return;
+
         CurrentHealth.Value = Mathf.Max(0, CurrentHealth.Value - power);
 
         StatsManager.Ins.Add(StatType.Clicks, 1 * timeReset);

@@ -1,5 +1,3 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
 public class IdleState : ClickerState
@@ -21,6 +19,6 @@ public class IdleState : ClickerState
 
     public override void OnUpdate(PlayerController controller, IDamagable clickableObject)
     {
-        clickableObject.HandleIdle();
+        controller.ProcessIdleAttack(clickableObject);
     }
 }

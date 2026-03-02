@@ -1,10 +1,8 @@
 using UnityEngine;
 using UniRx;
 using System;
-using Lean.Pool;
-using GooglePlayGames.BasicApi;
-using Unity.VisualScripting.Antlr3.Runtime.Misc;
 using DG.Tweening;
+using Lean.Pool;
 
 public class MonsterClickable : MonoBehaviour, IDamagable
 {
@@ -167,13 +165,10 @@ public class MonsterClickable : MonoBehaviour, IDamagable
 
     public void HandleIdle()
     {
-        accumulatedHoldTime += Time.deltaTime;
-        if (accumulatedHoldTime >= timeIdleReset)
-        {
-            float power = StatsManager.Ins.Get(StatType.IdlePower) * timeIdleReset;
-            TakeDamage(power);
-            accumulatedHoldTime = 0f;
-        }
+        float power = StatsManager.Ins.Get(StatType.IdlePower) * timeIdleReset;
+        onClickPos = GetUIPosition(transform.position);
+        TakeDamage(power);
+        PlayerController.Instance?.NotifyIdleDamageDealt(power, transform.position);
     }
 
     // ===== Combat =====
@@ -181,6 +176,7 @@ public class MonsterClickable : MonoBehaviour, IDamagable
     void TakeDamage(float power)
     {
         if (resolved) return;
+        if (power <= 0f) return;
 
         CurrentHealth.Value = Mathf.Max(0f, CurrentHealth.Value - power);
 

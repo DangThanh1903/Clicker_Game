@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Sirenix.OdinInspector;
 using UnityEngine;
 
 public enum PickaxeType
@@ -13,23 +14,23 @@ public class Pickaxe : Item, IStatProvider
 {
     [SerializeField] private List<StatModifier> modifiers;
     [SerializeField] private List<BuffSO> passiveBuffs;
-    [Header("Hold VFX")]
+    [FoldoutGroup("State Visuals/Hold VFX"), ShowIf(nameof(IsHoldState))]
     [SerializeField] private GameObject holdBeamVfxPrefab;
+    [FoldoutGroup("State Visuals/Hold VFX"), ShowIf(nameof(IsHoldState))]
     [SerializeField] private Vector3 holdBeamStartOffset = new Vector3(0f, 0f, 0.1f);
-    [Header("Idle Pet Visual")]
+    [FoldoutGroup("State Visuals/Idle Pet"), ShowIf(nameof(IsIdleState))]
     [SerializeField] private GameObject idlePetVisualPrefab;
-    [SerializeField] private Vector3 idlePetLocalOffset = new Vector3(0f, 0.8f, -0.9f);
-    [SerializeField] private Vector3 idlePetLocalEuler = Vector3.zero;
-    [SerializeField] private Vector3 idlePetLocalScale = Vector3.one;
+    [FoldoutGroup("State Visuals/Idle Pet"), ShowIf(nameof(IsIdleState))]
+    [SerializeField] private Vector3 idlePetSpawnLocalEuler = Vector3.zero;
 
     public override ItemType Type => ItemType.Pickaxe;
     public PickaxeType currentState = PickaxeType.Normal;
+    private bool IsHoldState => currentState == PickaxeType.Hold;
+    private bool IsIdleState => currentState == PickaxeType.Idle;
     public GameObject HoldBeamVfxPrefab => holdBeamVfxPrefab;
     public Vector3 HoldBeamStartOffset => holdBeamStartOffset;
     public GameObject IdlePetVisualPrefab => idlePetVisualPrefab;
-    public Vector3 IdlePetLocalOffset => idlePetLocalOffset;
-    public Vector3 IdlePetLocalEuler => idlePetLocalEuler;
-    public Vector3 IdlePetLocalScale => idlePetLocalScale;
+    public Vector3 IdlePetSpawnLocalEuler => idlePetSpawnLocalEuler;
 
     public IEnumerable<StatModifier> GetStatModifiers()
     {

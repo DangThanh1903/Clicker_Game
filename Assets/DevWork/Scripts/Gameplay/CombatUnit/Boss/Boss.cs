@@ -3,7 +3,6 @@ using UniRx;
 using UnityEngine;
 using System.Collections.Generic;
 using System;
-using Lean.Pool;
 
 public class Boss : MonoBehaviour, IDamagable
 {
@@ -61,7 +60,7 @@ public class Boss : MonoBehaviour, IDamagable
         bool specialReady = now >= _nextSpecialTime;
 
         // If both ready, SPECIAL has priority
-        if (specialReady && (!normalReady || specialReady))
+        if (specialReady)
         {
             // Try play special; if it plays, schedule next times
             if (bossAnimManager != null && bossAnimManager.TryPlaySpecial())
@@ -224,16 +223,15 @@ public class Boss : MonoBehaviour, IDamagable
 
     public void HandleIdle()
     {
-        accumulatedHoldTime += Time.deltaTime;
-        if (accumulatedHoldTime >= timeIdleReset)
-        {
-            float power = StatsManager.Ins.Get(StatType.IdlePower) * timeIdleReset;
-            TakeDamage(power);
-            accumulatedHoldTime = 0f;
-        }
+        float power = StatsManager.Ins.Get(StatType.IdlePower) * timeIdleReset;
+        TakeDamage(power);
+        PlayerController.Instance?.NotifyIdleDamageDealt(power, transform.position);
     }
     void TakeDamage(float power)
     {
+        if (power <= 0f)
+            return;
+
         enemyStatsManager.Set(StatType.CurrentHP, Mathf.Max(0, enemyStatsManager.Get(StatType.CurrentHP) - power));
         StatsManager.Ins.Add(StatType.TotalDamageDealed, power);
         StatsManager.Ins.Add(StatType.Clicks, 1);
@@ -263,11 +261,6 @@ public class Boss : MonoBehaviour, IDamagable
         string id = string.IsNullOrEmpty(bossId) ? gameObject.name : bossId;
         AnalyticsManager.Ins?.TrackBossKill(id, Mathf.Max(0f, Time.unscaledTime - spawnTime));
         Died?.Invoke(this); 
-    }
-
-    void OnSpawn()
-    {
-
     }
 
     public void SetAnalyticsContext(string id)

@@ -1,5 +1,3 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 public enum TimeRequirement { Any, DayOnly, NightOnly }
 public enum SpecialWeatherName

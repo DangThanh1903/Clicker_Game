@@ -15,8 +15,15 @@ MonoBehaviour:
   itemName: StarWand
   description: StarWand
   icon: {fileID: 21300000, guid: 7af662603de22de469a4737d2f467a86, type: 3}
+  rarity: 0
   modifiers:
   - statType: 4
     value: 25
-  currentState: 2
-  itemPrefix: 0
+  passiveBuffs: []
+  holdBeamVfxPrefab: {fileID: 0}
+  holdBeamStartOffset: {x: 0, y: 0, z: 0.1}
+  idlePetVisualPrefab: {fileID: 0}
+  idlePetLocalOffset: {x: 0.3, y: 0.3, z: 21}
+  idlePetLocalEuler: {x: 0, y: 0, z: 0}
+  idlePetLocalScale: {x: 0.2, y: 0.2, z: 0.2}
+  currentState: 1

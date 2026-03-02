@@ -15,8 +15,14 @@ MonoBehaviour:
   itemName: StarStaff
   description: StarStaff
   icon: {fileID: 21300000, guid: 819fd747cdc9fc44db64ee19ee3d4d5d, type: 3}
+  rarity: 0
   modifiers:
   - statType: 5
     value: 10
+  passiveBuffs: []
+  holdBeamVfxPrefab: {fileID: 0}
+  holdBeamStartOffset: {x: 0, y: 0, z: 0.1}
+  idlePetVisualPrefab: {fileID: 6746238396655818302, guid: 0eaf583d2b489e54c88e0bb0303ad944,
+    type: 3}
+  idlePetSpawnLocalEuler: {x: 0, y: 0, z: 0}
   currentState: 2
-  itemPrefix: 0
