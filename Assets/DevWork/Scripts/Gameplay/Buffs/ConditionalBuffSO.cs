@@ -22,8 +22,9 @@ public class ConditionalBuffSO : BuffSO
             BuffConditionType.ClickPerTick20 => stats.Get(StatType.ClickPerTick) > 20f,
             BuffConditionType.DayTime => TimeSystem.Instance != null && TimeSystem.Instance.CurrentTimeState.Value == TimeState.Day,
             BuffConditionType.NightTime => TimeSystem.Instance != null && TimeSystem.Instance.CurrentTimeState.Value == TimeState.Night,
-            BuffConditionType.Every4Click => (int)stats.Get(StatType.Clicks) % 4 == 0,
-            BuffConditionType.Every8Click => (int)stats.Get(StatType.Clicks) % 8 == 0,
+            // Pre-arm before the hit so the 5th click can benefit from this conditional buff.
+            BuffConditionType.Every5Click => ((int)stats.Get(StatType.Clicks) + 1) % 5 == 0,
+            BuffConditionType.Every8Click => ((int)stats.Get(StatType.Clicks) + 1) % 8 == 0,
             BuffConditionType.Holded3Sec => (int)stats.Get(StatType.HoldedTime) >= 3,
             BuffConditionType.Holded6Sec => (int)stats.Get(StatType.HoldedTime) >= 6,
             BuffConditionType.IsInPlain => DataSaver.Ins != null && DataSaver.Ins.currentLocation == BlockSpawnLocation.Plain,
@@ -34,6 +35,18 @@ public class ConditionalBuffSO : BuffSO
 
     public IObservable<bool> ObserveCondition(StatsManagerBase stats)
     {
+        if (stats == null)
+            return Observable.Return(false);
+
+        if (conditionType == BuffConditionType.Every5Click ||
+            conditionType == BuffConditionType.Every8Click)
+        {
+            return stats.GetReactive(StatType.Clicks)
+                .Select(_ => CheckCondition(stats))
+                .StartWith(CheckCondition(stats))
+                .DistinctUntilChanged();
+        }
+
         return Observable.Interval(TimeSpan.FromSeconds(Mathf.Max(0.02f, checkIntervalSeconds)))
             .StartWith(0L)
             .Select(_ => CheckCondition(stats))
@@ -49,7 +62,7 @@ public enum BuffConditionType
     ClickPerTick20,
     DayTime,
     NightTime,
-    Every4Click,
+    Every5Click,
     Every8Click,
     Holded3Sec,
     Holded6Sec,

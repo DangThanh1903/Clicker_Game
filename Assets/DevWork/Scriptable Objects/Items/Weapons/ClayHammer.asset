@@ -18,7 +18,11 @@ MonoBehaviour:
   rarity: 0
   modifiers:
   - statType: 3
-    value: 2
+    value: 1
+    mode: 0
   passiveBuffs: []
+  holdBeamVfxPrefab: {fileID: 0}
+  holdBeamStartOffset: {x: 0, y: 0, z: 0.1}
+  idlePetVisualPrefab: {fileID: 0}
+  idlePetSpawnLocalEuler: {x: 0, y: 0, z: 0}
   currentState: 0
-  itemPrefix: 0

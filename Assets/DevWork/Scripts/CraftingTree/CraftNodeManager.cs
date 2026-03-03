@@ -17,6 +17,8 @@ public class CraftNodeManager : MonoBehaviour
     private const string SaveKeyPrefix = "CraftNodeStates";
     private bool suppressCloudSave;
     public string CurrentSaveScope => string.IsNullOrWhiteSpace(saveScope) ? "Default" : saveScope.Trim();
+    public event Action<CraftNode> OnNodeUnlocked;
+    public event Action<CraftNode> OnNodeFinished;
 
     private string SaveKey
     {
@@ -40,7 +42,18 @@ public class CraftNodeManager : MonoBehaviour
 
         foreach (var node in allNodes)
         {
-            node.OnStateChanged += (_, __) => SaveNodeStates();
+            if (node == null)
+                continue;
+
+            var capturedNode = node;
+            node.OnStateChanged += (previous, current) =>
+            {
+                SaveNodeStates();
+                if (previous != CraftNodeState.Unlocked && current == CraftNodeState.Unlocked)
+                    OnNodeUnlocked?.Invoke(capturedNode);
+                if (previous != CraftNodeState.Finished && current == CraftNodeState.Finished)
+                    OnNodeFinished?.Invoke(capturedNode);
+            };
         }
 
         foreach (var node in allNodes)

@@ -14,14 +14,27 @@ public abstract class BuffSO : ScriptableObject
 
     public IEnumerable<StatModifier> GetEffectiveModifiers(int stackCount)
     {
-        float stackMult = isStackable ? stackCount : 1f;
-
         foreach (var mod in modifiers)
         {
+            float effectiveValue = mod.value;
+            if (isStackable && stackCount > 1)
+            {
+                if (mod.mode == StatModifierMode.Multiply)
+                {
+                    // Repeated multiplicative stacks: x1.1 with 3 stacks => x1.331.
+                    effectiveValue = mod.value > 0f ? Mathf.Pow(mod.value, stackCount) : mod.value;
+                }
+                else
+                {
+                    effectiveValue = mod.value * stackCount;
+                }
+            }
+
             yield return new StatModifier
             {
                 statType = mod.statType,
-                value    = mod.value * stackMult
+                value = effectiveValue,
+                mode = mod.mode
             };
         }
     }

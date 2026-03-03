@@ -21,12 +21,14 @@ public class IdlePetAttackFeedback : MonoBehaviour, IIdlePetAttackFeedback
 
     [Header("Animator Params")]
     [SerializeField] private string attackTriggerName = "Attack";
+    [SerializeField] private string specialAttackTriggerName = "SpecialAttack";
+    [SerializeField, Range(0f, 1f)] private float specialAttackChance = 0.1f;
 
     [Header("Aim")]
     [SerializeField] private bool rotateTowardTarget = true;
     [FormerlySerializedAs("lockYAxis")]
     [SerializeField] private bool lockXAxis = true;
-    [SerializeField] private float lookYawOffset = 160f;
+    [SerializeField] private bool useLookRootYawAsBase = true;
 
     [Header("Dotween Idle")]
     [SerializeField] private bool dotweenIdleEnabled = true;
@@ -42,11 +44,18 @@ public class IdlePetAttackFeedback : MonoBehaviour, IIdlePetAttackFeedback
     [SerializeField] private Ease dotweenAttackReturnEase = Ease.InQuad;
     [SerializeField] private bool dotweenAttackTowardTarget = true;
     [SerializeField] private bool dotweenAttackIgnoreY = true;
+    [SerializeField, Range(0f, 1f)] private float dotweenSpecialAttackChance = 0.1f;
+    [SerializeField, Min(1f)] private float dotweenSpecialDistanceMultiplier = 1.4f;
+    [SerializeField, Min(0.1f)] private float dotweenSpecialSpinTurns = 1f;
+    [SerializeField, Min(0.01f)] private float dotweenSpecialSpinDuration = 0.2f;
+    [SerializeField] private Ease dotweenSpecialSpinEase = Ease.OutCubic;
 
     private Tween idleTween;
     private Tween attackTween;
     private Vector3 baseLocalPosition;
     private bool hasBaseLocalPosition;
+    private float cachedLookRootLocalYaw;
+    private bool hasCachedLookRootLocalYaw;
 
     void Awake()
     {
@@ -60,11 +69,13 @@ public class IdlePetAttackFeedback : MonoBehaviour, IIdlePetAttackFeedback
             tweenRoot = transform;
 
         CacheBaseLocalPosition();
+        CacheLookYawBase();
     }
 
     void OnEnable()
     {
         CacheBaseLocalPosition();
+        CacheLookYawBase();
         ApplyVisualModeState();
     }
 
@@ -81,7 +92,8 @@ public class IdlePetAttackFeedback : MonoBehaviour, IIdlePetAttackFeedback
             direction.y = 0f;
             if (direction.sqrMagnitude > 0.0001f)
             {
-                Quaternion targetRotation = Quaternion.LookRotation(direction.normalized, Vector3.up) * Quaternion.Euler(0f, lookYawOffset, 0f);
+                float yawBase = GetResolvedLookYawBase();
+                Quaternion targetRotation = Quaternion.LookRotation(direction.normalized, Vector3.up) * Quaternion.Euler(0f, yawBase, 0f);
                 if (lockXAxis)
                 {
                     Vector3 currentEuler = lookRoot.rotation.eulerAngles;
@@ -101,7 +113,16 @@ public class IdlePetAttackFeedback : MonoBehaviour, IIdlePetAttackFeedback
             return;
         }
 
-        if (animator != null && !string.IsNullOrEmpty(attackTriggerName))
+        if (animator == null)
+            return;
+
+        if (ShouldPlaySpecialAttack())
+        {
+            animator.SetTrigger(specialAttackTriggerName);
+            return;
+        }
+
+        if (!string.IsNullOrEmpty(attackTriggerName))
             animator.SetTrigger(attackTriggerName);
     }
 
@@ -120,6 +141,23 @@ public class IdlePetAttackFeedback : MonoBehaviour, IIdlePetAttackFeedback
 
         baseLocalPosition = tweenRoot.localPosition;
         hasBaseLocalPosition = true;
+    }
+
+    private void CacheLookYawBase()
+    {
+        if (lookRoot == null)
+        {
+            hasCachedLookRootLocalYaw = false;
+            return;
+        }
+
+        cachedLookRootLocalYaw = lookRoot.localEulerAngles.y;
+        hasCachedLookRootLocalYaw = true;
+    }
+
+    public void RefreshLookYawBaseFromCurrentPose()
+    {
+        CacheLookYawBase();
     }
 
     private void StartDotweenIdle()
@@ -170,21 +208,45 @@ public class IdlePetAttackFeedback : MonoBehaviour, IIdlePetAttackFeedback
         if (worldDirection.sqrMagnitude <= 0.0001f)
             worldDirection = Vector3.forward;
 
+        bool useSpecialSpin = ShouldPlayDotweenSpecialAttack();
+        float distance = dotweenAttackDistance;
+        if (useSpecialSpin)
+            distance *= Mathf.Max(1f, dotweenSpecialDistanceMultiplier);
+
         worldDirection.Normalize();
-        Vector3 worldDelta = worldDirection * dotweenAttackDistance;
+        Vector3 worldDelta = worldDirection * distance;
         Vector3 localDelta = tweenRoot.parent != null
             ? tweenRoot.parent.InverseTransformVector(worldDelta)
             : worldDelta;
 
         Vector3 attackTargetLocal = baseLocalPosition + localDelta;
-        attackTween = DOTween.Sequence()
-            .Append(tweenRoot.DOLocalMove(attackTargetLocal, Mathf.Max(0.01f, dotweenAttackForwardDuration)).SetEase(dotweenAttackForwardEase))
+        Sequence sequence = DOTween.Sequence();
+
+        Tween moveForward = tweenRoot
+            .DOLocalMove(attackTargetLocal, Mathf.Max(0.01f, dotweenAttackForwardDuration))
+            .SetEase(dotweenAttackForwardEase);
+
+        sequence.Append(moveForward);
+
+        if (useSpecialSpin)
+        {
+            Vector3 euler = tweenRoot.localEulerAngles;
+            Vector3 spinTarget = euler + new Vector3(0f, 360f * Mathf.Max(1f, dotweenSpecialSpinTurns), 0f);
+            Tween spin = tweenRoot
+                .DOLocalRotate(spinTarget, Mathf.Max(0.01f, dotweenSpecialSpinDuration), RotateMode.FastBeyond360)
+                .SetEase(dotweenSpecialSpinEase);
+            sequence.Join(spin);
+        }
+
+        sequence
             .Append(tweenRoot.DOLocalMove(baseLocalPosition, Mathf.Max(0.01f, dotweenAttackReturnDuration)).SetEase(dotweenAttackReturnEase))
             .OnComplete(() =>
             {
                 attackTween = null;
                 StartDotweenIdle();
             });
+
+        attackTween = sequence;
     }
 
     private void StopDotweenPlayback(bool resetPosition)
@@ -203,5 +265,32 @@ public class IdlePetAttackFeedback : MonoBehaviour, IIdlePetAttackFeedback
 
         if (resetPosition && tweenRoot != null && hasBaseLocalPosition)
             tweenRoot.localPosition = baseLocalPosition;
+    }
+
+    private bool ShouldPlaySpecialAttack()
+    {
+        if (string.IsNullOrEmpty(specialAttackTriggerName))
+            return false;
+        if (specialAttackChance <= 0f)
+            return false;
+
+        return Random.value < specialAttackChance;
+    }
+
+    private bool ShouldPlayDotweenSpecialAttack()
+    {
+        if (dotweenSpecialAttackChance <= 0f)
+            return false;
+
+        return Random.value < dotweenSpecialAttackChance;
+    }
+
+    private float GetResolvedLookYawBase()
+    {
+        float baseYaw = 0f;
+        if (useLookRootYawAsBase && hasCachedLookRootLocalYaw)
+            baseYaw = cachedLookRootLocalYaw;
+
+        return baseYaw;
     }
 }

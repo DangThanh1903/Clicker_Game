@@ -228,16 +228,24 @@ public class ClickableObject : MonoBehaviour, IDamagable
 
     public void HandleClick()
     {
-        float power = StatsManager.Ins.Get(StatType.NormalPower);
+        float finalDamage = StatsManager.Ins.Get(StatType.NormalPower);
+        float power = PlayerController.Instance != null
+            ? PlayerController.Instance.ApplyStaminaToFinalDamage(finalDamage)
+            : finalDamage;
         TakeDamage(power, "click");
     }
     public void HandleHold()
     {
-        accumulatedHoldTime += Time.deltaTime;
-        StatsManager.Ins.Add(StatType.HoldedTime, Time.deltaTime);
+        var player = PlayerController.Instance;
+        float dt = player != null && player.UseUnscaledTime ? Time.unscaledDeltaTime : Time.deltaTime;
+        accumulatedHoldTime += dt;
+        StatsManager.Ins.Add(StatType.HoldedTime, dt);
         if (accumulatedHoldTime >= timeHoldReset)
         {
-            float power = StatsManager.Ins.Get(StatType.HoldPower) * timeHoldReset;
+            float manaMul = player != null
+                ? player.GetHoldDamageMultiplier()
+                : 1f;
+            float power = StatsManager.Ins.Get(StatType.HoldPower) * manaMul * timeHoldReset;
             TakeDamage(power, "hold", timeHoldReset);
             accumulatedHoldTime = 0f;
         }
@@ -245,7 +253,10 @@ public class ClickableObject : MonoBehaviour, IDamagable
 
     public void HandleIdle()
     {
-        float power = StatsManager.Ins.Get(StatType.IdlePower) * timeIdleReset;
+        float idleMul = PlayerController.Instance != null
+            ? PlayerController.Instance.GetIdleDamageMultiplier()
+            : 1f;
+        float power = StatsManager.Ins.Get(StatType.IdlePower) * idleMul * timeIdleReset;
         TakeDamage(power, "idle", timeIdleReset);
         PlayerController.Instance?.NotifyIdleDamageDealt(power, transform.position);
     }

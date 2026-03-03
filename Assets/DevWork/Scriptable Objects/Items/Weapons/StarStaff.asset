@@ -24,5 +24,5 @@ MonoBehaviour:
   holdBeamStartOffset: {x: 0, y: 0, z: 0.1}
   idlePetVisualPrefab: {fileID: 6746238396655818302, guid: 0eaf583d2b489e54c88e0bb0303ad944,
     type: 3}
-  idlePetSpawnLocalEuler: {x: 0, y: 0, z: 0}
+  idlePetSpawnLocalEuler: {x: 0, y: 160, z: 0}
   currentState: 2

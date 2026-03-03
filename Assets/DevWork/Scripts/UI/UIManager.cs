@@ -20,10 +20,15 @@ public class UIManager : MonoBehaviour
     [SerializeField] private float pageWidth = 0f;
     [SerializeField] private bool keepPanelsActive = true;
     [SerializeField] private float hiddenAlpha = 0f;
+    [SerializeField] private bool disableButtonInteractableWhileSliding = false;
 
     [Header("Bottom button anim")]
     [SerializeField] private Vector3 selectedIconScale = new Vector3(1.2f, 1.2f, 1f);
     [SerializeField] private float iconRiseHeight = 20f;
+    [SerializeField] private bool animateSelectedButtonWidth = true;
+    [SerializeField, Min(1f)] private float selectedButtonWidthMultiplier = 1.3f;
+    [SerializeField, Min(0.01f)] private float buttonWidthDuration = 0.25f;
+    [SerializeField] private Ease buttonWidthEase = Ease.OutCubic;
 
     private readonly int startIndex = 2;     // start page index
     private int currentIndex = -1;
@@ -34,6 +39,8 @@ public class UIManager : MonoBehaviour
     private int lastScreenWidth;
     private int lastScreenHeight;
     private readonly List<CanvasGroup> panelGroups = new List<CanvasGroup>();
+    private readonly List<LayoutElement> navButtonLayouts = new List<LayoutElement>();
+    private readonly List<float> navButtonBaseWidths = new List<float>();
     public int CurrentIndex => currentIndex;
 
     [Header("Setting button")]
@@ -66,6 +73,7 @@ public class UIManager : MonoBehaviour
         InitPanelGroups();
         ActivateOnly(startIndex, snap: false);
         RefreshLayout(snapToCurrent: true);
+        SetupBottomButtonWidthLayout();
         BottomButtonAnim(startIndex);
     }
 
@@ -115,7 +123,8 @@ public class UIManager : MonoBehaviour
                 panels[i].gameObject.SetActive(i >= a && i <= b);
         }
 
-        SetButtonsInteractable(false);
+        if (disableButtonInteractableWhileSliding)
+            SetButtonsInteractable(false);
         isTweening = true;
 
         float targetX = -target * pageWidth;
@@ -127,7 +136,8 @@ public class UIManager : MonoBehaviour
                            .OnComplete(() =>
                            {
                                ActivateOnly(target, snap: false);
-                               SetButtonsInteractable(true);
+                               if (disableButtonInteractableWhileSliding)
+                                   SetButtonsInteractable(true);
                                isTweening = false;
                            });
     }
@@ -221,6 +231,8 @@ public class UIManager : MonoBehaviour
             lastScreenWidth = Screen.width;
             lastScreenHeight = Screen.height;
             RefreshLayout(snapToCurrent: true);
+            RefreshBottomButtonWidthBase();
+            BottomButtonAnim(currentIndex < 0 ? startIndex : currentIndex);
         }
     }
 
@@ -278,6 +290,8 @@ public class UIManager : MonoBehaviour
 
     void BottomButtonAnim(int index)
     {
+        AnimateBottomButtonWidths(index);
+
         for (int j = 0; j < buttons.Count; j++)
         {
             Transform icon = buttons[j].transform.GetChild(0);
@@ -301,7 +315,117 @@ public class UIManager : MonoBehaviour
         }
     }
 
+    private void SetupBottomButtonWidthLayout()
+    {
+        if (!animateSelectedButtonWidth)
+            return;
+
+        navButtonLayouts.Clear();
+        navButtonBaseWidths.Clear();
+
+        for (int i = 0; i < buttons.Count; i++)
+        {
+            var btn = buttons[i];
+            if (btn == null)
+            {
+                navButtonLayouts.Add(null);
+                navButtonBaseWidths.Add(0f);
+                continue;
+            }
+
+            var rect = btn.transform as RectTransform;
+            if (rect == null)
+            {
+                navButtonLayouts.Add(null);
+                navButtonBaseWidths.Add(0f);
+                continue;
+            }
+
+            var layout = btn.GetComponent<LayoutElement>();
+            if (layout == null)
+                layout = btn.gameObject.AddComponent<LayoutElement>();
+
+            navButtonLayouts.Add(layout);
+            navButtonBaseWidths.Add(0f);
+        }
+
+        RefreshBottomButtonWidthBase();
+    }
+
+    private void RefreshBottomButtonWidthBase()
+    {
+        if (!animateSelectedButtonWidth || navButtonLayouts.Count != buttons.Count)
+            return;
+
+        for (int i = 0; i < navButtonLayouts.Count; i++)
+        {
+            var layout = navButtonLayouts[i];
+            if (layout != null)
+                layout.preferredWidth = -1f;
+        }
+
+        Canvas.ForceUpdateCanvases();
+        var parent = buttons.Count > 0 ? buttons[0].transform.parent as RectTransform : null;
+        if (parent != null)
+            LayoutRebuilder.ForceRebuildLayoutImmediate(parent);
+
+        for (int i = 0; i < buttons.Count; i++)
+        {
+            var btn = buttons[i];
+            var layout = navButtonLayouts[i];
+            if (btn == null || layout == null)
+                continue;
+
+            var rect = btn.transform as RectTransform;
+            float width = rect != null ? rect.rect.width : 0f;
+            if (width <= 0f)
+                width = 100f;
+
+            navButtonBaseWidths[i] = width;
+        }
+    }
+
+    private void AnimateBottomButtonWidths(int selectedIndex)
+    {
+        if (!animateSelectedButtonWidth || navButtonLayouts.Count != buttons.Count)
+            return;
+
+        selectedIndex = Mathf.Clamp(selectedIndex, 0, buttons.Count - 1);
+        float multiplier = Mathf.Max(1f, selectedButtonWidthMultiplier);
+
+        for (int i = 0; i < buttons.Count; i++)
+        {
+            var layout = navButtonLayouts[i];
+            if (layout == null)
+                continue;
+
+            float baseWidth = i < navButtonBaseWidths.Count ? navButtonBaseWidths[i] : 0f;
+            if (baseWidth <= 0f)
+                continue;
+
+            float target = (i == selectedIndex) ? baseWidth * multiplier : baseWidth;
+            DOTween.Kill(layout);
+
+            DOTween.To(() => layout.preferredWidth, x => layout.preferredWidth = x, target, buttonWidthDuration)
+                .SetEase(buttonWidthEase)
+                .SetUpdate(true)
+                .SetTarget(layout);
+        }
+    }
+
     public bool IsBlockCanClick() => startIndex == currentIndex && !isOpenSetting;
+
+    public Button GetNavButton(int index)
+    {
+        if (buttons == null || index < 0 || index >= buttons.Count)
+            return null;
+        return buttons[index];
+    }
+
+    public int GetNavButtonCount()
+    {
+        return buttons != null ? buttons.Count : 0;
+    }
 
     public void SetLocationBackground(int index)
     {

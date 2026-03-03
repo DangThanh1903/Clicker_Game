@@ -6,6 +6,7 @@ public class BossAnimManager : MonoBehaviour
 {
     [Header("Visual root (only visuals, not collider)")]
     public Transform modelRoot;
+    [SerializeField] private bool useUnscaledTime = true;
 
     [Header("Skills")]
     public BossSkillDef normalSkill;
@@ -18,6 +19,7 @@ public class BossAnimManager : MonoBehaviour
     private float _nextSpecial;
     [Serializable] public struct LocalPose { public Vector3 pos, scale; public Quaternion rot; }
     private LocalPose _basePose;
+    private float Now => useUnscaledTime ? Time.unscaledTime : Time.time;
 
     void OnDisable() => Kill();
     void Awake()
@@ -35,20 +37,20 @@ public class BossAnimManager : MonoBehaviour
     public bool TryPlayNormal()
     {
         if (!normalSkill) return false;
-        if (Time.time < _nextNormal) return false;
+        if (Now < _nextNormal) return false;
 
         Play(normalSkill);
-        _nextNormal = Time.time + Mathf.Max(0f, normalSkill.cooldown);
+        _nextNormal = Now + Mathf.Max(0f, normalSkill.cooldown);
         return true;
     }
 
     public bool TryPlaySpecial()
     {
         if (!specialSkill) return false;
-        if (Time.time < _nextSpecial) return false;
+        if (Now < _nextSpecial) return false;
 
         Play(specialSkill);
-        _nextSpecial = Time.time + Mathf.Max(0f, specialSkill.cooldown);
+        _nextSpecial = Now + Mathf.Max(0f, specialSkill.cooldown);
         return true;
     }
 
@@ -74,7 +76,7 @@ public class BossAnimManager : MonoBehaviour
     /// <summary>Optional helper to reset CDs (e.g., on spawn).</summary>
     public void ResetCooldowns(float normalReadyIn = 0f, float specialReadyIn = 0f)
     {
-        _nextNormal = Time.time + normalReadyIn;
-        _nextSpecial = Time.time + specialReadyIn;
+        _nextNormal = Now + normalReadyIn;
+        _nextSpecial = Now + specialReadyIn;
     }
 }

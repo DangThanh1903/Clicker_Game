@@ -61,12 +61,94 @@ public abstract class StatsManagerBase : MonoBehaviour
     public void Add(StatType type, float amount) => GetOrCreateStat(type).Add(amount);
     public void Sub(StatType type, float amount) => GetOrCreateStat(type).Sub(amount);
 
+    protected sealed class ModifierAccumulator
+    {
+        public readonly Dictionary<StatType, float> AddTotals = new Dictionary<StatType, float>();
+        public readonly Dictionary<StatType, float> MultiplyTotals = new Dictionary<StatType, float>();
+    }
+
+    protected ModifierAccumulator CreateModifierAccumulator() => new ModifierAccumulator();
+
+    protected void AccumulateModifier(ModifierAccumulator accumulator, StatModifier mod)
+    {
+        if (accumulator == null)
+            return;
+
+        if (mod.mode == StatModifierMode.Multiply)
+        {
+            if (accumulator.MultiplyTotals.TryGetValue(mod.statType, out float currentMul))
+                accumulator.MultiplyTotals[mod.statType] = currentMul * mod.value;
+            else
+                accumulator.MultiplyTotals[mod.statType] = mod.value;
+            return;
+        }
+
+        if (accumulator.AddTotals.TryGetValue(mod.statType, out float currentAdd))
+            accumulator.AddTotals[mod.statType] = currentAdd + mod.value;
+        else
+            accumulator.AddTotals[mod.statType] = mod.value;
+    }
+
+    protected void ApplyAccumulatedModifiers(ModifierAccumulator accumulator)
+    {
+        if (accumulator == null)
+            return;
+
+        foreach (var add in accumulator.AddTotals)
+            Add(add.Key, add.Value);
+
+        foreach (var mul in accumulator.MultiplyTotals)
+            Set(mul.Key, Get(mul.Key) * mul.Value);
+    }
+
+    private static bool ShouldPreserveAcrossRecalculate(StatType type)
+    {
+        switch (type)
+        {
+            case StatType.CurrentHP:
+            case StatType.CurrentMana:
+            case StatType.CurrentStamina:
+            case StatType.Clicks:
+            case StatType.ClickPerTick:
+            case StatType.Diamond:
+            case StatType.HoldedTime:
+            case StatType.TotalBlockBreaked:
+            case StatType.TotalDamageDealed:
+            case StatType.TotalTimePlayed:
+                return true;
+            default:
+                return false;
+        }
+    }
+
     public void ClearAll()
     {
+        Dictionary<StatType, float> preservedValues = null;
+        if (stats != null)
+        {
+            foreach (var entry in stats)
+            {
+                if (!ShouldPreserveAcrossRecalculate(entry.Key) || entry.Value == null)
+                    continue;
+
+                preservedValues ??= new Dictionary<StatType, float>();
+                preservedValues[entry.Key] = entry.Value.Get();
+            }
+        }
+
         foreach (var stat in stats.Values)
         {
             if (baseStatsDict.TryGetValue(stat.statType, out var bs))
                 stat.Set(bs.Get());
+        }
+
+        if (preservedValues != null)
+        {
+            foreach (var entry in preservedValues)
+            {
+                if (HasStat(entry.Key))
+                    Set(entry.Key, entry.Value);
+            }
         }
     }
 
@@ -113,19 +195,22 @@ public abstract class StatsManagerBase : MonoBehaviour
     {
         ClearAll();
 
-        ApplyBuffs();
+        var accumulator = CreateModifierAccumulator();
+        CollectBuffModifiers(accumulator);
+        ApplyAccumulatedModifiers(accumulator);
 
         ReCalculateHPAndMP();
 
         RaiseStatsRecalculated();
     }
 
-    // Shared buff application for everyone
-    protected virtual void ApplyBuffs()
+    // Shared buff collection for everyone.
+    protected virtual void CollectBuffModifiers(ModifierAccumulator accumulator)
     {
-            if (buffManager == null) return;
+        if (buffManager == null || accumulator == null)
+            return;
 
-            foreach (var buffInst in buffManager.GetAllBuffs())
+        foreach (var buffInst in buffManager.GetAllBuffs())
         {
             if (!buffInst.IsActive) continue;
 
@@ -134,7 +219,7 @@ public abstract class StatsManagerBase : MonoBehaviour
 
             foreach (var mod in data.GetEffectiveModifiers(stacks))
             {
-                Add(mod.statType, mod.value);
+                AccumulateModifier(accumulator, mod);
             }
         }
     }
@@ -151,6 +236,12 @@ public abstract class StatsManagerBase : MonoBehaviour
         {
             if (Get(StatType.CurrentMana) > Get(StatType.Mana))
                 Set(StatType.CurrentMana, Get(StatType.Mana));
+        }
+
+        if (HasStat(StatType.CurrentStamina) && HasStat(StatType.Stamina))
+        {
+            float staminaMax = Mathf.Max(0f, Get(StatType.Stamina));
+            Set(StatType.CurrentStamina, Mathf.Clamp(Get(StatType.CurrentStamina), 0f, staminaMax));
         }
     }
 

@@ -18,6 +18,7 @@ namespace Game.UI.Dictionary
         [SerializeField] private ScrollRect scrollRect;
         [SerializeField] private BlockDictionaryListItem itemPrefab;
         [SerializeField] private float itemHeight = 0f;
+        [SerializeField, Min(0f)] private float itemSpacing = 30f;
         [SerializeField] private int buffer = 2;
         [SerializeField, Min(1)] private int maxPoolSize = 7;
         [SerializeField, Min(0f)] private float bottomPadding = 50f;
@@ -147,10 +148,11 @@ namespace Game.UI.Dictionary
             if (entries.Count == 0) return;
 
             EnsureItemHeight();
+            float stride = GetItemStride();
             float viewportHeight = scrollRect.viewport.rect.height;
             float contentY = listRoot.anchoredPosition.y;
-            int firstIndex = Mathf.FloorToInt(contentY / Mathf.Max(1f, itemHeight)) - buffer;
-            int visibleCount = Mathf.CeilToInt(viewportHeight / Mathf.Max(1f, itemHeight)) + buffer * 2;
+            int firstIndex = Mathf.FloorToInt(contentY / Mathf.Max(1f, stride)) - buffer;
+            int visibleCount = Mathf.CeilToInt(viewportHeight / Mathf.Max(1f, stride)) + buffer * 2;
             visibleCount = Mathf.Min(visibleCount, Mathf.Max(1, maxPoolSize));
 
             int start = Mathf.Clamp(firstIndex, 0, Mathf.Max(0, entries.Count - 1));
@@ -172,7 +174,7 @@ namespace Game.UI.Dictionary
                 if (rt != null)
                 {
                     rt.SetParent(listRoot, false);
-                    rt.anchoredPosition = new Vector2(0f, -i * itemHeight);
+                    rt.anchoredPosition = new Vector2(0f, -i * stride);
                 }
                 var entry = entries[i];
                 bool discovered = ds != null && ds.IsBlockDiscovered(entry.blockName);
@@ -230,8 +232,12 @@ namespace Game.UI.Dictionary
         {
             if (listRoot == null) return;
             EnsureItemHeight();
+            float stride = GetItemStride();
             var size = listRoot.sizeDelta;
-            size.y = entries.Count * itemHeight + bottomPadding;
+            if (entries.Count <= 0)
+                size.y = bottomPadding;
+            else
+                size.y = entries.Count * itemHeight + (entries.Count - 1) * itemSpacing + bottomPadding;
             listRoot.sizeDelta = size;
         }
 
@@ -243,6 +249,11 @@ namespace Game.UI.Dictionary
                 itemHeight = Mathf.Max(1f, rt.rect.height);
             if (itemHeight <= 0f)
                 itemHeight = 140f;
+        }
+
+        private float GetItemStride()
+        {
+            return Mathf.Max(1f, itemHeight + itemSpacing);
         }
 
         private void SubscribeDiscovery()
@@ -310,7 +321,7 @@ namespace Game.UI.Dictionary
             if (blockDb == null || blockDb.blocks == null)
                 return;
 
-            var seen = new HashSet<BlockSpawnLocation>();
+            var existingLocations = new HashSet<BlockSpawnLocation>();
             for (int i = 0; i < blockDb.blocks.Count; i++)
             {
                 var entry = blockDb.blocks[i];
@@ -319,11 +330,62 @@ namespace Game.UI.Dictionary
                 var loc = entry.locationCondition;
                 if (loc == BlockSpawnLocation.Any) continue;
 
-                if (seen.Add(loc))
-                    availableLocations.Add(loc);
+                existingLocations.Add(loc);
             }
 
-            availableLocations.Sort((a, b) => ((int)a).CompareTo((int)b));
+            BlockSpawnLocation current = LocationLoader.Ins != null ? LocationLoader.Ins.currentLocation : viewedLocation;
+            if (existingLocations.Contains(current))
+                availableLocations.Add(current);
+
+            if (TryGetNextUnlockCandidate(existingLocations, out var nextCandidate) &&
+                !availableLocations.Contains(nextCandidate))
+            {
+                availableLocations.Add(nextCandidate);
+            }
+
+            if (availableLocations.Count == 0 && existingLocations.Count > 0)
+            {
+                int minIndex = int.MaxValue;
+                BlockSpawnLocation first = BlockSpawnLocation.Plain;
+                foreach (var loc in existingLocations)
+                {
+                    int idx = (int)loc;
+                    if (idx < minIndex)
+                    {
+                        minIndex = idx;
+                        first = loc;
+                    }
+                }
+                availableLocations.Add(first);
+            }
+        }
+
+        private bool TryGetNextUnlockCandidate(HashSet<BlockSpawnLocation> existingLocations, out BlockSpawnLocation candidate)
+        {
+            candidate = BlockSpawnLocation.Any;
+            if (existingLocations == null || existingLocations.Count == 0)
+                return false;
+
+            int baseIndex;
+            if (LocationLoader.Ins != null)
+                baseIndex = (int)LocationLoader.Ins.GetHighestUnlockedLocation();
+            else
+                baseIndex = (int)viewedLocation;
+
+            int nextIndex = baseIndex + 1;
+            while (Enum.IsDefined(typeof(BlockSpawnLocation), nextIndex))
+            {
+                var loc = (BlockSpawnLocation)nextIndex;
+                if (loc != BlockSpawnLocation.Any && existingLocations.Contains(loc))
+                {
+                    candidate = loc;
+                    return true;
+                }
+
+                nextIndex++;
+            }
+
+            return false;
         }
 
         private void EnsureViewedLocationInRange()

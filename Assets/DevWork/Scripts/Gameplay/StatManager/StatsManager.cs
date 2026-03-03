@@ -40,9 +40,11 @@ public class StatsManager : StatsManagerBase
             {
                 recalculateQueued = false;
                 ClearAll();
-                ApplyEquipmentStatModifiers();
+                var accumulator = CreateModifierAccumulator();
+                CollectEquipmentStatModifiers(accumulator);
                 SyncEquippedItemPassiveBuffs();
-                ApplyBuffs();
+                CollectBuffModifiers(accumulator);
+                ApplyAccumulatedModifiers(accumulator);
                 ReCalculateHPAndMP();
                 RaiseStatsRecalculated();
             }
@@ -54,9 +56,9 @@ public class StatsManager : StatsManagerBase
         }
     }
 
-    private void ApplyEquipmentStatModifiers()
+    private void CollectEquipmentStatModifiers(ModifierAccumulator accumulator)
     {
-        if (uiManager == null || uiManager.inventorySections == null)
+        if (accumulator == null || uiManager == null || uiManager.inventorySections == null)
             return;
 
         foreach (var section in uiManager.inventorySections)
@@ -83,11 +85,11 @@ public class StatsManager : StatsManagerBase
                 if (item is IStatProvider provider)
                 {
                     foreach (var mod in provider.GetStatModifiers())
-                        Add(mod.statType, mod.value);
+                        AccumulateModifier(accumulator, mod);
                 }
 
                 foreach (var pm in ItemPrefixConfig.GetFlatMods(invItem.prefix))
-                    Add(pm.statType, pm.value);
+                    AccumulateModifier(accumulator, pm);
             }
         }
     }

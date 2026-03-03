@@ -19,12 +19,15 @@ MonoBehaviour:
   modifiers:
   - statType: 5
     value: 2
+  - statType: 30
+    value: 0.05
+  - statType: 31
+    value: 10
   passiveBuffs: []
   holdBeamVfxPrefab: {fileID: 8713863806777898148, guid: 4d84e7967ca7913458517cf3949739c0,
     type: 3}
   holdBeamStartOffset: {x: 0, y: 0, z: 0.1}
-  idlePetVisualPrefab: {fileID: 0}
-  idlePetLocalOffset: {x: 0.3, y: 0.3, z: 21}
-  idlePetLocalEuler: {x: 0, y: 0, z: 0}
-  idlePetLocalScale: {x: 0.2, y: 0.2, z: 0.2}
+  idlePetVisualPrefab: {fileID: 3389217031568968856, guid: c236780fa157e34479fd9f1fa7b66984,
+    type: 3}
+  idlePetSpawnLocalEuler: {x: 0, y: 70, z: 0}
   currentState: 2

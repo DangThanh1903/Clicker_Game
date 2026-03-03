@@ -40,13 +40,16 @@ public class Boss : MonoBehaviour, IDamagable
     private float spawnTime;
     private string bossId;
     private bool hasDied;
+    private float BossNow => useUnscaledTime ? Time.unscaledTime : Time.time;
+    private float BossDelta => useUnscaledTime ? Time.unscaledDeltaTime : Time.deltaTime;
+
     void Start()
     {
         if (bossAnimManager != null)
             bossAnimManager.OnSkillFired += OnBossSkillFired;
 
         // Initialize next-fire times with jitter so they don't sync on start
-        float now = Time.time;
+        float now = BossNow;
         _nextNormalTime  = now + normalAttackInterval  + UnityEngine.Random.Range(0f, normalJitterRange);
         _nextSpecialTime = now + specialAttackInterval + UnityEngine.Random.Range(0f, specialJitterRange);
     }
@@ -55,7 +58,7 @@ public class Boss : MonoBehaviour, IDamagable
     {
         HandleClickDetection();
 
-        float now = Time.time;
+        float now = BossNow;
         bool normalReady  = now >= _nextNormalTime;
         bool specialReady = now >= _nextSpecialTime;
 
@@ -94,7 +97,7 @@ public class Boss : MonoBehaviour, IDamagable
     {
         hasDied = false;
         if (spawnTime <= 0f)
-            spawnTime = Time.unscaledTime;
+            spawnTime = BossNow;
 
         SetUp();
 
@@ -133,7 +136,8 @@ public class Boss : MonoBehaviour, IDamagable
         runtimeSubs?.Dispose();
         runtimeSubs = new CompositeDisposable();
 
-        Observable.Interval(TimeSpan.FromSeconds(1))
+        var scheduler = useUnscaledTime ? Scheduler.MainThreadIgnoreTimeScale : Scheduler.MainThread;
+        Observable.Interval(TimeSpan.FromSeconds(1), scheduler)
             .Subscribe(_ =>
             {
                 long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
@@ -206,16 +210,22 @@ public class Boss : MonoBehaviour, IDamagable
 
     public void HandleClick()
     {
-        float power = StatsManager.Ins.Get(StatType.NormalPower);
+        float finalDamage = StatsManager.Ins.Get(StatType.NormalPower);
+        float power = PlayerController.Instance != null
+            ? PlayerController.Instance.ApplyStaminaToFinalDamage(finalDamage)
+            : finalDamage;
         TakeDamage(power);
     }
 
     public void HandleHold()
     {
-        accumulatedHoldTime += Time.deltaTime;
+        accumulatedHoldTime += BossDelta;
         if (accumulatedHoldTime >= timeHoldReset)
         {
-            float power = StatsManager.Ins.Get(StatType.HoldPower) * timeHoldReset;
+            float manaMul = PlayerController.Instance != null
+                ? PlayerController.Instance.GetHoldDamageMultiplier()
+                : 1f;
+            float power = StatsManager.Ins.Get(StatType.HoldPower) * manaMul * timeHoldReset;
             TakeDamage(power);
             accumulatedHoldTime = 0f;
         }
@@ -223,7 +233,10 @@ public class Boss : MonoBehaviour, IDamagable
 
     public void HandleIdle()
     {
-        float power = StatsManager.Ins.Get(StatType.IdlePower) * timeIdleReset;
+        float idleMul = PlayerController.Instance != null
+            ? PlayerController.Instance.GetIdleDamageMultiplier()
+            : 1f;
+        float power = StatsManager.Ins.Get(StatType.IdlePower) * idleMul * timeIdleReset;
         TakeDamage(power);
         PlayerController.Instance?.NotifyIdleDamageDealt(power, transform.position);
     }
@@ -259,13 +272,13 @@ public class Boss : MonoBehaviour, IDamagable
         hasDied = true;
         StatsManager.Ins.Add(StatType.TotalBlockBreaked, 1);
         string id = string.IsNullOrEmpty(bossId) ? gameObject.name : bossId;
-        AnalyticsManager.Ins?.TrackBossKill(id, Mathf.Max(0f, Time.unscaledTime - spawnTime));
+        AnalyticsManager.Ins?.TrackBossKill(id, Mathf.Max(0f, BossNow - spawnTime));
         Died?.Invoke(this); 
     }
 
     public void SetAnalyticsContext(string id)
     {
         bossId = string.IsNullOrEmpty(id) ? gameObject.name : id;
-        spawnTime = Time.unscaledTime;
+        spawnTime = BossNow;
     }
 }

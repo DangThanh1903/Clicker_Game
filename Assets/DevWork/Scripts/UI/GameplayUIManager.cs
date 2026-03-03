@@ -11,7 +11,18 @@ public class GameplayUIManager : MonoBehaviour
     [SerializeField] private TMP_Text diamondUI;
     [SerializeField] private Image HpUI;
     [SerializeField] private Image ManaUI;
+    [SerializeField] private Sprite manaSprite;
+    [SerializeField] private Sprite staminaSprite;
+    [SerializeField] private Sprite idleSprite;
     private float displayedManaFill = 0f;
+    private ResourceDisplayMode currentResourceMode = ResourceDisplayMode.Mana;
+
+    private enum ResourceDisplayMode
+    {
+        Stamina,
+        Mana,
+        Idle
+    }
 
     void OnEnable()
     {
@@ -30,6 +41,8 @@ public class GameplayUIManager : MonoBehaviour
     void Start()
     {
         AddReactToUI();
+        ApplyResourceModeVisual(ResolveResourceMode());
+        RefreshBars();
     }
 
     void AddReactToUI()
@@ -61,32 +74,100 @@ public class GameplayUIManager : MonoBehaviour
                 HpUI.fillAmount = Mathf.Clamp01(fill);
             })
             .AddTo(this);
-        ManaUISetUp();
+        Observable.EveryUpdate()
+            .Subscribe(_ => UpdateResourceUI())
+            .AddTo(this);
 
     }
-    void ManaUISetUp()
+
+    void UpdateResourceUI()
     {
-        var manaFillStream = Observable.CombineLatest(
-                StatsManager.Ins.GetReactive(StatType.CurrentMana),
-                StatsManager.Ins.GetReactive(StatType.Mana),
-                (cur, max) => (max > 0f) ? (cur / max) : 0f)
-            .DistinctUntilChanged();
-        var targetFill = new ReactiveProperty<float>(0f);
-        manaFillStream
-            .Subscribe(value => targetFill.Value = value)
-            .AddTo(this);
-        Observable.EveryUpdate()
-            .Subscribe(_ =>
-            {
-                displayedManaFill = Mathf.Lerp(displayedManaFill, targetFill.Value, Time.deltaTime * 10f);
-                ManaUI.fillAmount = displayedManaFill;
-            })
-            .AddTo(this);
+        if (ManaUI == null) return;
+
+        ResourceDisplayMode mode = ResolveResourceMode();
+        if (mode != currentResourceMode)
+            ApplyResourceModeVisual(mode);
+
+        float targetFill = GetTargetResourceFill(mode);
+        displayedManaFill = Mathf.Lerp(displayedManaFill, targetFill, Time.deltaTime * 10f);
+        ManaUI.fillAmount = displayedManaFill;
+    }
+
+    private ResourceDisplayMode ResolveResourceMode()
+    {
+        var player = PlayerController.Instance;
+        if (player == null || player.currentState == null)
+            return ResourceDisplayMode.Mana;
+
+        if (player.currentState is HoldState)
+            return ResourceDisplayMode.Mana;
+
+        if (player.currentState is NormalState)
+            return ResourceDisplayMode.Stamina;
+
+        if (player.currentState is IdleState)
+            return ResourceDisplayMode.Idle;
+
+        return ResourceDisplayMode.Mana;
+    }
+
+    private float GetTargetResourceFill(ResourceDisplayMode mode)
+    {
+        switch (mode)
+        {
+            case ResourceDisplayMode.Stamina:
+                return PlayerController.Instance != null
+                    ? PlayerController.Instance.GetStaminaPercent()
+                    : 0f;
+            case ResourceDisplayMode.Mana:
+                if (StatsManager.Ins == null) return 0f;
+                float maxMana = StatsManager.Ins.Get(StatType.Mana);
+                float curMana = StatsManager.Ins.Get(StatType.CurrentMana);
+                return (maxMana > 0f) ? Mathf.Clamp01(curMana / maxMana) : 0f;
+            case ResourceDisplayMode.Idle:
+                return PlayerController.Instance != null
+                    ? PlayerController.Instance.GetIdleStackPercent()
+                    : 0f;
+            default:
+                return 0f;
+        }
+    }
+
+    private void ApplyResourceModeVisual(ResourceDisplayMode mode)
+    {
+        currentResourceMode = mode;
+
+        if (ManaUI == null)
+            return;
+
+        ManaUI.gameObject.SetActive(true);
+
+        Sprite useSprite = manaSprite;
+        switch (mode)
+        {
+            case ResourceDisplayMode.Stamina:
+                useSprite = staminaSprite;
+                break;
+            case ResourceDisplayMode.Idle:
+                useSprite = idleSprite;
+                break;
+            case ResourceDisplayMode.Mana:
+            default:
+                useSprite = manaSprite;
+                break;
+        }
+
+        if (useSprite != null)
+            ManaUI.sprite = useSprite;
     }
 
     private void RefreshBars()
     {
         if (StatsManager.Ins == null) return;
+
+        ResourceDisplayMode mode = ResolveResourceMode();
+        if (mode != currentResourceMode)
+            ApplyResourceModeVisual(mode);
 
         if (HpUI != null)
         {
@@ -96,14 +177,9 @@ public class GameplayUIManager : MonoBehaviour
             HpUI.fillAmount = Mathf.Clamp01(fill);
         }
 
+        displayedManaFill = Mathf.Clamp01(GetTargetResourceFill(mode));
         if (ManaUI != null)
-        {
-            float maxMana = StatsManager.Ins.Get(StatType.Mana);
-            float curMana = StatsManager.Ins.Get(StatType.CurrentMana);
-            float fill = (maxMana > 0f) ? (curMana / maxMana) : 0f;
-            displayedManaFill = Mathf.Clamp01(fill);
             ManaUI.fillAmount = displayedManaFill;
-        }
     }
 
 }

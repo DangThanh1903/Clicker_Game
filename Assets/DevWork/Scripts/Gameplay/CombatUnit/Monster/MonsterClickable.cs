@@ -147,18 +147,26 @@ public class MonsterClickable : MonoBehaviour, IDamagable
 
     public void HandleClick()
     {
-        float power = StatsManager.Ins.Get(StatType.NormalPower);
+        float finalDamage = StatsManager.Ins.Get(StatType.NormalPower);
+        float power = PlayerController.Instance != null
+            ? PlayerController.Instance.ApplyStaminaToFinalDamage(finalDamage)
+            : finalDamage;
         TakeDamage(power);
     }
 
     public void HandleHold()
     {
-        accumulatedHoldTime += Time.deltaTime;
-        StatsManager.Ins.Add(StatType.HoldedTime, Time.deltaTime);
+        var player = PlayerController.Instance;
+        float dt = player != null && player.UseUnscaledTime ? Time.unscaledDeltaTime : Time.deltaTime;
+        accumulatedHoldTime += dt;
+        StatsManager.Ins.Add(StatType.HoldedTime, dt);
 
         if (accumulatedHoldTime >= timeHoldReset)
         {
-            float power = StatsManager.Ins.Get(StatType.HoldPower) * timeHoldReset;
+            float manaMul = player != null
+                ? player.GetHoldDamageMultiplier()
+                : 1f;
+            float power = StatsManager.Ins.Get(StatType.HoldPower) * manaMul * timeHoldReset;
             TakeDamage(power);
             accumulatedHoldTime = 0f;
         }
@@ -166,7 +174,10 @@ public class MonsterClickable : MonoBehaviour, IDamagable
 
     public void HandleIdle()
     {
-        float power = StatsManager.Ins.Get(StatType.IdlePower) * timeIdleReset;
+        float idleMul = PlayerController.Instance != null
+            ? PlayerController.Instance.GetIdleDamageMultiplier()
+            : 1f;
+        float power = StatsManager.Ins.Get(StatType.IdlePower) * idleMul * timeIdleReset;
         Vector3 aimPoint = GetAimWorldPosition();
         onClickPos = GetUIPosition(aimPoint);
         TakeDamage(power);

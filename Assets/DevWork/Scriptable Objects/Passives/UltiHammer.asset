@@ -13,9 +13,16 @@ MonoBehaviour:
   m_Name: UltiHammer
   m_EditorClassIdentifier: 
   buffName: Weapon
-  statType: 3
-  amount: 10
+  modifiers:
+  - statType: 33
+    value: 1
+    mode: 0
+  - statType: 3
+    value: 2.5
+    mode: 1
   buffIcon: {fileID: 0}
   duration: 0
   isStackable: 0
-  conditionType: 7
+  maxStack: 1
+  conditionType: 6
+  checkIntervalSeconds: 0.1

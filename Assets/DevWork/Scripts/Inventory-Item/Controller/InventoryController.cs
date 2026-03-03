@@ -24,10 +24,13 @@ public class InventoryController : MonoBehaviour
     [SerializeField] private PopupView lootboxPrefab;
     [SerializeField] private CaseRollController caseRollController;
     private bool isItemDescriptionLocked;
+    public event Action<Item, int> OnMainInventoryItemAdded;
 
     public InventoryUIManager InventoryUIManager => inventoryUiManager;
     public InventorySlider InventorySlider => inventorySlider;
     public CraftingController CraftingController => craftingController;
+    public Button SortInventoryButton => sortInventoryButton;
+    public TMP_Text DescriptionText => description;
 
     private void Awake()
     {
@@ -94,6 +97,8 @@ public class InventoryController : MonoBehaviour
             return false;
         }
 
+        int beforeQty = inventoryItem != null && inventoryItem.quantity != null ? Mathf.Max(0, inventoryItem.quantity.Value) : 0;
+        Item beforeItem = inventoryItem != null ? inventoryItem.itemData : null;
         bool ok = inventoryUiManager.AddItemToInventorySection(inventoryItem);
         if (!ok)
         {
@@ -102,7 +107,63 @@ public class InventoryController : MonoBehaviour
                 ? "AddItemToInventory failed (inventory full)."
                 : "AddItemToInventory failed (no Inventory section).");
         }
+        else if (beforeItem != null && beforeItem.Type != ItemType.None && beforeQty > 0)
+        {
+            int remaining = inventoryItem != null && inventoryItem.quantity != null ? Mathf.Max(0, inventoryItem.quantity.Value) : 0;
+            int addedQty = Mathf.Max(0, beforeQty - remaining);
+            if (addedQty > 0)
+                OnMainInventoryItemAdded?.Invoke(beforeItem, addedQty);
+        }
         return ok;
+    }
+
+    public TMP_Text GetFirstStatText()
+    {
+        if (statTexts == null || statTexts.Count == 0)
+            return null;
+
+        for (int i = 0; i < statTexts.Count; i++)
+        {
+            if (statTexts[i] != null)
+                return statTexts[i];
+        }
+
+        return null;
+    }
+
+    public bool TryGetFirstNonEmptyInventorySlot(out RectTransform slotRect, out InventoryItem item)
+    {
+        slotRect = null;
+        item = null;
+        if (inventoryUiManager == null || inventoryUiManager.inventorySections == null)
+            return false;
+
+        for (int s = 0; s < inventoryUiManager.inventorySections.Length; s++)
+        {
+            var section = inventoryUiManager.inventorySections[s];
+            if (section == null || section.inventoryData == null || section.slotUIs == null)
+                continue;
+            if (section.inventoryData.inventoryType != InventoryType.Inventory)
+                continue;
+
+            int count = Mathf.Min(section.inventoryData.Items.Count, section.slotUIs.Count);
+            for (int i = 0; i < count; i++)
+            {
+                var it = section.inventoryData.Items[i];
+                if (it == null || it.itemData == null || it.itemData.Type == ItemType.None || it.quantity.Value <= 0)
+                    continue;
+
+                var slot = section.slotUIs[i];
+                if (slot == null)
+                    continue;
+
+                slotRect = slot.transform as RectTransform;
+                item = it;
+                return slotRect != null;
+            }
+        }
+
+        return false;
     }
 
     public bool TrySwap(
@@ -347,7 +408,12 @@ public class InventoryController : MonoBehaviour
             string buffName = buff.buffData.buffName;
             sb.AppendLine($"{buffName} [x{buff.StackCount}]:");
             foreach (var m in buff.buffData.modifiers)
-                sb.AppendLine($"   +{m.value * buff.StackCount} {m.statType}");
+            {
+                float displayValue = m.mode == StatModifierMode.Multiply
+                    ? (m.value > 0f ? Mathf.Pow(m.value, buff.StackCount) : m.value)
+                    : m.value * buff.StackCount;
+                sb.AppendLine($"   {StatModifier.FormatSingle(m, displayValue)}");
+            }
             sb.AppendLine();
         }
 
@@ -357,7 +423,7 @@ public class InventoryController : MonoBehaviour
 
             sb.AppendLine($"{conditional.buffName} [{conditional.conditionType}]:");
             foreach (var m in buff.buffData.modifiers)
-                sb.AppendLine($"   +{m.value} {m.statType}");
+                sb.AppendLine($"   {StatModifier.FormatSingle(m)}");
             sb.AppendLine();
         }
 

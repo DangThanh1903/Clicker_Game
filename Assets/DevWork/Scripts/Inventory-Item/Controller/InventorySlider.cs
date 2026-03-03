@@ -25,6 +25,9 @@ public class InventorySlider : MonoBehaviour
     private Tween slideTween;
     public Action<int, int> OnPageChanged;
     private bool initialized;
+    public int CurrentPage => currentPage;
+    public Button LeftButton => leftButton;
+    public Button RightButton => rightButton;
 
     private void Awake()
     {

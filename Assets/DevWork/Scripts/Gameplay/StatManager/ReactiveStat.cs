@@ -15,6 +15,12 @@ public enum StatType
     Mana,
     CurrentMana,
     ManaRegen,
+    Stamina,
+    CurrentStamina,
+    StaminaCostPerClick,
+    StaminaRegenTick,
+    HaveStaminaDamageMul,
+    LowStaminaDamageMultiplier,
     Def,
     CritChance,
     CritDmg,
@@ -26,7 +32,16 @@ public enum StatType
     TotalBlockBreaked,
     TotalDamageDealed,
     TotalTimePlayed,
-    HoldedTime
+    HoldedTime,
+    SummonAttackSpeed,
+    HighManaMul,
+    MiddleManaMul,
+    IdleStackDamagePerStack,
+    IdleMaxStack,
+    IdleStackResetTime,
+    IgnoreStaminaEffect,
+    HighManaThreshold,
+    MiddleManaThreshold
 }
 
 
