@@ -74,6 +74,10 @@ public class DataSaver : MonoBehaviour
     private bool allowCloudSave;
     private bool hasLoadedData;
     private bool playtimeActive;
+    private float cachedClicks;
+    private float cachedDiamonds;
+    private bool hasCachedGameplayStats;
+    private bool pendingRuntimeStatApply;
     private long lastCloudUpdatedUtcTicks;
     private long lastLocalUpdatedUtcTicks;
     private const string LocalCacheFileName = "local_save.json";
@@ -204,13 +208,12 @@ public class DataSaver : MonoBehaviour
 
         if (!allowSaves)
         {
-            pendingSave = true;
-            pendingForce |= force;
             if (verboseSaveLogs)
                 Debug.Log("SaveDataFn blocked: initial load not complete.");
             return;
         }
 
+        TryApplyCachedGameplayStatsToRuntime();
         QueueLocalSave(forceLocalWrite || force);
 
         // reset counter (nhưng chỉ reset khi thật sự save)
@@ -244,6 +247,8 @@ public class DataSaver : MonoBehaviour
 
     void Update()
     {
+        TryApplyCachedGameplayStatsToRuntime();
+
         if (playtimeActive)
             TotalPlaytime += Time.unscaledDeltaTime;
 
@@ -374,12 +379,33 @@ public class DataSaver : MonoBehaviour
 
     private GameplaySaveData BuildGameplaySaveData()
     {
+        TryApplyCachedGameplayStatsToRuntime();
+
         string blockValue = string.IsNullOrEmpty(currentBlock) ? "Dirt" : currentBlock;
         string locationValue = currentLocation?.ToString();
         string peakValue = PeakLocation?.ToString();
 
-        float clicks = StatsManager.Ins != null ? StatsManager.Ins.Get(StatType.Clicks) : 0f;
-        float diamonds = StatsManager.Ins != null ? StatsManager.Ins.Get(StatType.Diamond) : 0f;
+        float clicks = 0f;
+        float diamonds = 0f;
+        if (pendingRuntimeStatApply && hasCachedGameplayStats)
+        {
+            clicks = cachedClicks;
+            diamonds = cachedDiamonds;
+        }
+        else if (StatsManager.Ins != null)
+        {
+            clicks = StatsManager.Ins.Get(StatType.Clicks);
+            diamonds = StatsManager.Ins.Get(StatType.Diamond);
+            cachedClicks = clicks;
+            cachedDiamonds = diamonds;
+            hasCachedGameplayStats = true;
+            pendingRuntimeStatApply = false;
+        }
+        else if (hasCachedGameplayStats)
+        {
+            clicks = cachedClicks;
+            diamonds = cachedDiamonds;
+        }
 
         float timeValue = CurrentTime;
         if (TimeSystem.Instance != null)
@@ -563,6 +589,13 @@ public class DataSaver : MonoBehaviour
 
     public IEnumerator LoadAllInventories(string uid, Action<bool> onComplete = null)
     {
+        if (db == null || string.IsNullOrEmpty(uid))
+        {
+            Debug.LogWarning("LoadAllInventories skipped: Firebase DB or uid is unavailable.");
+            onComplete?.Invoke(false);
+            yield break;
+        }
+
         bool ok = true;
         foreach (var inv in inventoryDatas)
         {
@@ -619,8 +652,12 @@ public class DataSaver : MonoBehaviour
 
     public IEnumerator LoadGameplay(string uid, Action<bool> onComplete = null)
     {
-        // Guard: db not ready
-        yield return new WaitUntil(() => db != null);
+        if (db == null || string.IsNullOrEmpty(uid))
+        {
+            Debug.LogWarning("LoadGameplay skipped: Firebase DB or uid is unavailable.");
+            onComplete?.Invoke(false);
+            yield break;
+        }
 
         var task = FirebaseTaskTracker.Track(db.Collection("users").Document(uid).GetSnapshotAsync());
         yield return new WaitUntil(() => task.IsCompleted);
@@ -677,16 +714,36 @@ public class DataSaver : MonoBehaviour
         else
             PeakLocation = null;
 
-        if (StatsManager.Ins != null)
-        {
-            StatsManager.Ins.Set(StatType.Clicks, gameplay.clicks);
-            StatsManager.Ins.Set(StatType.Diamond, gameplay.diamonds);
-        }
+        CacheGameplayStats(gameplay.clicks, gameplay.diamonds);
+        TryApplyCachedGameplayStatsToRuntime();
 
         CurrentTime = gameplay.currentTime;
         TotalPlaytime = Mathf.Max(0f, gameplay.totalPlaytime);
         AnalyticsManager.Ins?.UpdateUserProperties(this);
         LoadCraftNodeStates(gameplay);
+    }
+
+    private void CacheGameplayStats(float clicks, float diamonds)
+    {
+        cachedClicks = clicks;
+        cachedDiamonds = diamonds;
+        hasCachedGameplayStats = true;
+        pendingRuntimeStatApply = true;
+    }
+
+    private void TryApplyCachedGameplayStatsToRuntime()
+    {
+        if (!pendingRuntimeStatApply || !hasCachedGameplayStats)
+            return;
+
+        if (StatsManager.Ins == null)
+            return;
+        if (PlayerController.Instance == null)
+            return;
+
+        StatsManager.Ins.Set(StatType.Clicks, cachedClicks);
+        StatsManager.Ins.Set(StatType.Diamond, cachedDiamonds);
+        pendingRuntimeStatApply = false;
     }
 
     private void ApplyProfileData(UserProfileData profile)

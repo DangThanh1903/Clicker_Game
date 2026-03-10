@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using Firebase.Firestore;
 using UnityEngine;
@@ -38,6 +39,12 @@ public class Login : MonoBehaviour
     [SerializeField] private bool requireQuestReady = true;
     [SerializeField] private float waitQuestTimeout = 10f;
 
+    [Header("Startup Recovery")]
+    [SerializeField] private bool allowOfflineFallbackOnStartupFailure = true;
+    [SerializeField] private bool allowVersionGateFailOpenOnRequestError = true;
+    [SerializeField] private bool allowSkipQuestGateOnTimeout = true;
+    [SerializeField, Min(1f)] private float maxVersionGateWaitSeconds = 20f;
+
     [Header("Loading UI")]
     [SerializeField] private Image progressFillImage;
     [SerializeField] private Text progressText;
@@ -52,6 +59,12 @@ public class Login : MonoBehaviour
     private bool stepGameplay;
     private bool stepInventory;
     private bool stepQuest;
+
+    private sealed class CoroutineRunState
+    {
+        public bool IsComplete;
+        public Exception Exception;
+    }
 
     void Awake()
     {
@@ -93,7 +106,7 @@ public class Login : MonoBehaviour
 
         if (FirebaseBootstrap.Ins == null)
         {
-            Debug.LogError("FirebaseBootstrap missing. Stay on splash.");
+            yield return RecoverToLocalAndLoadScene("FirebaseBootstrap missing.");
             yield break;
         }
 
@@ -103,17 +116,7 @@ public class Login : MonoBehaviour
         yield return WaitForFirebaseReadyOrTimeout(ok => firebaseReady = ok);
         if (!firebaseReady)
         {
-            if (requireVersionGate || requireInternetToPlay)
-            {
-                Debug.LogError("Firebase not ready and gate requires server check. Stay on splash.");
-                UpdateProgress(GetCurrentProgress(), "Server unavailable");
-                yield break;
-            }
-
-            Debug.LogWarning("Firebase not ready. Fallback to local cache.");
-            yield return LoadLocalFallback();
-            UpdateProgress(1f, "Done");
-            LoadGameScene();
+            yield return RecoverToLocalAndLoadScene("Firebase not ready.");
             yield break;
         }
 
@@ -173,23 +176,7 @@ public class Login : MonoBehaviour
                 DataSaver.Ins.MarkInitialLoadComplete(true);
                 MarkStep(ref stepGameplay, "Gameplay");
                 MarkStep(ref stepInventory, "Inventory");
-
-                if (requireQuestReady)
-                {
-                    bool questOk = false;
-                    yield return WaitForQuestReadyOrTimeout(ok => questOk = ok);
-                    if (!questOk)
-                    {
-                        Debug.LogError("QuestManager not ready. Stay on splash.");
-                        yield break;
-                    }
-
-                    MarkStep(ref stepQuest, "Quests");
-                }
-
-                Debug.Log("Cloud load ok -> Load scene");
-                UpdateProgress(1f, "Done");
-                LoadGameScene();
+                yield return FinishStartupAfterDataLoad();
                 yield break;
             }
 
@@ -201,25 +188,7 @@ public class Login : MonoBehaviour
             }
         }
 
-        Debug.LogWarning("Cloud load failed. Fallback to local cache.");
-        yield return LoadLocalFallback();
-
-        if (requireQuestReady)
-        {
-            bool questOk = false;
-            yield return WaitForQuestReadyOrTimeout(ok => questOk = ok);
-            if (!questOk)
-            {
-                Debug.LogError("QuestManager not ready. Stay on splash.");
-                yield break;
-            }
-
-            MarkStep(ref stepQuest, "Quests");
-        }
-
-        Debug.Log("Load flow done -> Load scene");
-        UpdateProgress(1f, "Done");
-        LoadGameScene();
+        yield return RecoverToLocalAndLoadScene("Cloud load failed.");
     }
 
     IEnumerator WaitForInternet()
@@ -238,6 +207,8 @@ public class Login : MonoBehaviour
         bool storeOpened = false;
         float retryDelay = Mathf.Max(1f, versionGateRetryDelaySeconds);
         float timeout = Mathf.Max(1f, versionGateRequestTimeout);
+        float maxWait = Mathf.Max(timeout, maxVersionGateWaitSeconds);
+        float totalWait = 0f;
 
         while (true)
         {
@@ -245,7 +216,11 @@ public class Login : MonoBehaviour
                 Application.internetReachability == NetworkReachability.NotReachable)
             {
                 UpdateProgress(GetCurrentProgress(), "Internet required");
-                yield return new WaitForSecondsRealtime(Mathf.Max(0.1f, internetPollIntervalSeconds));
+                float wait = Mathf.Max(0.1f, internetPollIntervalSeconds);
+                totalWait += wait;
+                if (TryResolveVersionGateRequestFailure(totalWait, "No internet reachability", onDone))
+                    yield break;
+                yield return new WaitForSecondsRealtime(wait);
                 continue;
             }
 
@@ -253,6 +228,9 @@ public class Login : MonoBehaviour
             if (bootstrap == null || bootstrap.Db == null)
             {
                 UpdateProgress(GetCurrentProgress(), "Server unavailable");
+                totalWait += retryDelay;
+                if (TryResolveVersionGateRequestFailure(totalWait, "Firebase DB unavailable", onDone))
+                    yield break;
                 yield return new WaitForSecondsRealtime(retryDelay);
                 continue;
             }
@@ -263,8 +241,10 @@ public class Login : MonoBehaviour
             float t = 0f;
             while (!getTask.IsCompleted)
             {
-                t += Time.unscaledDeltaTime;
-                if (t >= timeout)
+                float dt = Time.unscaledDeltaTime;
+                t += dt;
+                totalWait += dt;
+                if (t >= timeout || totalWait >= maxWait)
                     break;
                 yield return null;
             }
@@ -273,6 +253,11 @@ public class Login : MonoBehaviour
             {
                 Debug.LogWarning("Version gate request timed out.");
                 UpdateProgress(GetCurrentProgress(), "Checking version");
+                if (TryResolveVersionGateRequestFailure(totalWait, "Version gate request timed out", onDone))
+                    yield break;
+                totalWait += retryDelay;
+                if (TryResolveVersionGateRequestFailure(totalWait, "Version gate request timed out", onDone))
+                    yield break;
                 yield return new WaitForSecondsRealtime(retryDelay);
                 continue;
             }
@@ -281,6 +266,9 @@ public class Login : MonoBehaviour
             {
                 Debug.LogWarning($"Version gate request failed: {getTask.Exception.Message}");
                 UpdateProgress(GetCurrentProgress(), "Checking version");
+                totalWait += retryDelay;
+                if (TryResolveVersionGateRequestFailure(totalWait, "Version gate request failed", onDone))
+                    yield break;
                 yield return new WaitForSecondsRealtime(retryDelay);
                 continue;
             }
@@ -290,6 +278,9 @@ public class Login : MonoBehaviour
             {
                 Debug.LogWarning("Version gate config document is missing.");
                 UpdateProgress(GetCurrentProgress(), "Checking version");
+                totalWait += retryDelay;
+                if (TryResolveVersionGateRequestFailure(totalWait, "Version gate config missing", onDone))
+                    yield break;
                 yield return new WaitForSecondsRealtime(retryDelay);
                 continue;
             }
@@ -299,6 +290,9 @@ public class Login : MonoBehaviour
             {
                 Debug.LogWarning($"Version gate field '{minSupportedVersionField}' is missing.");
                 UpdateProgress(GetCurrentProgress(), "Checking version");
+                totalWait += retryDelay;
+                if (TryResolveVersionGateRequestFailure(totalWait, "Version gate field missing", onDone))
+                    yield break;
                 yield return new WaitForSecondsRealtime(retryDelay);
                 continue;
             }
@@ -335,8 +329,13 @@ public class Login : MonoBehaviour
 
     void LoadGameScene()
     {
-        int idx = SceneManager.GetSceneByName(gameSceneName).buildIndex;
-        _ = idx;
+        if (!Application.CanStreamedLevelBeLoaded(gameSceneName))
+        {
+            Debug.LogError($"Scene '{gameSceneName}' is not available in Build Settings.");
+            UpdateProgress(GetCurrentProgress(), "Scene missing");
+            return;
+        }
+
         Debug.Log($"Loading scene: {gameSceneName}");
         SceneManager.LoadScene(gameSceneName);
     }
@@ -369,6 +368,7 @@ public class Login : MonoBehaviour
             if (FirebaseBootstrap.Ins.IsFailed)
             {
                 Debug.LogError($"Firebase init failed: {FirebaseBootstrap.Ins.InitError}");
+                onDone?.Invoke(false);
                 yield break;
             }
 
@@ -436,31 +436,138 @@ public class Login : MonoBehaviour
             loadDataTimeout,
             "LoadLocalCache timeout");
 
-        DataSaver.Ins.MarkInitialLoadComplete(localOk);
+        if (!localOk)
+            Debug.LogWarning("Local cache unavailable. Continue with default startup state.");
+
+        DataSaver.Ins.MarkInitialLoadComplete(true);
         if (localOk)
         {
             MarkStep(ref stepGameplay, "Gameplay (local)");
             MarkStep(ref stepInventory, "Inventory (local)");
         }
+        else
+        {
+            MarkStep(ref stepGameplay, "Gameplay (default)");
+            MarkStep(ref stepInventory, "Inventory (default)");
+        }
     }
 
     IEnumerator RunCoroutineWithTimeout(IEnumerator routine, float timeout, string timeoutMsg)
     {
-        float t = 0f;
-        while (true)
+        if (routine == null)
         {
-            bool moved = routine.MoveNext();
-            if (!moved) yield break;
+            Debug.LogWarning($"{timeoutMsg} (routine missing)");
+            yield break;
+        }
 
-            t += Time.unscaledDeltaTime;
-            if (t >= timeout)
+        var state = new CoroutineRunState();
+        Coroutine nested = StartCoroutine(RunNestedCoroutine(routine, state));
+        float t = 0f;
+        while (!state.IsComplete)
+        {
+            if (timeout > 0f)
             {
-                Debug.LogWarning(timeoutMsg);
-                yield break;
+                t += Time.unscaledDeltaTime;
+                if (t >= timeout)
+                {
+                    if (nested != null)
+                        StopCoroutine(nested);
+                    Debug.LogWarning(timeoutMsg);
+                    yield break;
+                }
             }
 
-            yield return routine.Current;
+            yield return null;
         }
+
+        if (state.Exception != null)
+            Debug.LogError(state.Exception);
+    }
+
+    IEnumerator RunNestedCoroutine(IEnumerator routine, CoroutineRunState state)
+    {
+        while (true)
+        {
+            object current;
+            try
+            {
+                if (!routine.MoveNext())
+                    break;
+
+                current = routine.Current;
+            }
+            catch (Exception ex)
+            {
+                state.Exception = ex;
+                break;
+            }
+
+            yield return current;
+        }
+
+        state.IsComplete = true;
+    }
+
+    IEnumerator RecoverToLocalAndLoadScene(string reason)
+    {
+        if (!allowOfflineFallbackOnStartupFailure)
+        {
+            Debug.LogError($"{reason} Startup blocked.");
+            UpdateProgress(GetCurrentProgress(), "Startup failed");
+            yield break;
+        }
+
+        Debug.LogWarning($"{reason} Falling back to local/default data.");
+        UpdateProgress(GetCurrentProgress(), "Loading local");
+        yield return LoadLocalFallback();
+        yield return FinishStartupAfterDataLoad();
+    }
+
+    IEnumerator FinishStartupAfterDataLoad()
+    {
+        if (requireQuestReady)
+        {
+            bool questOk = false;
+            yield return WaitForQuestReadyOrTimeout(ok => questOk = ok);
+            if (!questOk)
+            {
+                if (!allowSkipQuestGateOnTimeout)
+                {
+                    Debug.LogError("QuestManager not ready. Startup blocked.");
+                    UpdateProgress(GetCurrentProgress(), "Quest unavailable");
+                    yield break;
+                }
+
+                Debug.LogWarning("QuestManager not ready. Continue without blocking startup.");
+            }
+            else
+            {
+                MarkStep(ref stepQuest, "Quests");
+            }
+        }
+
+        Debug.Log("Load flow done -> Load scene");
+        UpdateProgress(1f, "Done");
+        LoadGameScene();
+    }
+
+    private bool TryResolveVersionGateRequestFailure(float elapsedSeconds, string reason, Action<bool> onDone)
+    {
+        if (elapsedSeconds < Mathf.Max(versionGateRequestTimeout, maxVersionGateWaitSeconds))
+            return false;
+
+        if (allowVersionGateFailOpenOnRequestError)
+        {
+            Debug.LogWarning($"Version gate bypassed after {elapsedSeconds:F1}s: {reason}.");
+            onDone?.Invoke(true);
+        }
+        else
+        {
+            Debug.LogError($"Version gate failed after {elapsedSeconds:F1}s: {reason}.");
+            onDone?.Invoke(false);
+        }
+
+        return true;
     }
 
     private void MarkStep(ref bool flag, string label)

@@ -121,6 +121,23 @@ public abstract class StatsManagerBase : MonoBehaviour
         }
     }
 
+    private static bool IsRuntimeProgressStat(StatType type)
+    {
+        switch (type)
+        {
+            case StatType.Clicks:
+            case StatType.ClickPerTick:
+            case StatType.Diamond:
+            case StatType.HoldedTime:
+            case StatType.TotalBlockBreaked:
+            case StatType.TotalDamageDealed:
+            case StatType.TotalTimePlayed:
+                return true;
+            default:
+                return false;
+        }
+    }
+
     public void ClearAll()
     {
         Dictionary<StatType, float> preservedValues = null;
@@ -289,12 +306,13 @@ public abstract class StatsManagerBase : MonoBehaviour
 
                 if (stats.TryGetValue(stat.statType, out var existing))
                 {
-                    if (overwriteValues)
+                    if (overwriteValues && !IsRuntimeProgressStat(stat.statType))
                         existing.Set(value);
                 }
                 else
                 {
-                    stats[stat.statType] = CreateRuntimeStat(stat.statType, value);
+                    float initialValue = IsRuntimeProgressStat(stat.statType) ? 0f : value;
+                    stats[stat.statType] = CreateRuntimeStat(stat.statType, initialValue);
                 }
             }
         }
@@ -313,7 +331,10 @@ public abstract class StatsManagerBase : MonoBehaviour
                     baseStatsDict[bs.statType] = CreateRuntimeStat(bs.statType, baseValue);
 
                 if (!stats.ContainsKey(bs.statType))
-                    stats[bs.statType] = CreateRuntimeStat(bs.statType, baseValue);
+                {
+                    float initialValue = IsRuntimeProgressStat(bs.statType) ? 0f : baseValue;
+                    stats[bs.statType] = CreateRuntimeStat(bs.statType, initialValue);
+                }
             }
         }
 
@@ -321,7 +342,7 @@ public abstract class StatsManagerBase : MonoBehaviour
         {
             foreach (var kvp in stats)
             {
-                if (!activeTypes.Contains(kvp.Key))
+                if (!activeTypes.Contains(kvp.Key) && !ShouldPreserveAcrossRecalculate(kvp.Key))
                     kvp.Value.Set(0f);
             }
         }

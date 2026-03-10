@@ -21,6 +21,7 @@ public class AuthLinkManager : MonoBehaviour
     [SerializeField] private bool signInIfCredentialAlreadyInUse = true;
     [SerializeField, Min(1f)] private float firebaseReadyTimeoutSeconds = 15f;
     [SerializeField] private bool verboseLogs = true;
+    [SerializeField] private bool enableGooglePlayLink = false;
 
     private bool isLinking;
 
@@ -28,6 +29,12 @@ public class AuthLinkManager : MonoBehaviour
 
     public void LinkWithGooglePlay()
     {
+        if (!enableGooglePlayLink)
+        {
+            Debug.LogWarning("Google Play link is temporarily disabled.");
+            return;
+        }
+
         if (isLinking)
             return;
         StartCoroutine(CoLinkWithGooglePlay());

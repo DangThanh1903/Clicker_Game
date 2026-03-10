@@ -13,15 +13,6 @@ MonoBehaviour:
   m_Name: BaseStat
   m_EditorClassIdentifier: 
   statsList:
-  - statType: 0
-    value:
-      value: 0
-  - statType: 1
-    value:
-      value: 0
-  - statType: 2
-    value:
-      value: 0
   - statType: 3
     value:
       value: 1

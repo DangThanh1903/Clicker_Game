@@ -1,6 +1,8 @@
 using System.Collections;
 using UniRx;
 using UnityEngine;
+using UnityEngine.UI;
+using TMPro;
 using UnityEngine.Serialization;
 
 public class NewPlayerTutorialManager : MonoBehaviour
@@ -21,19 +23,34 @@ public class NewPlayerTutorialManager : MonoBehaviour
 
     [Header("Indexes")]
     [SerializeField] private int inventoryNavButtonIndex;
+    [SerializeField] private int recipeNavButtonIndex = -1;
     [SerializeField] private int inventoryPageIndex;
     [SerializeField] private int craftingPageIndex = 1;
     [SerializeField] private int sortTrashPageIndex = 2;
 
     [Header("Optional Targets")]
     [SerializeField] private RectTransform breakBlockTarget;
+    [SerializeField] private RectTransform staminaTargetOverride;
     [SerializeField] private RectTransform inventoryNavTargetOverride;
     [SerializeField] private RectTransform firstItemSlotTargetOverride;
     [SerializeField] private RectTransform statsTargetOverride;
     [SerializeField] private RectTransform craftingTargetOverride;
+    [SerializeField] private RectTransform recipeNavTargetOverride;
     [SerializeField] private RectTransform trashCanTargetOverride;
     [SerializeField] private RectTransform sortButtonTargetOverride;
     [SerializeField] private RectTransform recipeCraftTargetOverride;
+
+    [Header("Recipe Tutorial Target")]
+    [SerializeField] private bool recipeTutorialUseSpecificNode = true;
+    [SerializeField] private string recipeTutorialNodeName = "ClayMixture";
+
+    [Header("Tutorial Starter Materials")]
+    [SerializeField] private bool grantStarterMaterialsOnRecipeTutorialStart = true;
+    [SerializeField] private string starterMaterialRecipeNodeName = "ClayMixture";
+    [SerializeField, Min(0)] private int starterDirtAmount = 10;
+    [SerializeField, Min(0)] private int starterClayAmount = 2;
+    [SerializeField] private Item starterDirtItem;
+    [SerializeField] private Item starterClayItem;
 
     [Header("Fallback Pointer Positions")]
     [SerializeField] private Vector2 breakBlockFallbackNormalized = new Vector2(0.5f, 0.5f);
@@ -48,9 +65,14 @@ public class NewPlayerTutorialManager : MonoBehaviour
     [SerializeField] private CraftingController craftingController;
     [SerializeField] private CraftNodeManager craftNodeManager;
 
+    [Header("Runtime Resolve")]
+    [SerializeField, Min(0.1f)] private float craftManagerResolveIntervalSeconds = 0.5f;
+
     private readonly CompositeDisposable signalSubscriptions = new CompositeDisposable();
 
     private TutorialOverlayView overlayInstance;
+    private CraftNodeManager subscribedCraftNodeManager;
+    private float nextCraftManagerResolveTime;
 
     private bool isOnboardingRunning;
     private bool isRecipeTutorialRunning;
@@ -76,6 +98,11 @@ public class NewPlayerTutorialManager : MonoBehaviour
     {
         signalSubscriptions.Dispose();
         UnhookEvents();
+    }
+
+    private void Update()
+    {
+        TryAutoResolveCraftNodeManager();
     }
 
     private void ResolveReferencesOnce()
@@ -125,8 +152,8 @@ public class NewPlayerTutorialManager : MonoBehaviour
         if (inventoryController != null)
             inventoryController.OnMainInventoryItemAdded += HandleInventoryItemAdded;
 
-        if (craftNodeManager != null)
-            craftNodeManager.OnNodeUnlocked += HandleNodeUnlocked;
+        RebindCraftNodeManager(craftNodeManager);
+        TryAutoResolveCraftNodeManager(force: true);
     }
 
     private void UnhookEvents()
@@ -134,8 +161,110 @@ public class NewPlayerTutorialManager : MonoBehaviour
         if (inventoryController != null)
             inventoryController.OnMainInventoryItemAdded -= HandleInventoryItemAdded;
 
-        if (craftNodeManager != null)
-            craftNodeManager.OnNodeUnlocked -= HandleNodeUnlocked;
+        RebindCraftNodeManager(null);
+    }
+
+    private void TryAutoResolveCraftNodeManager(bool force = false)
+    {
+        float interval = Mathf.Max(0.1f, craftManagerResolveIntervalSeconds);
+        if (!force && Time.unscaledTime < nextCraftManagerResolveTime)
+            return;
+
+        nextCraftManagerResolveTime = Time.unscaledTime + interval;
+
+        if (subscribedCraftNodeManager != null && subscribedCraftNodeManager.isActiveAndEnabled)
+        {
+            TryTriggerRecipeTutorialFromCurrentState();
+            return;
+        }
+
+        CraftNodeManager resolved = FindRuntimeCraftNodeManager();
+        if (resolved != subscribedCraftNodeManager)
+            RebindCraftNodeManager(resolved);
+    }
+
+    private CraftNodeManager FindRuntimeCraftNodeManager()
+    {
+        if (craftNodeManager != null &&
+            craftNodeManager.gameObject.scene.IsValid() &&
+            craftNodeManager.isActiveAndEnabled)
+        {
+            return craftNodeManager;
+        }
+
+        CraftNodeManager[] managers = FindObjectsByType<CraftNodeManager>(
+            FindObjectsInactive.Include,
+            FindObjectsSortMode.None);
+
+        CraftNodeManager fallback = null;
+        foreach (var manager in managers)
+        {
+            if (manager == null || !manager.gameObject.scene.IsValid())
+                continue;
+
+            if (manager.isActiveAndEnabled)
+                return manager;
+
+            if (fallback == null)
+                fallback = manager;
+        }
+
+        return fallback;
+    }
+
+    private void RebindCraftNodeManager(CraftNodeManager manager)
+    {
+        if (subscribedCraftNodeManager == manager)
+        {
+            craftNodeManager = manager;
+            return;
+        }
+
+        if (subscribedCraftNodeManager != null)
+            subscribedCraftNodeManager.OnNodeUnlocked -= HandleNodeUnlocked;
+
+        subscribedCraftNodeManager = manager;
+        craftNodeManager = manager;
+
+        if (subscribedCraftNodeManager != null)
+            subscribedCraftNodeManager.OnNodeUnlocked += HandleNodeUnlocked;
+
+        TryTriggerRecipeTutorialFromCurrentState();
+    }
+
+    private void TryTriggerRecipeTutorialFromCurrentState()
+    {
+        if (subscribedCraftNodeManager == null)
+            return;
+        if (!ShouldRunRecipeTutorial() || isRecipeTutorialRunning)
+            return;
+        if (pendingRecipeTutorial || pendingUnlockedNode != null)
+            return;
+
+        CraftNode unlockedNode = null;
+        foreach (var node in subscribedCraftNodeManager.allNodes)
+        {
+            if (node == null)
+                continue;
+
+            if (node.State != CraftNodeState.Locked && IsRecipeTutorialTargetNode(node))
+            {
+                unlockedNode = node;
+                break;
+            }
+        }
+
+        if (unlockedNode == null)
+            return;
+
+        pendingUnlockedNode = unlockedNode;
+        if (isOnboardingRunning)
+        {
+            pendingRecipeTutorial = true;
+            return;
+        }
+
+        StartCoroutine(CoRunRecipeUnlockTutorial(unlockedNode));
     }
 
     private void HandleInventoryItemAdded(Item item, int amount)
@@ -151,6 +280,8 @@ public class NewPlayerTutorialManager : MonoBehaviour
     private void HandleNodeUnlocked(CraftNode node)
     {
         if (!ShouldRunRecipeTutorial() || isRecipeTutorialRunning)
+            return;
+        if (!IsRecipeTutorialTargetNode(node))
             return;
 
         pendingUnlockedNode = node;
@@ -190,6 +321,14 @@ public class NewPlayerTutorialManager : MonoBehaviour
         bool useNextForBreak = breakBlockTarget == null;
         ShowStep("Break a block to start collecting resources.", breakBlockTarget, breakBlockFallbackNormalized, useNextForBreak);
         yield return WaitUntilOrNext(() => breakBlockTriggered, useNextForBreak);
+
+        RectTransform staminaTarget = ResolveStaminaTarget();
+        ShowStep(
+            "This bar is Stamina. In Normal mode, having stamina boosts click damage. When stamina is low, damage drops until stamina regenerates.",
+            staminaTarget,
+            centerFallbackNormalized,
+            true);
+        yield return WaitDelayOrNext(AutoStepDelay, true);
 
         RectTransform inventoryTarget = ResolveInventoryNavTarget();
         bool useNextForInventory = inventoryTarget == null;
@@ -245,30 +384,31 @@ public class NewPlayerTutorialManager : MonoBehaviour
     {
         if (!ShouldRunRecipeTutorial())
             yield break;
+        if (!IsRecipeTutorialTargetNode(unlockedNode))
+            yield break;
 
         isRecipeTutorialRunning = true;
         craftedItemTriggered = false;
 
-        string recipeName = unlockedNode != null && !string.IsNullOrEmpty(unlockedNode.nodeName)
-            ? unlockedNode.nodeName
-            : "a new recipe";
+        // Let unlock popup spawn first, then wait until all popups are closed.
+        yield return WaitForPopupsToClose();
+        yield return GrantStarterMaterialsForRecipeTutorial(unlockedNode);
 
-        RectTransform inventoryTarget = ResolveInventoryNavTarget();
-        bool useNextForInventory = inventoryTarget == null;
-        ShowStep($"New recipe unlocked: {recipeName}. Open Inventory.", inventoryTarget, inventoryFallbackNormalized, useNextForInventory);
-        yield return WaitUntilOrNext(() => uiManager != null && uiManager.CurrentIndex == inventoryPageIndex, useNextForInventory);
+        string recipeName = GetRecipeTutorialDisplayName(unlockedNode);
 
-        RectTransform craftingTabTarget = inventorySlider != null && inventorySlider.RightButton != null
-            ? inventorySlider.RightButton.transform as RectTransform
-            : ResolveCraftingTarget();
+        RectTransform recipeNavTarget = ResolveRecipeNavTarget();
+        bool useNextForRecipeNav = recipeNavTarget == null;
+        ShowStep($"Recipe available: {recipeName}. Tap Recipe here.", recipeNavTarget, craftingFallbackNormalized, useNextForRecipeNav);
+        yield return WaitUntilOrNext(() => IsCraftingTableReady(unlockedNode), useNextForRecipeNav);
 
-        bool useNextForCraftingTab = craftingTabTarget == null;
-        ShowStep("Go to Crafting tab.", craftingTabTarget, craftingFallbackNormalized, useNextForCraftingTab);
-        yield return WaitUntilOrNext(() => inventorySlider == null || inventorySlider.CurrentPage == craftingPageIndex, useNextForCraftingTab);
+        RectTransform recipeNodeTarget = ResolveRecipeNodeTarget(unlockedNode);
+        bool useNextForRecipe = recipeNodeTarget == null;
+        ShowStep($"Tap {recipeName} recipe node.", recipeNodeTarget, centerFallbackNormalized, useNextForRecipe);
+        yield return WaitUntilOrNext(() => IsRecipePanelShowingForNode(unlockedNode), useNextForRecipe);
 
-        RectTransform craftTarget = ResolveRecipeCraftTarget();
+        RectTransform craftTarget = ResolveCraftActionTarget();
         bool useNextForCraft = craftTarget == null;
-        ShowStep("Craft this unlocked recipe now.", craftTarget, centerFallbackNormalized, useNextForCraft);
+        ShowStep("Tap Craft button to craft this recipe.", craftTarget, centerFallbackNormalized, useNextForCraft);
 
         while (!craftedItemTriggered)
         {
@@ -288,10 +428,78 @@ public class NewPlayerTutorialManager : MonoBehaviour
         pendingUnlockedNode = null;
     }
 
+    private static IEnumerator WaitForPopupsToClose()
+    {
+        // Unlock popup is enqueued on the same frame as node unlock.
+        // Wait one frame so PopupController stack can be updated.
+        yield return null;
+
+        while (PopupController.Instance != null && PopupController.Instance.IsAnyPopupOpen())
+            yield return null;
+    }
+
     private static IEnumerator WaitUntil(System.Func<bool> predicate)
     {
         while (!predicate())
             yield return null;
+    }
+
+    private IEnumerator GrantStarterMaterialsForRecipeTutorial(CraftNode node)
+    {
+        if (!grantStarterMaterialsOnRecipeTutorialStart)
+            yield break;
+        if (!IsStarterMaterialRecipeNode(node))
+            yield break;
+
+        if (starterDirtAmount <= 0 && starterClayAmount <= 0)
+            yield break;
+
+        int timeoutFrames = 120;
+        while (inventoryController == null && timeoutFrames-- > 0)
+        {
+            ResolveReferencesOnce();
+            yield return null;
+        }
+
+        if (inventoryController == null)
+        {
+            Debug.LogWarning("Tutorial: InventoryController missing, cannot grant starter materials.");
+            yield break;
+        }
+
+        if (starterDirtAmount > 0)
+            inventoryController.TryAddItemToInventory(new InventoryItem(starterDirtItem, starterDirtAmount));
+
+        if (starterClayAmount > 0)
+            inventoryController.TryAddItemToInventory(new InventoryItem(starterClayItem, starterClayAmount));
+    }
+
+    private bool IsStarterMaterialRecipeNode(CraftNode node)
+    {
+        if (node == null)
+            return false;
+
+        if (string.IsNullOrWhiteSpace(starterMaterialRecipeNodeName))
+            return true;
+
+        string expected = NormalizeRecipeKey(starterMaterialRecipeNodeName);
+        if (string.IsNullOrEmpty(expected))
+            return true;
+
+        if (string.Equals(NormalizeRecipeKey(node.nodeName), expected, System.StringComparison.Ordinal))
+            return true;
+
+        Item recipeItem = node.GetPrimaryRecipeItem();
+        if (recipeItem != null)
+        {
+            if (string.Equals(NormalizeRecipeKey(recipeItem.itemName), expected, System.StringComparison.Ordinal))
+                return true;
+
+            if (string.Equals(NormalizeRecipeKey(recipeItem.name), expected, System.StringComparison.Ordinal))
+                return true;
+        }
+
+        return false;
     }
 
     private IEnumerator WaitUntilOrNext(System.Func<bool> predicate, bool allowNextButton)
@@ -353,6 +561,11 @@ public class NewPlayerTutorialManager : MonoBehaviour
         return button != null ? button.transform as RectTransform : null;
     }
 
+    private RectTransform ResolveStaminaTarget()
+    {
+        return staminaTargetOverride;
+    }
+
     private RectTransform ResolveFirstItemSlotTarget()
     {
         if (firstItemSlotTargetOverride != null)
@@ -387,6 +600,43 @@ public class NewPlayerTutorialManager : MonoBehaviour
         return craftingController != null ? craftingController.transform as RectTransform : null;
     }
 
+    private RectTransform ResolveRecipeNavTarget()
+    {
+        if (recipeNavTargetOverride != null)
+            return recipeNavTargetOverride;
+
+        if (uiManager != null && recipeNavButtonIndex >= 0)
+        {
+            Button navButton = uiManager.GetNavButton(recipeNavButtonIndex);
+            if (navButton != null)
+                return navButton.transform as RectTransform;
+        }
+
+        Button[] buttons = FindObjectsByType<Button>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        foreach (var button in buttons)
+        {
+            if (button == null || !button.gameObject.scene.IsValid())
+                continue;
+
+            string objectName = button.gameObject.name;
+            if (!string.IsNullOrWhiteSpace(objectName) &&
+                objectName.IndexOf("recipe", System.StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return button.transform as RectTransform;
+            }
+
+            TMP_Text label = button.GetComponentInChildren<TMP_Text>(true);
+            if (label != null &&
+                !string.IsNullOrWhiteSpace(label.text) &&
+                label.text.IndexOf("recipe", System.StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return button.transform as RectTransform;
+            }
+        }
+
+        return ResolveCraftingTarget();
+    }
+
     private RectTransform ResolveTrashTarget()
     {
         return trashCanTargetOverride;
@@ -413,6 +663,136 @@ public class NewPlayerTutorialManager : MonoBehaviour
             return crafting;
 
         return ResolveSortTarget();
+    }
+
+    private bool IsCraftingTableReady(CraftNode node)
+    {
+        if (node != null && node.gameObject != null && node.gameObject.activeInHierarchy)
+            return true;
+
+        RectTransform crafting = ResolveCraftingTarget();
+        return crafting != null && crafting.gameObject.activeInHierarchy;
+    }
+
+    private RectTransform ResolveRecipeNodeTarget(CraftNode node)
+    {
+        if (node == null)
+            return null;
+
+        return node.transform as RectTransform;
+    }
+
+    private RectTransform ResolveCraftActionTarget()
+    {
+        if (recipeCraftTargetOverride != null)
+            return recipeCraftTargetOverride;
+
+        Button[] buttons = FindObjectsByType<Button>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        foreach (var button in buttons)
+        {
+            if (button == null || button.onClick == null)
+                continue;
+
+            var clickEvent = button.onClick;
+            int eventCount = clickEvent.GetPersistentEventCount();
+            for (int i = 0; i < eventCount; i++)
+            {
+                if (!string.Equals(clickEvent.GetPersistentMethodName(i), "OnClickAutoFillRecipe", System.StringComparison.Ordinal))
+                    continue;
+
+                if (clickEvent.GetPersistentTarget(i) is CraftRecipePanel)
+                    return button.transform as RectTransform;
+            }
+        }
+
+        return ResolveRecipeCraftTarget();
+    }
+
+    private bool IsRecipePanelShowingForNode(CraftNode node)
+    {
+        CraftRecipePanel panel = ResolveRecipePanel(node);
+        if (panel == null || panel.currentRecipe == null)
+            return false;
+
+        Item targetItem = GetTargetRecipeItem(node);
+        if (targetItem == null)
+            return true;
+
+        return panel.currentRecipe.result != null && panel.currentRecipe.result.itemData == targetItem;
+    }
+
+    private CraftRecipePanel ResolveRecipePanel(CraftNode node)
+    {
+        if (node != null && node.recipePanel != null)
+            return node.recipePanel;
+
+        return FindFirstObjectByType<CraftRecipePanel>(FindObjectsInactive.Include);
+    }
+
+    private Item GetTargetRecipeItem(CraftNode node)
+    {
+        return node != null ? node.GetPrimaryRecipeItem() : null;
+    }
+
+    private bool IsRecipeTutorialTargetNode(CraftNode node)
+    {
+        if (node == null)
+            return false;
+
+        if (!recipeTutorialUseSpecificNode)
+            return true;
+
+        if (string.IsNullOrWhiteSpace(recipeTutorialNodeName))
+            return true;
+
+        string expected = NormalizeRecipeKey(recipeTutorialNodeName);
+        if (string.IsNullOrEmpty(expected))
+            return true;
+
+        if (string.Equals(NormalizeRecipeKey(node.nodeName), expected, System.StringComparison.Ordinal))
+            return true;
+
+        Item recipeItem = GetTargetRecipeItem(node);
+        if (recipeItem != null)
+        {
+            if (string.Equals(NormalizeRecipeKey(recipeItem.itemName), expected, System.StringComparison.Ordinal))
+                return true;
+
+            if (string.Equals(NormalizeRecipeKey(recipeItem.name), expected, System.StringComparison.Ordinal))
+                return true;
+        }
+
+        return false;
+    }
+
+    private string GetRecipeTutorialDisplayName(CraftNode node)
+    {
+        if (recipeTutorialUseSpecificNode && !string.IsNullOrWhiteSpace(recipeTutorialNodeName))
+            return recipeTutorialNodeName.Trim();
+
+        if (node != null && !string.IsNullOrWhiteSpace(node.nodeName))
+            return node.nodeName;
+
+        return "a new recipe";
+    }
+
+    private static string NormalizeRecipeKey(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return string.Empty;
+
+        string trimmed = value.Trim();
+        System.Text.StringBuilder sb = new System.Text.StringBuilder(trimmed.Length);
+        for (int i = 0; i < trimmed.Length; i++)
+        {
+            char c = trimmed[i];
+            if (char.IsWhiteSpace(c) || c == '_' || c == '-')
+                continue;
+
+            sb.Append(char.ToLowerInvariant(c));
+        }
+
+        return sb.ToString();
     }
 
     private bool ShouldRunOnboarding()

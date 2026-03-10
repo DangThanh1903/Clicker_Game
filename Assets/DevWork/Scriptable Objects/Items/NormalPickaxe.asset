@@ -22,5 +22,5 @@ MonoBehaviour:
     value: 50
   - statType: 10
     value: 3
-  currentState: 1
+  currentState: 0
   itemPrefix: 0

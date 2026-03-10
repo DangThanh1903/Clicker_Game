@@ -82,7 +82,7 @@ public class TimeSystem : MonoBehaviour
     private void Start()
     {
         EnsureMainLight();
-        if (timeScale > 0.05f)
+        if (timeScale < 0.05f)
             timeScale = 0.05f;
 
         // Clamp & apply initial time/state

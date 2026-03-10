@@ -15,3 +15,28 @@ MonoBehaviour:
   channel: 2
   squashScale: 0.9
   duration: 0.15
+  useFixedBaseScale: 0
+  baseScale: {x: 2.5, y: 2.5, z: 2.5}
+  enableRandomRotation: 1
+  randomRotationDegrees: {x: 8, y: 12, z: 12}
+  rotateOutEase: 6
+  rotateBackEase: 27
+  rotateByMouseDirection: 1
+  directionalRotationDegrees: {x: 10, y: 6, z: 14}
+  momentumMaxDistancePx: 220
+  minMomentum: 0.15
+  maxMomentum: 1.25
+  momentumCurvePower: 1.35
+  centerDeadZonePx: 6
+  addRandomJitter: 1
+  randomJitterDegrees: {x: 1.5, y: 2, z: 2}
+  spinDuration: 0.42
+  minSpinDegrees: 24
+  maxSpinDegrees: 170
+  spinStep1Portion: 0.62
+  spinStep2Portion: 0.26
+  spinStep3Portion: 0.12
+  spinEase1: 5
+  spinEase2: 6
+  spinEase3: 8
+  invertSpinDirection: 1

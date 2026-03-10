@@ -1,6 +1,5 @@
 using UnityEngine.EventSystems;
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
 using UniRx;
 using UnityEngine.UI;
@@ -34,26 +33,27 @@ public class CraftNode : MonoBehaviour, IPointerClickHandler
     {
         recipePanel = GetComponentInParent<CraftRecipePanel>();
     }
+
     void Start()
     {
-        ReqUIImage.sprite = requiredItems[0].icon;
+        UpdateRequirementIcon();
     }
 
     public void Init(List<InventoryData> inventories)
     {
-        inventoryDependencies = inventories;
+        inventoryDependencies = inventories ?? new List<InventoryData>();
 
         // Subscribe to item changes
-        foreach (var inv in inventoryDependencies)
+        foreach (var inv in EnumerateValidInventories())
         {
             inv.InventoryChanged
-               .Where(item => requiredItems.Contains(item.itemData))
+               .Where(item => item != null && requiredItems != null && requiredItems.Contains(item.itemData))
                .ThrottleFrame(1) // reduce update frequency
                .Subscribe(_ => CheckState(false))
                .AddTo(disposables);
         }
 
-        foreach (var reqNode in requiredNodes)
+        foreach (var reqNode in EnumerateValidRequiredNodes())
         {
             reqNode.OnNodeFinished
                 .ThrottleFrame(1)
@@ -68,7 +68,7 @@ public class CraftNode : MonoBehaviour, IPointerClickHandler
     {
         if (State == CraftNodeState.Locked)
             return;
-        var targetItem = (requiredItems != null && requiredItems.Count > 0) ? requiredItems[0] : null;
+        var targetItem = GetPrimaryRecipeItem();
         if (recipePanel && targetItem)
         {
             recipePanel.ShowForItem(targetItem);
@@ -77,14 +77,34 @@ public class CraftNode : MonoBehaviour, IPointerClickHandler
 
     private bool AreRequiredNodesFinished()
     {
-        return requiredNodes.All(n => n.State == CraftNodeState.Finished);
+        foreach (var node in EnumerateValidRequiredNodes())
+        {
+            if (node.State != CraftNodeState.Finished)
+                return false;
+        }
+
+        return true;
     }
 
     private bool AreRequiredItemsPresent()
     {
-        return requiredItems.All(item =>
-            inventoryDependencies.Any(inv => inv.HasItem(item, 1))
-        );
+        foreach (var item in EnumerateRequiredItems())
+        {
+            bool found = false;
+            foreach (var inv in EnumerateValidInventories())
+            {
+                if (inv.HasItem(item, 1))
+                {
+                    found = true;
+                    break;
+                }
+            }
+
+            if (!found)
+                return false;
+        }
+
+        return true;
     }
 
     private void CheckState(bool isInitial)
@@ -98,17 +118,25 @@ public class CraftNode : MonoBehaviour, IPointerClickHandler
         else
             nextState = CraftNodeState.Unlocked;
 
-        if (nextState == State)
-            return;
+        if (nextState != State)
+        {
+            var previous = State;
+            State = nextState;
 
-        var previous = State;
-        State = nextState;
+            if (State == CraftNodeState.Unlocked && previous != CraftNodeState.Unlocked && !isInitial)
+            {
+                Item item = GetPrimaryRecipeItem();
+                string displayName = item != null ? item.GetColoredName() : nodeName;
+                if (!string.IsNullOrWhiteSpace(displayName))
+                    GameDebugHandler.LogStaticAfter($"Unlocked {displayName}'s recipe!");
+            }
 
-        if (State == CraftNodeState.Unlocked && previous != CraftNodeState.Unlocked && !isInitial)
-            GameDebugHandler.LogStaticAfter($"Unlocked {requiredItems[0].GetColoredName()}'s recipe!");
+            UpdateVisual();
+            OnStateChanged?.Invoke(previous, State);
+        }
 
-        UpdateVisual();
-        OnStateChanged?.Invoke(previous, State);
+        if (State == CraftNodeState.Unlocked && AreRequiredItemsPresent())
+            TryFinishNode();
     }
 
     public void RecheckState(bool isInitial = false)
@@ -118,35 +146,21 @@ public class CraftNode : MonoBehaviour, IPointerClickHandler
 
     public void FinishNode() // Called by player click
     {
-        if (State == CraftNodeState.Unlocked && AreRequiredItemsPresent())
-        {
-            var previous = State;
-            State = CraftNodeState.Finished;
+        TryFinishNode();
+    }
 
-            // Remove items from inventories
-            foreach (var item in requiredItems)
-            {
-                foreach (var inv in inventoryDependencies)
-                {
-                    if (inv.HasItem(item, 1))
-                    {
-                        for (int i = 0; i < inv.GetSize(); i++)
-                        {
-                            if (inv.GetItem(i).itemData == item)
-                            {
-                                inv.SubtractQuantity(i, 1, true);
-                                break;
-                            }
-                        }
-                        break;
-                    }
-                }
-            }
+    private bool TryFinishNode()
+    {
+        if (State != CraftNodeState.Unlocked || !AreRequiredItemsPresent())
+            return false;
 
-            UpdateVisual();
-            OnNodeFinished.OnNext(Unit.Default);
-            OnStateChanged?.Invoke(previous, State);
-        }
+        var previous = State;
+        State = CraftNodeState.Finished;
+
+        UpdateVisual();
+        OnNodeFinished.OnNext(Unit.Default);
+        OnStateChanged?.Invoke(previous, State);
+        return true;
     }
 
     public void UpdateVisual()
@@ -175,6 +189,77 @@ public class CraftNode : MonoBehaviour, IPointerClickHandler
 
         graphic.enabled = active;
         graphic.raycastTarget = active;
+    }
+
+    private IEnumerable<CraftNode> EnumerateValidRequiredNodes()
+    {
+        if (requiredNodes == null)
+            yield break;
+
+        foreach (var node in requiredNodes)
+        {
+            if (node == null || node == this)
+                continue;
+
+            if (!node.gameObject.scene.IsValid())
+                continue;
+
+            yield return node;
+        }
+    }
+
+    private IEnumerable<InventoryData> EnumerateValidInventories()
+    {
+        if (inventoryDependencies == null)
+            yield break;
+
+        foreach (var inv in inventoryDependencies)
+        {
+            if (inv != null)
+                yield return inv;
+        }
+    }
+
+    private IEnumerable<Item> EnumerateRequiredItems()
+    {
+        if (requiredItems == null)
+            yield break;
+
+        foreach (var item in requiredItems)
+        {
+            if (item != null && item.Type != ItemType.None)
+                yield return item;
+        }
+    }
+
+    public Item GetPrimaryRecipeItem()
+    {
+        if (recipePanel != null && recipePanel.recipeDB != null && !string.IsNullOrWhiteSpace(nodeName))
+        {
+            Recipe recipe = recipePanel.recipeDB.FindFirstRecipeByResultName(nodeName);
+            if (recipe != null && recipe.result != null && recipe.result.itemData != null && recipe.result.itemData.Type != ItemType.None)
+                return recipe.result.itemData;
+        }
+
+        return GetPrimaryRequiredItem();
+    }
+
+    private Item GetPrimaryRequiredItem()
+    {
+        foreach (var item in EnumerateRequiredItems())
+            return item;
+
+        return null;
+    }
+
+    private void UpdateRequirementIcon()
+    {
+        if (ReqUIImage == null)
+            return;
+
+        var item = GetPrimaryRecipeItem();
+        ReqUIImage.sprite = item != null ? item.icon : null;
+        ReqUIImage.color = item != null ? Color.white : new Color(1f, 1f, 1f, 0f);
     }
 
     private void OnDestroy()

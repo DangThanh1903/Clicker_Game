@@ -6,6 +6,8 @@ using Lean.Pool;
 
 public class MonsterClickable : MonoBehaviour, IDamagable
 {
+    public event Action<MonsterClickable, bool> Resolved;
+
     private MonsterDef def;
      public float MaxHealth { get; private set; }
     public ReactiveProperty<float> CurrentHealth { get; private set; } = new ReactiveProperty<float>();
@@ -220,6 +222,7 @@ public class MonsterClickable : MonoBehaviour, IDamagable
         if (def != null && def.successSfx != null)
             SoundEffectController.Ins?.PlaySFX(def.successSfx);
 
+        Resolved?.Invoke(this, true);
         ResolveAndDespawn();
     }
 
@@ -228,6 +231,7 @@ public class MonsterClickable : MonoBehaviour, IDamagable
         if (resolved) return;
         resolved = true;
         AnalyticsManager.Ins?.TrackMonsterMiss(monsterId, Time.unscaledTime - spawnTime);
+        Resolved?.Invoke(this, false);
         ResolveAndDespawn();
     }
 
@@ -277,6 +281,7 @@ public class MonsterClickable : MonoBehaviour, IDamagable
         accumulatedHoldTime = 0f;
         spawnTime = 0f;
         monsterId = null;
+        Resolved = null;
         if (hitTween != null)
         {
             hitTween.Kill(false);

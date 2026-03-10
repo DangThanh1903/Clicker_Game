@@ -1,298 +1,339 @@
-// #if UNITY_EDITOR
-// using UnityEngine;
-// using UnityEditor;
-// using System;
-// using System.IO;
-// using System.Linq;
-// using System.Globalization;
-// using System.Collections.Generic;
-// using UnityEditor.AddressableAssets;
-// using UnityEditor.AddressableAssets.Settings;
+#if UNITY_EDITOR
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
+using System.Linq;
+using UnityEditor;
+using UnityEditor.AddressableAssets;
+using UnityEditor.AddressableAssets.Settings;
+using UnityEngine;
 
-// [CustomEditor(typeof(RecipeDatabase))]
-// public class RecipeCsvAddressableImporter : Editor
-// {
-//     private const int ExpectedColumns = 10; // Result,ResultQty,Ing0,Qty0,Ing1,Qty1,Ing2,Qty2,Ing3,Qty3
+[CustomEditor(typeof(RecipeDatabase))]
+public class RecipeCsvAddressableImporter : Editor
+{
+    private const int ExpectedColumns = 10; // Result,ResultQty,Ing0,Qty0,Ing1,Qty1,Ing2,Qty2,Ing3,Qty3
 
-//     public override void OnInspectorGUI()
-//     {
-//         DrawDefaultInspector();
+    public override void OnInspectorGUI()
+    {
+        DrawDefaultInspector();
 
-//         var db = (RecipeDatabase)target;
+        RecipeDatabase db = (RecipeDatabase)target;
 
-//         GUILayout.Space(8);
-//         if (GUILayout.Button("Load Recipes from CSV (Addressables)"))
-//         {
-//             string path = EditorUtility.OpenFilePanel("Select Recipes CSV", "", "csv");
-//             if (!string.IsNullOrEmpty(path))
-//             {
-//                 LoadFromCSV_Addressables(db, path);
-//             }
-//         }
-//     }
+        EditorGUILayout.Space();
+        if (GUILayout.Button("Load Recipes from CSV (Addressables)"))
+        {
+            string path = EditorUtility.OpenFilePanel("Select Recipes CSV", "", "csv");
+            if (!string.IsNullOrEmpty(path))
+            {
+                LoadFromCsvAddressables(db, path);
+            }
+        }
+    }
 
-//     private static void LoadFromCSV_Addressables(RecipeDatabase db, string path)
-//     {
-//         var lines = File.ReadAllLines(path)
-//             .Where(l => !string.IsNullOrWhiteSpace(l) && !l.TrimStart().StartsWith("#"))
-//             .ToList();
+    private static void LoadFromCsvAddressables(RecipeDatabase db, string path)
+    {
+        List<string> lines = File.ReadAllLines(path)
+            .Where(l => !string.IsNullOrWhiteSpace(l) && !l.TrimStart().StartsWith("#"))
+            .ToList();
 
-//         if (lines.Count == 0)
-//         {
-//             EditorUtility.DisplayDialog("Import Recipes", "CSV is empty.", "OK");
-//             return;
-//         }
+        if (lines.Count == 0)
+        {
+            EditorUtility.DisplayDialog("Import Recipes", "CSV is empty.", "OK");
+            return;
+        }
 
-//         // Parse header (loose check)
-//         var header = ParseCsvLine(lines[0]);
-//         if (header.Count < ExpectedColumns ||
-//             !header[0].Trim().Equals("Result", StringComparison.OrdinalIgnoreCase) ||
-//             !header[1].Trim().Equals("ResultQty", StringComparison.OrdinalIgnoreCase))
-//         {
-//             EditorUtility.DisplayDialog("Import Recipes",
-//                 "Header must start with: Result,ResultQty,... (10 columns total).",
-//                 "OK");
-//             return;
-//         }
+        List<string> header = ParseCsvLine(lines[0]);
+        if (header.Count < ExpectedColumns ||
+            !header[0].Trim().Equals("Result", StringComparison.OrdinalIgnoreCase) ||
+            !header[1].Trim().Equals("ResultQty", StringComparison.OrdinalIgnoreCase))
+        {
+            EditorUtility.DisplayDialog(
+                "Import Recipes",
+                "Header must start with: Result,ResultQty,... (10 columns total).",
+                "OK");
+            return;
+        }
 
-//         // Addressables settings
-//         var settings = AddressableAssetSettingsDefaultObject.Settings;
-//         if (settings == null)
-//         {
-//             EditorUtility.DisplayDialog("Import Recipes",
-//                 "AddressableAssetSettings not found. Please initialize Addressables (Window → Asset Management → Addressables).",
-//                 "OK");
-//             return;
-//         }
+        var recipesField = typeof(RecipeDatabase).GetField(
+            "recipes",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
 
-//         // Build a quick lookup (address → GUID) and (name → GUID)
-//         var (byAddress, byName) = BuildAddressablesItemLookup(settings);
+        if (recipesField == null)
+        {
+            Debug.LogError("[RecipeCsvAddressableImporter] Field 'recipes' not found on RecipeDatabase.");
+            return;
+        }
 
-//         // Access to the private 'recipes' list via reflection (matches your ScriptableObject code)
-//         var recipesField = typeof(RecipeDatabase).GetField("recipes",
-//             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        List<Recipe> currentList = recipesField.GetValue(db) as List<Recipe>;
+        if (currentList == null)
+        {
+            currentList = new List<Recipe>();
+            recipesField.SetValue(db, currentList);
+        }
 
-//         if (recipesField == null)
-//         {
-//             Debug.LogError("❌ Field 'recipes' not found on RecipeDatabase (expected private List<Recipe>).");
-//             return;
-//         }
+        bool replace = EditorUtility.DisplayDialog(
+            "Import Mode",
+            "Replace existing recipes (Yes) or Append (No)?",
+            "Replace",
+            "Append");
 
-//         var currentList = (List<RecipeDatabase.Recipe>)recipesField.GetValue(db);
-//         bool replace = EditorUtility.DisplayDialog("Import Mode",
-//             "Replace existing recipes (Yes) or Append (No)?",
-//             "Replace", "Append");
-//         if (replace) currentList.Clear();
+        Undo.RecordObject(db, "Import Recipes from CSV");
 
-//         int created = 0;
-//         Undo.RecordObject(db, "Import Recipes from CSV");
+        if (replace)
+        {
+            currentList.Clear();
+        }
 
-//         // Rows
-//         for (int rowIndex = 1; rowIndex < lines.Count; rowIndex++)
-//         {
-//             var raw = lines[rowIndex];
-//             var cols = ParseCsvLine(raw);
-//             if (cols.Count == 0) continue;
+        BuildItemLookup(out Dictionary<string, Item> byAddress, out Dictionary<string, List<Item>> byName);
 
-//             if (cols.Count < ExpectedColumns)
-//             {
-//                 Debug.LogWarning($"⛔ Skipping line {rowIndex + 1}: expected {ExpectedColumns} columns, got {cols.Count}");
-//                 continue;
-//             }
+        int created = 0;
 
-//             try
-//             {
-//                 string resultKey = cols[0].Trim(); // Addressable address (preferred) or Item name
-//                 int resultQty = ParseInt(cols[1], 1, rowIndex + 1, "ResultQty");
+        for (int rowIndex = 1; rowIndex < lines.Count; rowIndex++)
+        {
+            string raw = lines[rowIndex];
+            List<string> cols = ParseCsvLine(raw);
+            if (cols.Count == 0)
+            {
+                continue;
+            }
 
-//                 // Ingredients
-//                 var ingredients = new List<InventoryItem>(4);
-//                 for (int i = 0; i < 4; i++)
-//                 {
-//                     string key = cols[2 + i * 2].Trim();
-//                     string qtyStr = cols[3 + i * 2].Trim();
+            if (cols.Count < ExpectedColumns)
+            {
+                Debug.LogWarning($"[RecipeCsvAddressableImporter] Skipping line {rowIndex + 1}: expected {ExpectedColumns} columns, got {cols.Count}.");
+                continue;
+            }
 
-//                     if (string.IsNullOrEmpty(key))
-//                     {
-//                         ingredients.Add(new InventoryItem(null, 0));
-//                         continue;
-//                     }
+            try
+            {
+                string resultKey = cols[0].Trim();
+                int resultQty = ParseInt(cols[1], 1, rowIndex + 1, "ResultQty");
 
-//                     int qty = ParseInt(qtyStr, 1, rowIndex + 1, $"Qty{i}");
-//                     var item = ResolveItemViaAddressables(key, byAddress, byName);
-//                     if (item == null)
-//                     {
-//                         Debug.LogWarning($"⚠️ Line {rowIndex + 1}: Item not found for key '{key}' (address or name). Leaving slot empty.");
-//                         ingredients.Add(new InventoryItem(null, 0));
-//                     }
-//                     else
-//                     {
-//                         ingredients.Add(new InventoryItem(item, qty));
-//                     }
-//                 }
+                if (string.IsNullOrEmpty(resultKey))
+                {
+                    throw new FormatException($"Line {rowIndex + 1}: Result is empty.");
+                }
 
-//                 // Result
-//                 if (string.IsNullOrEmpty(resultKey))
-//                     throw new FormatException($"Line {rowIndex + 1}: Result is empty.");
+                Item resultItem = ResolveItem(resultKey, byAddress, byName);
+                if (resultItem == null)
+                {
+                    throw new FormatException(
+                        $"Line {rowIndex + 1}: Result item '{resultKey}' not found (address or name).");
+                }
 
-//                 var resultItem = ResolveItemViaAddressables(resultKey, byAddress, byName);
-//                 if (resultItem == null)
-//                     throw new FormatException($"Line {rowIndex + 1}: Result item '{resultKey}' not found in Addressables (by address or by name).");
+                List<InventoryItem> ingredients = new List<InventoryItem>(4);
+                for (int i = 0; i < 4; i++)
+                {
+                    string key = cols[2 + i * 2].Trim();
+                    string qtyStr = cols[3 + i * 2].Trim();
 
-//                 var resultInv = new InventoryItem(resultItem, Math.Max(1, resultQty));
+                    if (string.IsNullOrEmpty(key))
+                    {
+                        ingredients.Add(new InventoryItem(null, 0));
+                        continue;
+                    }
 
-//                 // Create recipe entry
-//                 var recipe = new RecipeDatabase.Recipe
-//                 {
-//                     ingredients = RecipeDatabase.NormalizeIngredients(ingredients),
-//                     result = resultInv
-//                 };
+                    int qty = ParseInt(qtyStr, 1, rowIndex + 1, $"Qty{i}");
+                    Item item = ResolveItem(key, byAddress, byName);
 
-//                 currentList.Add(recipe);
-//                 created++;
-//             }
-//             catch (Exception ex)
-//             {
-//                 Debug.LogError($"❌ Failed to parse line {rowIndex + 1}:\n{raw}\n{ex.Message}");
-//             }
-//         }
+                    if (item == null)
+                    {
+                        Debug.LogWarning(
+                            $"[RecipeCsvAddressableImporter] Line {rowIndex + 1}: Ingredient '{key}' not found. Leaving slot empty.");
+                        ingredients.Add(new InventoryItem(null, 0));
+                    }
+                    else
+                    {
+                        ingredients.Add(new InventoryItem(item, qty));
+                    }
+                }
 
-//         // Persist & init lookups
-//         EditorUtility.SetDirty(db);
-//         AssetDatabase.SaveAssets();
-//         db.Initialize();
+                Recipe recipe = new Recipe
+                {
+                    ingredients = RecipeDatabase.NormalizeIngredients(ingredients),
+                    result = new InventoryItem(resultItem, Math.Max(1, resultQty))
+                };
 
-//         Debug.Log($"✅ Imported {created} recipe(s) from CSV (Addressables).");
-//     }
+                currentList.Add(recipe);
+                created++;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[RecipeCsvAddressableImporter] Failed to parse line {rowIndex + 1}:\n{raw}\n{ex.Message}");
+            }
+        }
 
-//     // ------------------------ Addressables helpers ------------------------
+        EditorUtility.SetDirty(db);
+        AssetDatabase.SaveAssets();
+        db.Initialize();
 
-//     private static (Dictionary<string, string> byAddress, Dictionary<string, List<string>> byName)
-//         BuildAddressablesItemLookup(AddressableAssetSettings settings)
-//     {
-//         var byAddress = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase); // address -> GUID
-//         var byName = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase); // asset name -> GUIDs
+        Debug.Log($"[RecipeCsvAddressableImporter] Imported {created} recipe(s) from CSV.");
+    }
 
-//         foreach (var group in settings.groups.Where(g => g != null))
-//         {
-//             foreach (var e in group.entries.Where(e => e != null))
-//             {
-//                 // Filter: only entries whose main asset is an Item scriptable object
-//                 string assetPath = AssetDatabase.GUIDToAssetPath(e.guid);
-//                 if (string.IsNullOrEmpty(assetPath)) continue;
+    private static void BuildItemLookup(
+        out Dictionary<string, Item> byAddress,
+        out Dictionary<string, List<Item>> byName)
+    {
+        byAddress = new Dictionary<string, Item>(StringComparer.OrdinalIgnoreCase);
+        byName = new Dictionary<string, List<Item>>(StringComparer.OrdinalIgnoreCase);
 
-//                 var item = AssetDatabase.LoadAssetAtPath<Item>(assetPath);
-//                 if (item == null) continue; // not an Item
+        string[] itemGuids = AssetDatabase.FindAssets("t:Item");
+        Dictionary<string, Item> itemsByGuid = new Dictionary<string, Item>(StringComparer.OrdinalIgnoreCase);
 
-//                 // address → guid
-//                 if (!string.IsNullOrEmpty(e.address))
-//                 {
-//                     byAddress[e.address] = e.guid;
-//                 }
+        foreach (string guid in itemGuids)
+        {
+            string assetPath = AssetDatabase.GUIDToAssetPath(guid);
+            Item item = AssetDatabase.LoadAssetAtPath<Item>(assetPath);
+            if (item == null)
+            {
+                continue;
+            }
 
-//                 // name → guid list (support duplicates; warn later if multiple)
-//                 if (!byName.TryGetValue(item.name, out var list))
-//                 {
-//                     list = new List<string>();
-//                     byName[item.name] = list;
-//                 }
-//                 list.Add(e.guid);
-//             }
-//         }
+            itemsByGuid[guid] = item;
 
-//         return (byAddress, byName);
-//     }
+            AddByName(byName, item.name, item);
+            if (!string.IsNullOrWhiteSpace(item.itemName))
+            {
+                AddByName(byName, item.itemName, item);
+            }
+        }
 
-//     private static Item ResolveItemViaAddressables(string key,
-//         Dictionary<string, string> byAddress,
-//         Dictionary<string, List<string>> byName)
-//     {
-//         // 1) Try by Addressables address
-//         if (byAddress.TryGetValue(key, out var guidByAddr))
-//         {
-//             string path = AssetDatabase.GUIDToAssetPath(guidByAddr);
-//             var item = AssetDatabase.LoadAssetAtPath<Item>(path);
-//             if (item != null) return item;
-//         }
+        AddressableAssetSettings settings = AddressableAssetSettingsDefaultObject.Settings;
+        if (settings == null)
+        {
+            return;
+        }
 
-//         // 2) Fallback by Item asset name
-//         if (byName.TryGetValue(key, out var guidsByName) && guidsByName.Count > 0)
-//         {
-//             if (guidsByName.Count > 1)
-//             {
-//                 Debug.LogWarning($"🔎 Multiple addressable Items named '{key}'. Using the first found.");
-//             }
-//             string path = AssetDatabase.GUIDToAssetPath(guidsByName[0]);
-//             var item = AssetDatabase.LoadAssetAtPath<Item>(path);
-//             if (item != null) return item;
-//         }
+        foreach (AddressableAssetGroup group in settings.groups.Where(g => g != null))
+        {
+            foreach (AddressableAssetEntry entry in group.entries.Where(e => e != null))
+            {
+                if (string.IsNullOrWhiteSpace(entry.address))
+                {
+                    continue;
+                }
 
-//         return null;
-//     }
+                if (!itemsByGuid.TryGetValue(entry.guid, out Item item) || item == null)
+                {
+                    continue;
+                }
 
-//     // ------------------------ CSV helpers ------------------------
+                byAddress[entry.address] = item;
+            }
+        }
+    }
 
-//     private static int ParseInt(string s, int fallback, int lineNo, string field)
-//     {
-//         if (string.IsNullOrWhiteSpace(s)) return fallback;
-//         if (int.TryParse(s, NumberStyles.Integer, CultureInfo.InvariantCulture, out int v))
-//             return v;
-//         throw new FormatException($"Line {lineNo}: '{field}' must be an integer (got '{s}').");
-//     }
+    private static void AddByName(Dictionary<string, List<Item>> byName, string key, Item item)
+    {
+        if (string.IsNullOrWhiteSpace(key) || item == null)
+        {
+            return;
+        }
 
-//     /// <summary>
-//     /// Simple CSV line parser: supports quoted fields, embedded commas, and double-quote escaping ("").
-//     /// </summary>
-//     private static List<string> ParseCsvLine(string line)
-//     {
-//         var result = new List<string>();
-//         if (line == null) return result;
+        if (!byName.TryGetValue(key, out List<Item> list))
+        {
+            list = new List<Item>();
+            byName[key] = list;
+        }
 
-//         bool inQuotes = false;
-//         var cur = new System.Text.StringBuilder();
+        if (!list.Contains(item))
+        {
+            list.Add(item);
+        }
+    }
 
-//         for (int i = 0; i < line.Length; i++)
-//         {
-//             char c = line[i];
+    private static Item ResolveItem(
+        string key,
+        Dictionary<string, Item> byAddress,
+        Dictionary<string, List<Item>> byName)
+    {
+        if (byAddress.TryGetValue(key, out Item byAddr) && byAddr != null)
+        {
+            return byAddr;
+        }
 
-//             if (inQuotes)
-//             {
-//                 if (c == '\"')
-//                 {
-//                     if (i + 1 < line.Length && line[i + 1] == '\"')
-//                     {
-//                         cur.Append('\"');
-//                         i++;
-//                     }
-//                     else
-//                     {
-//                         inQuotes = false;
-//                     }
-//                 }
-//                 else
-//                 {
-//                     cur.Append(c);
-//                 }
-//             }
-//             else
-//             {
-//                 if (c == ',')
-//                 {
-//                     result.Add(cur.ToString());
-//                     cur.Length = 0;
-//                 }
-//                 else if (c == '\"')
-//                 {
-//                     inQuotes = true;
-//                 }
-//                 else
-//                 {
-//                     cur.Append(c);
-//                 }
-//             }
-//         }
-//         result.Add(cur.ToString());
-//         return result;
-//     }
-// }
-// #endif
+        if (byName.TryGetValue(key, out List<Item> byNameList) && byNameList.Count > 0)
+        {
+            if (byNameList.Count > 1)
+            {
+                Debug.LogWarning($"[RecipeCsvAddressableImporter] Multiple items named '{key}'. Using the first one.");
+            }
+
+            return byNameList[0];
+        }
+
+        return null;
+    }
+
+    private static int ParseInt(string s, int fallback, int lineNo, string field)
+    {
+        if (string.IsNullOrWhiteSpace(s))
+        {
+            return fallback;
+        }
+
+        if (int.TryParse(s, NumberStyles.Integer, CultureInfo.InvariantCulture, out int v))
+        {
+            return v;
+        }
+
+        throw new FormatException($"Line {lineNo}: '{field}' must be an integer (got '{s}').");
+    }
+
+    private static List<string> ParseCsvLine(string line)
+    {
+        List<string> result = new List<string>();
+        if (line == null)
+        {
+            return result;
+        }
+
+        bool inQuotes = false;
+        System.Text.StringBuilder cur = new System.Text.StringBuilder();
+
+        for (int i = 0; i < line.Length; i++)
+        {
+            char c = line[i];
+
+            if (inQuotes)
+            {
+                if (c == '"')
+                {
+                    if (i + 1 < line.Length && line[i + 1] == '"')
+                    {
+                        cur.Append('"');
+                        i++;
+                    }
+                    else
+                    {
+                        inQuotes = false;
+                    }
+                }
+                else
+                {
+                    cur.Append(c);
+                }
+            }
+            else
+            {
+                if (c == ',')
+                {
+                    result.Add(cur.ToString());
+                    cur.Length = 0;
+                }
+                else if (c == '"')
+                {
+                    inQuotes = true;
+                }
+                else
+                {
+                    cur.Append(c);
+                }
+            }
+        }
+
+        result.Add(cur.ToString());
+        return result;
+    }
+}
+#endif

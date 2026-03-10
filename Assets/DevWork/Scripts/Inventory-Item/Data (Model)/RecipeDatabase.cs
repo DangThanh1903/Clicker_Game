@@ -63,6 +63,31 @@ public class RecipeDatabase : ScriptableObject
             : new List<Recipe>();
     }
 
+    public Recipe FindFirstRecipeByResultName(string resultName)
+    {
+        if (string.IsNullOrWhiteSpace(resultName))
+            return null;
+
+        string expected = NormalizeNameKey(resultName);
+        if (string.IsNullOrEmpty(expected))
+            return null;
+
+        foreach (var recipe in recipes)
+        {
+            Item resultItem = recipe?.result?.itemData;
+            if (resultItem == null || resultItem.Type == ItemType.None)
+                continue;
+
+            if (string.Equals(NormalizeNameKey(resultItem.itemName), expected, System.StringComparison.Ordinal))
+                return recipe;
+
+            if (string.Equals(NormalizeNameKey(resultItem.name), expected, System.StringComparison.Ordinal))
+                return recipe;
+        }
+
+        return null;
+    }
+
     // Generate a unique key string based on item types and their positions, ignoring quantities
     private string GenerateKeyIgnoringQuantity(List<InventoryItem> ingredients)
     {
@@ -171,5 +196,24 @@ public class RecipeDatabase : ScriptableObject
                 return false;
         }
         return true;
+    }
+
+    private static string NormalizeNameKey(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return string.Empty;
+
+        string trimmed = value.Trim();
+        var sb = new StringBuilder(trimmed.Length);
+        for (int i = 0; i < trimmed.Length; i++)
+        {
+            char c = trimmed[i];
+            if (char.IsWhiteSpace(c) || c == '_' || c == '-')
+                continue;
+
+            sb.Append(char.ToLowerInvariant(c));
+        }
+
+        return sb.ToString();
     }
 }

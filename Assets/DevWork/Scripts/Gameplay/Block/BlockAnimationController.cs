@@ -36,19 +36,26 @@ public class BlockAnimationController : MonoBehaviour
         Debug.Log("[Anim] Play Idle");
     }
 
-    public void PlaySpawn(Action onDone = null)
+    public void PlaySpawn(Action onDone = null, bool playAnimation = false)
     {
         isDeathPlaying = false;
+        if (!playAnimation)
+        {
+            onDone?.Invoke();
+            return;
+        }
 
-        var s = Get(spawnOptions, spawnIndex);
-        if (!s) { onDone?.Invoke(); return; }
+        var spawn = Get(spawnOptions, spawnIndex);
+        if (!spawn)
+        {
+            onDone?.Invoke();
+            return;
+        }
 
-        s.Stop(gameObject);
-        var tw = s.PlayTween(gameObject);
+        spawn.Stop(gameObject);
+        var tw = spawn.PlayTween(gameObject);
         if (tw != null) tw.OnComplete(() => onDone?.Invoke());
         else onDone?.Invoke();
-
-        Debug.Log("Play Spawn");
     }
 
     public void PlayClick()

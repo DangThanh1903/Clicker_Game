@@ -13,11 +13,18 @@ MonoBehaviour:
   m_Name: NormalDeathAnim
   m_EditorClassIdentifier: 
   channel: 3
-  shrinkScale: 2
-  shrinkTime: 0.2
-  delayBeforeExpand: 0.1
-  expandScale: 4
-  expandTime: 0.2
-  fragmentPrefab: {fileID: 1593840380464966771, guid: 6b26467b597428847ab47d066f7dc0ae,
-    type: 3}
-  numberOfFragments: 5
+  fragmentPrefabs:
+  - {fileID: 928324793175677705, guid: 0a281a63dc800c645a2873344515cd36, type: 3}
+  - {fileID: 6998783755605952121, guid: a15ecb082381b8245aa6ab663083e0da, type: 3}
+  - {fileID: 4437701316406612654, guid: 8797a7390e739d946bcef232c2bb805e, type: 3}
+  - {fileID: 3115586662374543855, guid: 86c197b58741c464888bb23db050d6e6, type: 3}
+  - {fileID: 8892621033114637457, guid: 36bdc4870b5fded4ea04889dd444eb1c, type: 3}
+  - {fileID: 7915753793937852689, guid: c7eef054b67d3e141ac021e28f23f8fd, type: 3}
+  - {fileID: 6207831913769040877, guid: 0e80166ffdc81fc40a0e98f422670fc9, type: 3}
+  - {fileID: 6732723226674897463, guid: 67b98e6c976d0844682ba61b3d776d5c, type: 3}
+  spawnRadius: 0.08
+  prewarmPerPrefab: 6
+  baseImpulseMultiplier: 1.8
+  extraImpulsePerHit: 0.08
+  maxImpulseMultiplier: 2.2
+  hitWindowSeconds: 1

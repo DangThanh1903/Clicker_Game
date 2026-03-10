@@ -48,7 +48,6 @@ public class GameplayUIManager : MonoBehaviour
     void AddReactToUI()
     {
         StatsManager.Ins.GetReactive(StatType.Clicks)
-            .ThrottleFirst(TimeSpan.FromSeconds(0.1))
             .DistinctUntilChanged()
             .Subscribe(val => clickNumberUI.SetText("{0} click", (int)val))
             .AddTo(this);

@@ -16,7 +16,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &6846217604715442450
 RectTransform:
   m_ObjectHideFlags: 0
@@ -95,6 +95,10 @@ MonoBehaviour:
   - {fileID: 11400000, guid: b84c9858687c88141bbf66a29d6c81a8, type: 2}
   - {fileID: 11400000, guid: 3406d5478e424094f94ba73e7b13739a, type: 2}
   saveScope: Default
+  showRecipeUnlockPopup: 1
+  autoFindRecipeUnlockPopUp: 1
+  recipeUnlockPopUp: {fileID: 9040275755180436966, guid: 17de29720631608459149bfd92ae6eb0,
+    type: 3}
 --- !u!1001 &255655096235433352
 PrefabInstance:
   m_ObjectHideFlags: 0

@@ -4,8 +4,16 @@ using UnityEngine;
 
 public class GooglePlayGamesLinker : MonoBehaviour
 {
+    [SerializeField] private bool enableGooglePlayLink = false;
+
     public async Task<bool> LinkWithPlayGamesAuthCodeAsync(string authCode)
     {
+        if (!enableGooglePlayLink)
+        {
+            Debug.LogWarning("Google Play link is temporarily disabled.");
+            return false;
+        }
+
         var auth = FirebaseBootstrap.Ins != null ? FirebaseBootstrap.Ins.Auth : null;
         if (auth == null)
         {

@@ -16,875 +16,988 @@ MonoBehaviour:
   - blockName: Dirt
     atlasIndex: 0
     health: 10
-    BreakingSound: 
+    BreakingSound: DirtBreaking
     locationCondition: 1
     timeStateCondition: 2
     normalWeatherCondition: 0
     specialWeatherCondition: 0
     weight: 30
+    outlineColor: {r: 0.5254902, g: 0.3764706, b: 0.2627451, a: 1}
     drops:
     - item: {fileID: 11400000, guid: b58c152454d354b47b2cd8650bf8bf45, type: 2}
-      itemAddress: Dirt
-      minAmount: 2
-      maxAmount: 5
+      itemAddress: 
+      minAmount: 1
+      maxAmount: 3
       dropChance: 1
+      isSecret: 0
   - blockName: Grass
     atlasIndex: 1
     health: 8
-    BreakingSound: 
+    BreakingSound: GrassBreaking
     locationCondition: 1
     timeStateCondition: 2
     normalWeatherCondition: 0
     specialWeatherCondition: 0
     weight: 20
+    outlineColor: {r: 0.37254903, g: 0.62352943, b: 0.20784314, a: 1}
     drops:
     - item: {fileID: 11400000, guid: 0a4d8afb43ac54745a959c89d524b0cd, type: 2}
-      itemAddress: Grass
+      itemAddress: 
       minAmount: 2
       maxAmount: 5
       dropChance: 1
+      isSecret: 0
   - blockName: Log
     atlasIndex: 2
     health: 40
-    BreakingSound: 
+    BreakingSound: LogBreaking
     locationCondition: 1
     timeStateCondition: 2
     normalWeatherCondition: 0
     specialWeatherCondition: 0
     weight: 15
+    outlineColor: {r: 0.60784316, g: 0.41960785, b: 0.24705882, a: 1}
     drops:
     - item: {fileID: 11400000, guid: 15282561daa2fcc4590d4754049134ff, type: 2}
-      itemAddress: WoodPlank
+      itemAddress: 
       minAmount: 1
       maxAmount: 3
       dropChance: 1
+      isSecret: 0
     - item: {fileID: 11400000, guid: 60b16f0202ef37f41a526bca0b284645, type: 2}
-      itemAddress: Log
+      itemAddress: 
       minAmount: 1
       maxAmount: 3
       dropChance: 0.15
+      isSecret: 0
     - item: {fileID: 11400000, guid: 43dafd87ea180c740acd40a552af12c9, type: 2}
-      itemAddress: Resin
+      itemAddress: 
       minAmount: 2
       maxAmount: 4
-      dropChance: 0.1
+      dropChance: 0.2
+      isSecret: 0
   - blockName: Leaves
     atlasIndex: 3
     health: 10
-    BreakingSound: 
+    BreakingSound: LeavesBreaking
     locationCondition: 1
     timeStateCondition: 2
     normalWeatherCondition: 0
     specialWeatherCondition: 0
     weight: 15
+    outlineColor: {r: 0.24705882, g: 0.45882353, b: 0.1764706, a: 0.7058824}
     drops:
     - item: {fileID: 11400000, guid: 5658c337be36c8c4587eeee8cd78bb87, type: 2}
-      itemAddress: Stick
+      itemAddress: 
       minAmount: 2
       maxAmount: 5
       dropChance: 0.5
+      isSecret: 0
     - item: {fileID: 11400000, guid: dac4b888454f57f4daa7ff54d977b870, type: 2}
-      itemAddress: Apple
+      itemAddress: 
       minAmount: 1
       maxAmount: 2
-      dropChance: 0.1
+      dropChance: 0.15
+      isSecret: 0
   - blockName: Sunflower
     atlasIndex: 4
     health: 20
-    BreakingSound: 
+    BreakingSound: SunflowerBreaking
     locationCondition: 1
     timeStateCondition: 0
     normalWeatherCondition: 0
     specialWeatherCondition: 0
     weight: 15
+    outlineColor: {r: 0.9647059, g: 0.8392157, b: 0.36078432, a: 0.9019608}
     drops:
     - item: {fileID: 11400000, guid: bf496e75ff78eed4fb67fa288495f97d, type: 2}
-      itemAddress: Sunflower
+      itemAddress: 
       minAmount: 1
       maxAmount: 2
       dropChance: 0.2
+      isSecret: 0
     - item: {fileID: 11400000, guid: 1e1abd19b7618de4fb588cc991792acf, type: 2}
-      itemAddress: SunflowerSeed
+      itemAddress: 
       minAmount: 2
       maxAmount: 4
       dropChance: 0.3
+      isSecret: 0
   - blockName: Star
     atlasIndex: 5
     health: 50
-    BreakingSound: 
+    BreakingSound: StarBreaking
     locationCondition: 1
     timeStateCondition: 1
     normalWeatherCondition: 0
     specialWeatherCondition: 0
     weight: 10
+    outlineColor: {r: 1, g: 0.9019608, b: 0.47058824, a: 0.9411765}
     drops:
     - item: {fileID: 11400000, guid: 65cfc837310bb284e8fbe055ed609c44, type: 2}
-      itemAddress: Star
+      itemAddress: 
       minAmount: 1
       maxAmount: 2
       dropChance: 0.1
+      isSecret: 0
     - item: {fileID: 11400000, guid: ecf93b30a50f8004da1f06c546509b21, type: 2}
-      itemAddress: StarDust
+      itemAddress: 
       minAmount: 3
       maxAmount: 6
       dropChance: 1
+      isSecret: 0
   - blockName: Clay
     atlasIndex: 6
     health: 50
-    BreakingSound: 
+    BreakingSound: ClayBreaking
     locationCondition: 1
     timeStateCondition: 2
     normalWeatherCondition: 0
     specialWeatherCondition: 0
     weight: 5
+    outlineColor: {r: 0.627451, g: 0.654902, b: 0.7019608, a: 1}
     drops:
     - item: {fileID: 11400000, guid: 69c48c737b5a3ef438799fd75b451469, type: 2}
-      itemAddress: Clay
+      itemAddress: 
       minAmount: 3
       maxAmount: 6
       dropChance: 1
+      isSecret: 0
   - blockName: Snow
     atlasIndex: 7
     health: 50
-    BreakingSound: 
+    BreakingSound: SnowBreaking
     locationCondition: 2
     timeStateCondition: 1
     normalWeatherCondition: 0
     specialWeatherCondition: 0
     weight: 6
+    outlineColor: {r: 0, g: 0, b: 0, a: 1}
     drops:
     - item: {fileID: 11400000, guid: 2f06f9fef62d1564cb0a491165a88e04, type: 2}
-      itemAddress: SnowBall
+      itemAddress: 
       minAmount: 2
       maxAmount: 4
       dropChance: 1
+      isSecret: 0
   - blockName: Ice
     atlasIndex: 8
     health: 50
-    BreakingSound: 
+    BreakingSound: IceBreaking
     locationCondition: 2
     timeStateCondition: 2
     normalWeatherCondition: 0
     specialWeatherCondition: 0
     weight: 7
+    outlineColor: {r: 0, g: 0, b: 0, a: 1}
     drops:
     - item: {fileID: 11400000, guid: 904b66f360a855742ac90dc4777032b6, type: 2}
-      itemAddress: IceCube
+      itemAddress: 
       minAmount: 1
       maxAmount: 3
       dropChance: 1
+      isSecret: 0
     - item: {fileID: 11400000, guid: 0ded06e44b0e29543847ecab5c3ba536, type: 2}
-      itemAddress: TrueIceCube
+      itemAddress: 
       minAmount: 1
       maxAmount: 1
       dropChance: 0.05
+      isSecret: 0
   - blockName: SnowLog
     atlasIndex: 9
     health: 50
-    BreakingSound: 
+    BreakingSound: SnowLogBreaking
     locationCondition: 2
     timeStateCondition: 2
     normalWeatherCondition: 0
     specialWeatherCondition: 0
     weight: 8
+    outlineColor: {r: 0, g: 0, b: 0, a: 1}
     drops:
     - item: {fileID: 11400000, guid: 15282561daa2fcc4590d4754049134ff, type: 2}
-      itemAddress: WoodPlank
+      itemAddress: 
       minAmount: 1
       maxAmount: 3
       dropChance: 1
+      isSecret: 0
     - item: {fileID: 11400000, guid: 60b16f0202ef37f41a526bca0b284645, type: 2}
-      itemAddress: Log
+      itemAddress: 
       minAmount: 1
       maxAmount: 3
       dropChance: 0.1
+      isSecret: 0
   - blockName: IcedStone
     atlasIndex: 10
     health: 50
-    BreakingSound: 
+    BreakingSound: IcedStoneBreaking
     locationCondition: 2
     timeStateCondition: 2
     normalWeatherCondition: 0
     specialWeatherCondition: 0
     weight: 9
+    outlineColor: {r: 0, g: 0, b: 0, a: 1}
     drops:
     - item: {fileID: 11400000, guid: af90eb75736662849aad659d1f498689, type: 2}
-      itemAddress: Stone
+      itemAddress: 
       minAmount: 1
       maxAmount: 2
       dropChance: 1
+      isSecret: 0
     - item: {fileID: 11400000, guid: 904b66f360a855742ac90dc4777032b6, type: 2}
-      itemAddress: IceCube
+      itemAddress: 
       minAmount: 1
       maxAmount: 2
       dropChance: 0.5
+      isSecret: 0
   - blockName: CherryBrush
     atlasIndex: 11
     health: 50
-    BreakingSound: 
+    BreakingSound: CherryBrushBreaking
     locationCondition: 2
     timeStateCondition: 2
     normalWeatherCondition: 0
     specialWeatherCondition: 0
     weight: 10
+    outlineColor: {r: 0, g: 0, b: 0, a: 1}
     drops:
     - item: {fileID: 11400000, guid: 5658c337be36c8c4587eeee8cd78bb87, type: 2}
-      itemAddress: Stick
+      itemAddress: 
       minAmount: 1
       maxAmount: 3
       dropChance: 0.6
+      isSecret: 0
     - item: {fileID: 11400000, guid: c80d6d5c9bc23dd41b6fd9f5a9548715, type: 2}
-      itemAddress: Cherry
+      itemAddress: 
       minAmount: 2
       maxAmount: 4
       dropChance: 0.6
+      isSecret: 0
   - blockName: TrueIce
     atlasIndex: 12
     health: 50
-    BreakingSound: 
+    BreakingSound: TrueIceBreaking
     locationCondition: 2
     timeStateCondition: 1
     normalWeatherCondition: 0
     specialWeatherCondition: 0
     weight: 11
+    outlineColor: {r: 0, g: 0, b: 0, a: 1}
     drops:
     - item: {fileID: 11400000, guid: 0ded06e44b0e29543847ecab5c3ba536, type: 2}
-      itemAddress: TrueIceCube
+      itemAddress: 
       minAmount: 3
       maxAmount: 5
       dropChance: 1
+      isSecret: 0
   - blockName: CobbleStone
     atlasIndex: 13
     health: 50
-    BreakingSound: 
+    BreakingSound: CobbleStoneBreaking
     locationCondition: 3
     timeStateCondition: 2
     normalWeatherCondition: 0
     specialWeatherCondition: 0
     weight: 12
+    outlineColor: {r: 0, g: 0, b: 0, a: 1}
     drops:
     - item: {fileID: 11400000, guid: af90eb75736662849aad659d1f498689, type: 2}
-      itemAddress: Stone
+      itemAddress: 
       minAmount: 2
       maxAmount: 4
       dropChance: 1
+      isSecret: 0
   - blockName: HardStone
     atlasIndex: 14
     health: 50
-    BreakingSound: 
+    BreakingSound: HardStoneBreaking
     locationCondition: 3
     timeStateCondition: 2
     normalWeatherCondition: 0
     specialWeatherCondition: 0
     weight: 13
+    outlineColor: {r: 0, g: 0, b: 0, a: 1}
     drops:
     - item: {fileID: 11400000, guid: af90eb75736662849aad659d1f498689, type: 2}
-      itemAddress: Stone
+      itemAddress: 
       minAmount: 5
       maxAmount: 8
       dropChance: 1
+      isSecret: 0
   - blockName: Copper
     atlasIndex: 15
     health: 50
-    BreakingSound: 
+    BreakingSound: CopperBreaking
     locationCondition: 3
     timeStateCondition: 2
     normalWeatherCondition: 0
     specialWeatherCondition: 0
     weight: 14
+    outlineColor: {r: 0, g: 0, b: 0, a: 1}
     drops:
     - item: {fileID: 11400000, guid: 29cbe6ecf8408004f8d8d687db60a892, type: 2}
-      itemAddress: CopperOre
+      itemAddress: 
       minAmount: 2
       maxAmount: 4
       dropChance: 1
+      isSecret: 0
   - blockName: Iron
     atlasIndex: 16
     health: 50
-    BreakingSound: 
+    BreakingSound: IronBreaking
     locationCondition: 3
     timeStateCondition: 2
     normalWeatherCondition: 0
     specialWeatherCondition: 0
     weight: 15
+    outlineColor: {r: 0, g: 0, b: 0, a: 1}
     drops:
     - item: {fileID: 11400000, guid: 16440b717d33e5f4ab2ba7e0018be097, type: 2}
-      itemAddress: IronOre
+      itemAddress: 
       minAmount: 2
       maxAmount: 4
       dropChance: 1
+      isSecret: 0
   - blockName: Gravel
     atlasIndex: 17
     health: 50
-    BreakingSound: 
+    BreakingSound: GravelBreaking
     locationCondition: 3
     timeStateCondition: 2
     normalWeatherCondition: 0
     specialWeatherCondition: 0
     weight: 16
+    outlineColor: {r: 0, g: 0, b: 0, a: 1}
     drops:
     - item: {fileID: 11400000, guid: 25fd1d52d0fc7e64c9ec4919bbc1cb4b, type: 2}
-      itemAddress: Gravel
+      itemAddress: 
       minAmount: 1
       maxAmount: 2
       dropChance: 1
+      isSecret: 0
     - item: {fileID: 11400000, guid: 7edc2ad3ba06bac49ad1c0dc388b28b6, type: 2}
-      itemAddress: Flint
+      itemAddress: 
       minAmount: 1
       maxAmount: 1
       dropChance: 0.2
+      isSecret: 0
   - blockName: Cloud
     atlasIndex: 18
     health: 50
-    BreakingSound: 
+    BreakingSound: CloudBreaking
     locationCondition: 4
     timeStateCondition: 0
     normalWeatherCondition: 0
     specialWeatherCondition: 0
     weight: 17
+    outlineColor: {r: 0, g: 0, b: 0, a: 1}
     drops:
     - item: {fileID: 11400000, guid: 7dc9610d6516d9a4691a52468dbbbcd0, type: 2}
-      itemAddress: Cloud
+      itemAddress: 
       minAmount: 1
       maxAmount: 3
       dropChance: 1
+      isSecret: 0
   - blockName: SkyOre
     atlasIndex: 19
     health: 50
-    BreakingSound: 
+    BreakingSound: SkyOreBreaking
     locationCondition: 4
     timeStateCondition: 2
     normalWeatherCondition: 0
     specialWeatherCondition: 0
     weight: 18
+    outlineColor: {r: 0, g: 0, b: 0, a: 1}
     drops:
     - item: {fileID: 11400000, guid: 47eb6a003a39f374199cbbdcdd058c36, type: 2}
-      itemAddress: SkyOre
+      itemAddress: 
       minAmount: 2
       maxAmount: 4
       dropChance: 1
+      isSecret: 0
   - blockName: Meteor
     atlasIndex: 20
     health: 50
-    BreakingSound: 
+    BreakingSound: MeteorBreaking
     locationCondition: 4
     timeStateCondition: 2
     normalWeatherCondition: 0
     specialWeatherCondition: 0
     weight: 19
+    outlineColor: {r: 0, g: 0, b: 0, a: 1}
     drops:
     - item: {fileID: 11400000, guid: 19a06376a2f052245ad87e8265176925, type: 2}
-      itemAddress: Meteorite
+      itemAddress: 
       minAmount: 2
       maxAmount: 4
       dropChance: 1
+      isSecret: 0
   - blockName: SkyDirt
     atlasIndex: 21
     health: 50
-    BreakingSound: 
+    BreakingSound: SkyDirtBreaking
     locationCondition: 4
     timeStateCondition: 2
     normalWeatherCondition: 0
     specialWeatherCondition: 0
     weight: 20
+    outlineColor: {r: 0, g: 0, b: 0, a: 1}
     drops:
     - item: {fileID: 11400000, guid: b58c152454d354b47b2cd8650bf8bf45, type: 2}
-      itemAddress: Dirt
+      itemAddress: 
       minAmount: 2
       maxAmount: 5
       dropChance: 1
+      isSecret: 0
   - blockName: SunPlate
     atlasIndex: 22
     health: 50
-    BreakingSound: 
+    BreakingSound: SunPlateBreaking
     locationCondition: 4
     timeStateCondition: 2
     normalWeatherCondition: 0
     specialWeatherCondition: 0
     weight: 21
+    outlineColor: {r: 0, g: 0, b: 0, a: 1}
     drops:
     - item: {fileID: 11400000, guid: c6ed369ce235f8f46b79ba83d7abbd2a, type: 2}
-      itemAddress: Sunplate
+      itemAddress: 
       minAmount: 1
       maxAmount: 3
       dropChance: 1
+      isSecret: 0
   - blockName: RainCloud
     atlasIndex: 23
     health: 50
-    BreakingSound: 
+    BreakingSound: RainCloudBreaking
     locationCondition: 4
     timeStateCondition: 2
     normalWeatherCondition: 2
     specialWeatherCondition: 0
     weight: 22
+    outlineColor: {r: 0, g: 0, b: 0, a: 1}
     drops:
     - item: {fileID: 11400000, guid: e83ef346264113f4fabe6267697da001, type: 2}
-      itemAddress: WetCloud
+      itemAddress: 
       minAmount: 1
       maxAmount: 3
       dropChance: 1
+      isSecret: 0
   - blockName: Sand
     atlasIndex: 24
     health: 50
-    BreakingSound: 
+    BreakingSound: SandBreaking
     locationCondition: 5
     timeStateCondition: 2
     normalWeatherCondition: 0
     specialWeatherCondition: 0
     weight: 23
+    outlineColor: {r: 0, g: 0, b: 0, a: 1}
     drops:
     - item: {fileID: 11400000, guid: 60eba10bb91811a428635d328b1eaa73, type: 2}
-      itemAddress: Sand
+      itemAddress: 
       minAmount: 2
       maxAmount: 4
       dropChance: 1
+      isSecret: 0
   - blockName: Cactus
     atlasIndex: 25
     health: 50
-    BreakingSound: 
+    BreakingSound: CactusBreaking
     locationCondition: 5
     timeStateCondition: 2
     normalWeatherCondition: 0
     specialWeatherCondition: 0
     weight: 24
+    outlineColor: {r: 0, g: 0, b: 0, a: 1}
     drops:
     - item: {fileID: 11400000, guid: 279e95db0f56b7a4d8cff915ba47b1ba, type: 2}
-      itemAddress: Cactus
+      itemAddress: 
       minAmount: 1
       maxAmount: 3
       dropChance: 1
+      isSecret: 0
   - blockName: SandStone
     atlasIndex: 26
     health: 50
-    BreakingSound: 
+    BreakingSound: SandStoneBreaking
     locationCondition: 5
     timeStateCondition: 2
     normalWeatherCondition: 0
     specialWeatherCondition: 0
     weight: 25
+    outlineColor: {r: 0, g: 0, b: 0, a: 1}
     drops:
     - item: {fileID: 11400000, guid: f283a7837311ca04d9d35e8f889b1512, type: 2}
-      itemAddress: SandStone
+      itemAddress: 
       minAmount: 1
       maxAmount: 3
       dropChance: 1
+      isSecret: 0
   - blockName: PharaonGrave
     atlasIndex: 27
     health: 50
-    BreakingSound: 
+    BreakingSound: PharaonGraveBreaking
     locationCondition: 5
     timeStateCondition: 1
     normalWeatherCondition: 0
     specialWeatherCondition: 0
     weight: 26
+    outlineColor: {r: 0, g: 0, b: 0, a: 1}
     drops:
     - item: {fileID: 11400000, guid: a675b34cf6191694aa93207bb07214da, type: 2}
-      itemAddress: Amber
+      itemAddress: 
       minAmount: 3
       maxAmount: 6
       dropChance: 1
+      isSecret: 0
   - blockName: Amber
     atlasIndex: 28
     health: 50
-    BreakingSound: 
+    BreakingSound: AmberBreaking
     locationCondition: 5
     timeStateCondition: 2
     normalWeatherCondition: 0
     specialWeatherCondition: 0
     weight: 27
+    outlineColor: {r: 0, g: 0, b: 0, a: 1}
     drops:
     - item: {fileID: 11400000, guid: a675b34cf6191694aa93207bb07214da, type: 2}
-      itemAddress: Amber
+      itemAddress: 
       minAmount: 1
       maxAmount: 3
       dropChance: 1
+      isSecret: 0
   - blockName: DeadBrush
     atlasIndex: 29
     health: 50
-    BreakingSound: 
+    BreakingSound: DeadBrushBreaking
     locationCondition: 5
     timeStateCondition: 2
     normalWeatherCondition: 0
     specialWeatherCondition: 0
     weight: 28
+    outlineColor: {r: 0, g: 0, b: 0, a: 1}
     drops:
     - item: {fileID: 11400000, guid: 5658c337be36c8c4587eeee8cd78bb87, type: 2}
-      itemAddress: Stick
+      itemAddress: 
       minAmount: 2
       maxAmount: 5
       dropChance: 1
+      isSecret: 0
   - blockName: Stone
     atlasIndex: 30
     health: 50
-    BreakingSound: 
+    BreakingSound: StoneBreaking
     locationCondition: 6
     timeStateCondition: 2
     normalWeatherCondition: 0
     specialWeatherCondition: 0
     weight: 29
+    outlineColor: {r: 0, g: 0, b: 0, a: 1}
     drops:
     - item: {fileID: 11400000, guid: af90eb75736662849aad659d1f498689, type: 2}
-      itemAddress: Stone
+      itemAddress: 
       minAmount: 10
       maxAmount: 15
       dropChance: 1
+      isSecret: 0
   - blockName: HardGravel
     atlasIndex: 31
     health: 50
-    BreakingSound: 
+    BreakingSound: HardGravelBreaking
     locationCondition: 6
     timeStateCondition: 2
     normalWeatherCondition: 0
     specialWeatherCondition: 0
     weight: 30
+    outlineColor: {r: 0, g: 0, b: 0, a: 1}
     drops:
     - item: {fileID: 11400000, guid: 25fd1d52d0fc7e64c9ec4919bbc1cb4b, type: 2}
-      itemAddress: Gravel
+      itemAddress: 
       minAmount: 3
       maxAmount: 5
       dropChance: 1
+      isSecret: 0
     - item: {fileID: 11400000, guid: 7edc2ad3ba06bac49ad1c0dc388b28b6, type: 2}
-      itemAddress: Flint
+      itemAddress: 
       minAmount: 2
       maxAmount: 4
       dropChance: 0.6
+      isSecret: 0
   - blockName: Silver
     atlasIndex: 32
     health: 50
-    BreakingSound: 
+    BreakingSound: SilverBreaking
     locationCondition: 6
     timeStateCondition: 2
     normalWeatherCondition: 0
     specialWeatherCondition: 0
     weight: 31
+    outlineColor: {r: 0, g: 0, b: 0, a: 1}
     drops:
     - item: {fileID: 11400000, guid: e5f6aa03116f4214482efdda6fc8991c, type: 2}
-      itemAddress: SilverOre
+      itemAddress: 
       minAmount: 2
       maxAmount: 4
       dropChance: 1
+      isSecret: 0
   - blockName: Gold
     atlasIndex: 33
     health: 50
-    BreakingSound: 
+    BreakingSound: GoldBreaking
     locationCondition: 6
     timeStateCondition: 2
     normalWeatherCondition: 0
     specialWeatherCondition: 0
     weight: 32
+    outlineColor: {r: 0, g: 0, b: 0, a: 1}
     drops:
     - item: {fileID: 11400000, guid: 316db00a34b3a934f940b6b33978c119, type: 2}
-      itemAddress: GoldOre
+      itemAddress: 
       minAmount: 2
       maxAmount: 4
       dropChance: 1
+      isSecret: 0
   - blockName: Emerald
     atlasIndex: 34
     health: 50
-    BreakingSound: 
+    BreakingSound: EmeraldBreaking
     locationCondition: 6
     timeStateCondition: 2
     normalWeatherCondition: 0
     specialWeatherCondition: 0
     weight: 33
+    outlineColor: {r: 0, g: 0, b: 0, a: 1}
     drops:
     - item: {fileID: 11400000, guid: 6b9393087ac194444b338530596eec20, type: 2}
-      itemAddress: Emerald
+      itemAddress: 
       minAmount: 2
       maxAmount: 4
       dropChance: 1
+      isSecret: 0
   - blockName: TNT
     atlasIndex: 35
     health: 50
-    BreakingSound: 
+    BreakingSound: TNTBreaking
     locationCondition: 6
     timeStateCondition: 2
     normalWeatherCondition: 0
     specialWeatherCondition: 0
     weight: 34
+    outlineColor: {r: 0, g: 0, b: 0, a: 1}
     drops: []
   - blockName: Diamond
     atlasIndex: 36
     health: 50
-    BreakingSound: 
+    BreakingSound: DiamondBreaking
     locationCondition: 6
     timeStateCondition: 2
     normalWeatherCondition: 0
     specialWeatherCondition: 0
     weight: 35
+    outlineColor: {r: 0, g: 0, b: 0, a: 1}
     drops:
     - item: {fileID: 11400000, guid: 26d693e4fc5369242b4dcd6fca32a202, type: 2}
-      itemAddress: Diamond
+      itemAddress: 
       minAmount: 1
       maxAmount: 2
       dropChance: 1
+      isSecret: 0
   - blockName: Ruby
     atlasIndex: 37
     health: 50
-    BreakingSound: 
+    BreakingSound: RubyBreaking
     locationCondition: 6
     timeStateCondition: 2
     normalWeatherCondition: 0
     specialWeatherCondition: 0
     weight: 36
+    outlineColor: {r: 0, g: 0, b: 0, a: 1}
     drops:
     - item: {fileID: 11400000, guid: 2a2e148f032c0ff43b4c692380eac8ee, type: 2}
-      itemAddress: Ruby
+      itemAddress: 
       minAmount: 1
       maxAmount: 2
       dropChance: 1
+      isSecret: 0
   - blockName: WetSand
     atlasIndex: 38
     health: 50
-    BreakingSound: 
+    BreakingSound: WetSandBreaking
     locationCondition: 7
     timeStateCondition: 2
     normalWeatherCondition: 0
     specialWeatherCondition: 0
     weight: 37
+    outlineColor: {r: 0, g: 0, b: 0, a: 1}
     drops:
     - item: {fileID: 11400000, guid: 60eba10bb91811a428635d328b1eaa73, type: 2}
-      itemAddress: Sand
+      itemAddress: 
       minAmount: 2
       maxAmount: 4
       dropChance: 1
+      isSecret: 0
   - blockName: Corral
     atlasIndex: 39
     health: 50
-    BreakingSound: 
+    BreakingSound: CorralBreaking
     locationCondition: 7
     timeStateCondition: 2
     normalWeatherCondition: 0
     specialWeatherCondition: 0
     weight: 38
+    outlineColor: {r: 0, g: 0, b: 0, a: 1}
     drops: []
   - blockName: Water
     atlasIndex: 40
     health: 50
-    BreakingSound: 
+    BreakingSound: WaterBreaking
     locationCondition: 7
     timeStateCondition: 2
     normalWeatherCondition: 0
     specialWeatherCondition: 0
     weight: 39
+    outlineColor: {r: 0, g: 0, b: 0, a: 1}
     drops: []
   - blockName: Pearl
     atlasIndex: 41
     health: 50
-    BreakingSound: 
+    BreakingSound: PearlBreaking
     locationCondition: 7
     timeStateCondition: 1
     normalWeatherCondition: 0
     specialWeatherCondition: 0
     weight: 40
+    outlineColor: {r: 0, g: 0, b: 0, a: 1}
     drops: []
   - blockName: MermaidShell
     atlasIndex: 42
     health: 50
-    BreakingSound: 
+    BreakingSound: MermaidShellBreaking
     locationCondition: 7
     timeStateCondition: 1
     normalWeatherCondition: 0
     specialWeatherCondition: 0
     weight: 41
+    outlineColor: {r: 0, g: 0, b: 0, a: 1}
     drops: []
   - blockName: Mushroom
     atlasIndex: 43
     health: 50
-    BreakingSound: 
+    BreakingSound: MushroomBreaking
     locationCondition: 8
     timeStateCondition: 1
     normalWeatherCondition: 0
     specialWeatherCondition: 0
     weight: 42
+    outlineColor: {r: 0, g: 0, b: 0, a: 1}
     drops: []
   - blockName: Mud
     atlasIndex: 44
     health: 50
-    BreakingSound: 
+    BreakingSound: MudBreaking
     locationCondition: 8
     timeStateCondition: 2
     normalWeatherCondition: 0
     specialWeatherCondition: 0
     weight: 43
+    outlineColor: {r: 0, g: 0, b: 0, a: 1}
     drops: []
   - blockName: Spore
     atlasIndex: 45
     health: 50
-    BreakingSound: 
+    BreakingSound: SporeBreaking
     locationCondition: 8
     timeStateCondition: 2
     normalWeatherCondition: 0
     specialWeatherCondition: 0
     weight: 44
+    outlineColor: {r: 0, g: 0, b: 0, a: 1}
     drops: []
   - blockName: Sapphere
     atlasIndex: 46
     health: 50
-    BreakingSound: 
+    BreakingSound: SapphereBreaking
     locationCondition: 8
     timeStateCondition: 2
     normalWeatherCondition: 0
     specialWeatherCondition: 0
     weight: 45
+    outlineColor: {r: 0, g: 0, b: 0, a: 1}
     drops: []
   - blockName: ShroomLantern
     atlasIndex: 47
     health: 50
-    BreakingSound: 
+    BreakingSound: ShroomLanternBreaking
     locationCondition: 8
     timeStateCondition: 1
     normalWeatherCondition: 0
     specialWeatherCondition: 0
     weight: 46
+    outlineColor: {r: 0, g: 0, b: 0, a: 1}
     drops: []
   - blockName: HellOre
     atlasIndex: 48
     health: 50
-    BreakingSound: 
+    BreakingSound: HellOreBreaking
     locationCondition: 9
     timeStateCondition: 2
     normalWeatherCondition: 0
     specialWeatherCondition: 0
     weight: 47
+    outlineColor: {r: 0, g: 0, b: 0, a: 1}
     drops: []
   - blockName: Obsidien
     atlasIndex: 49
     health: 50
-    BreakingSound: 
+    BreakingSound: ObsidienBreaking
     locationCondition: 9
     timeStateCondition: 2
     normalWeatherCondition: 0
     specialWeatherCondition: 0
     weight: 48
+    outlineColor: {r: 0, g: 0, b: 0, a: 1}
     drops: []
   - blockName: Ash
     atlasIndex: 50
     health: 50
-    BreakingSound: 
+    BreakingSound: AshBreaking
     locationCondition: 9
     timeStateCondition: 2
     normalWeatherCondition: 0
     specialWeatherCondition: 0
     weight: 49
+    outlineColor: {r: 0, g: 0, b: 0, a: 1}
     drops: []
   - blockName: HellBrick
     atlasIndex: 51
     health: 50
-    BreakingSound: 
+    BreakingSound: HellBrickBreaking
     locationCondition: 9
     timeStateCondition: 2
     normalWeatherCondition: 0
     specialWeatherCondition: 0
     weight: 50
+    outlineColor: {r: 0, g: 0, b: 0, a: 1}
     drops: []
   - blockName: DungeonBrick
     atlasIndex: 52
     health: 50
-    BreakingSound: 
+    BreakingSound: DungeonBrickBreaking
     locationCondition: 10
     timeStateCondition: 2
     normalWeatherCondition: 0
     specialWeatherCondition: 0
     weight: 51
+    outlineColor: {r: 0, g: 0, b: 0, a: 1}
     drops: []
   - blockName: BookShelf
     atlasIndex: 53
     health: 50
-    BreakingSound: 
+    BreakingSound: BookShelfBreaking
     locationCondition: 10
     timeStateCondition: 2
     normalWeatherCondition: 0
     specialWeatherCondition: 0
     weight: 52
+    outlineColor: {r: 0, g: 0, b: 0, a: 1}
     drops: []
   - blockName: Lantern
     atlasIndex: 54
     health: 50
-    BreakingSound: 
+    BreakingSound: LanternBreaking
     locationCondition: 10
     timeStateCondition: 2
     normalWeatherCondition: 0
     specialWeatherCondition: 0
     weight: 53
+    outlineColor: {r: 0, g: 0, b: 0, a: 1}
     drops: []
   - blockName: Skull
     atlasIndex: 55
     health: 50
-    BreakingSound: 
+    BreakingSound: SkullBreaking
     locationCondition: 10
     timeStateCondition: 2
     normalWeatherCondition: 0
     specialWeatherCondition: 0
     weight: 54
+    outlineColor: {r: 0, g: 0, b: 0, a: 1}
     drops: []
   - blockName: Hallow ore
     atlasIndex: 56
     health: 50
-    BreakingSound: 
+    BreakingSound: Hallow oreBreaking
     locationCondition: 11
     timeStateCondition: 1
     normalWeatherCondition: 0
     specialWeatherCondition: 0
     weight: 55
+    outlineColor: {r: 0, g: 0, b: 0, a: 1}
     drops: []
   - blockName: Crystal
     atlasIndex: 57
     health: 50
-    BreakingSound: 
+    BreakingSound: CrystalBreaking
     locationCondition: 11
     timeStateCondition: 1
     normalWeatherCondition: 0
     specialWeatherCondition: 0
     weight: 56
+    outlineColor: {r: 0, g: 0, b: 0, a: 1}
     drops: []
   - blockName: Hallow Dirt
     atlasIndex: 58
     health: 50
-    BreakingSound: 
+    BreakingSound: Hallow DirtBreaking
     locationCondition: 11
     timeStateCondition: 2
     normalWeatherCondition: 0
     specialWeatherCondition: 0
     weight: 57
+    outlineColor: {r: 0, g: 0, b: 0, a: 1}
     drops:
     - item: {fileID: 11400000, guid: b58c152454d354b47b2cd8650bf8bf45, type: 2}
-      itemAddress: Dirt
+      itemAddress: 
       minAmount: 4
       maxAmount: 6
       dropChance: 1
+      isSecret: 0
   - blockName: Hallow stone
     atlasIndex: 59
     health: 50
-    BreakingSound: 
+    BreakingSound: Hallow stoneBreaking
     locationCondition: 11
     timeStateCondition: 2
     normalWeatherCondition: 0
     specialWeatherCondition: 0
     weight: 58
+    outlineColor: {r: 0, g: 0, b: 0, a: 1}
     drops:
     - item: {fileID: 11400000, guid: af90eb75736662849aad659d1f498689, type: 2}
-      itemAddress: Stone
+      itemAddress: 
       minAmount: 3
       maxAmount: 6
       dropChance: 1
+      isSecret: 0
   - blockName: PixieDustBlock
     atlasIndex: 60
     health: 50
-    BreakingSound: 
+    BreakingSound: PixieDustBlockBreaking
     locationCondition: 11
     timeStateCondition: 2
     normalWeatherCondition: 0
     specialWeatherCondition: 0
     weight: 59
+    outlineColor: {r: 0, g: 0, b: 0, a: 1}
     drops: []
   - blockName: RanbowBlock
     atlasIndex: 61
     health: 50
-    BreakingSound: 
+    BreakingSound: RanbowBlockBreaking
     locationCondition: 11
     timeStateCondition: 0
     normalWeatherCondition: 0
     specialWeatherCondition: 0
     weight: 60
+    outlineColor: {r: 0, g: 0, b: 0, a: 1}
     drops: []
