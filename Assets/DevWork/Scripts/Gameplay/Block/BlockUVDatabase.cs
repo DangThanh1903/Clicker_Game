@@ -22,6 +22,7 @@ public enum BlockSpawnLocation
     Hallow
 }
 
+
 [CreateAssetMenu(fileName = "BlockUVDatabase", menuName = "Block/UV Database")]
 public class BlockUVDatabase : ScriptableObject
 {
@@ -48,6 +49,9 @@ public class BlockUVDatabase : ScriptableObject
 
     public float GetWeight(string name)
         => GetByName(name)?.weight ?? 0f;
+
+    public Color GetOutlineColor(string name)
+        => GetByName(name)?.outlineColor ?? Color.black;
 
     // =========================
     // FILTERING
@@ -231,6 +235,9 @@ public class BlockUVEntry
     public NormalWeatherName normalWeatherCondition;
     public SpecialWeatherName specialWeatherCondition;
     public float weight = 0.5f;
+
+    [Header("Visual")]
+    public Color outlineColor = Color.black;
 
     [Header("Drop Settings")]
     public List<ItemDrop> drops = new();

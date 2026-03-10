@@ -4,11 +4,33 @@ using UniRx;
 using System;
 using System.Collections.Generic;
 using System.Collections;
+using DG.Tweening;
 using UnityEngine.AddressableAssets;
 using UnityEngine.ResourceManagement.AsyncOperations;
 
 public class ClickableObject : MonoBehaviour, IDamagable
 {
+    private static readonly Vector3[][] CubeFaces =
+    {
+        new[] { new Vector3(-0.5f, -0.5f,  0.5f), new Vector3( 0.5f, -0.5f,  0.5f), new Vector3(-0.5f,  0.5f,  0.5f), new Vector3( 0.5f,  0.5f,  0.5f) }, // Front
+        new[] { new Vector3( 0.5f, -0.5f, -0.5f), new Vector3(-0.5f, -0.5f, -0.5f), new Vector3( 0.5f,  0.5f, -0.5f), new Vector3(-0.5f,  0.5f, -0.5f) }, // Back
+        new[] { new Vector3(-0.5f,  0.5f,  0.5f), new Vector3( 0.5f,  0.5f,  0.5f), new Vector3(-0.5f,  0.5f, -0.5f), new Vector3( 0.5f,  0.5f, -0.5f) }, // Top
+        new[] { new Vector3(-0.5f, -0.5f, -0.5f), new Vector3( 0.5f, -0.5f, -0.5f), new Vector3(-0.5f, -0.5f,  0.5f), new Vector3( 0.5f, -0.5f,  0.5f) }, // Bottom
+        new[] { new Vector3(-0.5f, -0.5f, -0.5f), new Vector3(-0.5f, -0.5f,  0.5f), new Vector3(-0.5f,  0.5f, -0.5f), new Vector3(-0.5f,  0.5f,  0.5f) }, // Left
+        new[] { new Vector3( 0.5f, -0.5f,  0.5f), new Vector3( 0.5f, -0.5f, -0.5f), new Vector3( 0.5f,  0.5f,  0.5f), new Vector3( 0.5f,  0.5f, -0.5f) }  // Right
+    };
+    private static readonly int[] CubeTriangles =
+    {
+         0,  1,  2,  2,  1,  3,
+         4,  5,  6,  6,  5,  7,
+         8,  9, 10, 10,  9, 11,
+        12, 13, 14, 14, 13, 15,
+        16, 17, 18, 18, 17, 19,
+        20, 21, 22, 22, 21, 23
+    };
+    private static Camera cachedMainCamera;
+    private static int cachedMainCameraFrame = -1;
+
     [Header("Information")]
     [ReadOnly, SerializeField]
     private string blockName;
@@ -17,6 +39,9 @@ public class ClickableObject : MonoBehaviour, IDamagable
     public ReactiveProperty<float> CurrentHealth { get; private set; } = new ReactiveProperty<float>();
     public float BlockWeight;
     private static readonly int CrackIndexID = Shader.PropertyToID("_CrackIndex");
+    private static readonly int ColorID = Shader.PropertyToID("_Color");
+    private static readonly int BaseColorID = Shader.PropertyToID("_BaseColor");
+    private static readonly int ScaleID = Shader.PropertyToID("_Scale");
     private MeshRenderer cubeRenderer;
     private float accumulatedHoldTime = 0f;
     private readonly float timeHoldReset = 0.1f;
@@ -49,24 +74,53 @@ public class ClickableObject : MonoBehaviour, IDamagable
     public Texture2D textureAtlas;
     public UnityEngine.Material cubeMaterial;
     public BlockUVDatabase blockUVDatabase;
+    public Texture2D AtlasTexture => textureAtlas;
+    public int AtlasColumns => atlasColumns;
+    public int AtlasRows => atlasRows;
+    public bool AtlasFlipY => flipY;
     [Header("Cracking layer")]
     [SerializeField] private MeshRenderer crackMeshRenderer;
-    private MaterialPropertyBlock propertyBlock;
+    private MaterialPropertyBlock crackPropertyBlock;
+    private MaterialPropertyBlock outlinePropertyBlock;
+    [Header("Outline")]
+    [SerializeField, Min(0), Tooltip("Material slot index (0-based). Used as fallback when auto-detect cannot find outline material.")]
+    private int outlineMaterialIndex = 2;
     [Header("Animation")]
     [SerializeField] private BlockAnimationController animCtrl;
+    [SerializeField, Min(1f)] private float baseBlockScale = 2.5f;
+
+    [Header("Death Flow - Grow Then Explode")]
+    [SerializeField, Range(0.2f, 1f)] private float fullHealthScaleMultiplier = 0.82f;
+    [SerializeField, Min(1f)] private float growNearDeathMaxScale = 1.2f;
+    [SerializeField, Min(1f)] private float nearDeathGrowthExponent = 2.2f;
+    [SerializeField, Min(1f)] private float growThenExplodeBurstScale = 1.32f;
+    [SerializeField, Min(0.01f)] private float growThenExplodeBurstDuration = 0.1f;
+    [SerializeField] private Ease growThenExplodeBurstEase = Ease.OutBack;
+
     private Vector2 onClickPos;
     private float blockSpawnTime;
     private bool isReady;
+    private Vector3 authoredBaseScale;
+    private Vector3 baseAliveScale;
+    private Mesh generatedCubeMesh;
+    private MeshFilter meshFilter;
+    private readonly Vector2[] cubeUvBuffer = new Vector2[24];
+    private Tween deathFlowTween;
 
-    // 📦 Internal click buffer and stream
+    // Internal click buffer and stream
     private readonly Subject<long> clickStream = new Subject<long>();
     private readonly List<long> clickBuffer = new List<long>();
+    private const long ClickWindowMs = 1000;
     private CompositeDisposable runtimeSubs;
     void Awake()
     {
-        propertyBlock = new MaterialPropertyBlock();
+        crackPropertyBlock = new MaterialPropertyBlock();
+        outlinePropertyBlock = new MaterialPropertyBlock();
         cubeRenderer = GetComponent<MeshRenderer>();
+        meshFilter = GetComponent<MeshFilter>();
         if (animCtrl == null) animCtrl = GetComponent<BlockAnimationController>();
+        authoredBaseScale = transform.localScale;
+        baseAliveScale = Vector3.one * baseBlockScale;
     }
 
     void OnEnable()
@@ -77,6 +131,7 @@ public class ClickableObject : MonoBehaviour, IDamagable
 
     void OnDisable()
     {
+        KillDeathFlowTween();
         runtimeSubs?.Dispose();
         runtimeSubs = null;
         clickBuffer.Clear();
@@ -84,6 +139,15 @@ public class ClickableObject : MonoBehaviour, IDamagable
         // If pooled/disabled during death, finalize once so discovery + drops still fire.
         if (isDyingEffect && !breakFinalized)
             FinalizeBreak();
+    }
+
+    void OnDestroy()
+    {
+        if (generatedCubeMesh != null)
+        {
+            Destroy(generatedCubeMesh);
+            generatedCubeMesh = null;
+        }
     }
 
     void Update()
@@ -100,20 +164,14 @@ public class ClickableObject : MonoBehaviour, IDamagable
         Observable.Interval(TimeSpan.FromSeconds(1))
             .Subscribe(_ =>
             {
-                long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-
-                // Filter old clicks
-                clickBuffer.RemoveAll(timestamp => now - timestamp > 1000);
-
-                // 👇 Set to StatManager
-                StatsManager.Ins.Set(StatType.ClickPerTick, clickBuffer.Count);
+                StatsManager.Ins.Set(StatType.ClickPerTick, GetRecentHitCount());
             })
             .AddTo(runtimeSubs);
 
         // Push click timestamp into buffer
         clickStream.Subscribe(time =>
         {
-            clickBuffer.Add(time);
+            RecordClickTimestamp(time);
         }).AddTo(runtimeSubs);
 
         // Cracking listen
@@ -143,6 +201,7 @@ public class ClickableObject : MonoBehaviour, IDamagable
         isReady = true;
         ListenRuntime();
         GenerateCube();
+        ApplyOutlineColorFromDatabase();
         OnAppear();
     }
     public void SetClickableBlockByCondition(BlockSpawnLocation blockSpawnLocation, TimeState timeState, NormalWeatherName normalWeatherName, SpecialWeatherName specialWeatherName)
@@ -170,33 +229,23 @@ public class ClickableObject : MonoBehaviour, IDamagable
         if (isDyingEffect) return;
         if (PopupController.Instance != null && PopupController.Instance.IsAnyPopupOpen()) return;
 
-        // Mouse Down
-        if (Input.GetMouseButtonDown(0))
-        {
-            var cam = Camera.main;
-            if (cam == null) return;
-            Ray ray = cam.ScreenPointToRay(Input.mousePosition);
-            if (Physics.Raycast(ray, out RaycastHit hit) && hit.transform == transform)
-            {
-                onClickPos = GetUIPosition(hit.point);
-                player.OnClick(this);
-            }
-        }
+        bool mouseDown = Input.GetMouseButtonDown(0);
+        bool mouseHeld = Input.GetMouseButton(0);
 
-        // Mouse Held
-        if (Input.GetMouseButton(0))
+        if (mouseHeld)
         {
             if (!isMouseHeld)
-            {
                 isMouseHeld = true;
-            }
 
-            var cam = Camera.main;
+            var cam = ResolveMainCamera();
             if (cam == null) return;
+
             Ray ray = cam.ScreenPointToRay(Input.mousePosition);
             if (Physics.Raycast(ray, out RaycastHit hit) && hit.transform == transform)
             {
-                onClickPos = GetUIPosition(hit.point);
+                onClickPos = GetUIPosition(cam, hit.point);
+                if (mouseDown)
+                    player.OnClick(this);
                 player.OnHold(this, hit.point);
             }
         }
@@ -213,9 +262,9 @@ public class ClickableObject : MonoBehaviour, IDamagable
     /// <summary>
     /// Convert world pos -> RectTransform anchored position
     /// </summary>
-    private Vector2 GetUIPosition(Vector3 worldPos)
+    private Vector2 GetUIPosition(Camera cam, Vector3 worldPos)
     {
-        Vector2 screenPos = Camera.main.WorldToScreenPoint(worldPos);
+        Vector2 screenPos = cam.WorldToScreenPoint(worldPos);
         RectTransformUtility.ScreenPointToLocalPointInRectangle(
             Toaster.Ins.canvas.transform as RectTransform,
             screenPos,
@@ -266,6 +315,9 @@ public class ClickableObject : MonoBehaviour, IDamagable
         if (power <= 0f)
             return;
 
+        long time = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        clickStream.OnNext(time);
+
         CurrentHealth.Value = Mathf.Max(0, CurrentHealth.Value - power);
 
         StatsManager.Ins.Add(StatType.Clicks, 1 * timeReset);
@@ -275,10 +327,41 @@ public class ClickableObject : MonoBehaviour, IDamagable
 
         Toaster.Show($"-{power:F1}", null, 0.2f, onClickPos);
 
-        long time = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        clickStream.OnNext(time);
-
         animCtrl?.PlayClick();
+    }
+
+    public int GetRecentHitCount(float windowSeconds = 1f)
+    {
+        if (clickBuffer.Count == 0)
+            return 0;
+
+        long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        long windowMs = Math.Max(50L, (long)Mathf.RoundToInt(Mathf.Max(0.05f, windowSeconds) * 1000f));
+        TrimClickBuffer(now, windowMs);
+        return clickBuffer.Count;
+    }
+
+    void RecordClickTimestamp(long timeMs)
+    {
+        clickBuffer.Add(timeMs);
+        TrimClickBuffer(timeMs, ClickWindowMs);
+    }
+
+    void TrimClickBuffer(long nowMs, long windowMs)
+    {
+        if (windowMs <= 0)
+            windowMs = ClickWindowMs;
+
+        int removeCount = 0;
+        for (int i = 0; i < clickBuffer.Count; i++)
+        {
+            if (nowMs - clickBuffer[i] <= windowMs)
+                break;
+            removeCount++;
+        }
+
+        if (removeCount > 0)
+            clickBuffer.RemoveRange(0, removeCount);
     }
     void HandleItemDrop()
     {
@@ -395,10 +478,17 @@ public class ClickableObject : MonoBehaviour, IDamagable
     void OnAppear()
     {
         blockSpawnTime = Time.unscaledTime;
-        animCtrl?.PlaySpawn(() =>
+        KillDeathFlowTween();
+        animCtrl?.StopAll();
+
+        CacheBaseAliveScale();
+        transform.localScale = GetAliveScaleForHealth(CurrentHealth.Value);
+
+        if (animCtrl != null)
         {
+            animCtrl.PlaySpawn(playAnimation: false);
             animCtrl.TryPlayIdle();
-        });
+        }
     }
 
 
@@ -406,12 +496,12 @@ public class ClickableObject : MonoBehaviour, IDamagable
     {
         isDyingEffect = true;
         breakFinalized = false;
+        KillDeathFlowTween();
         float timeToBreak = Mathf.Max(0f, Time.unscaledTime - blockSpawnTime);
         AnalyticsManager.Ins?.TrackBlockBreak(blockName, GetLocationString(), timeToBreak);
 
         StatsManager.Ins.Add(StatType.TotalBlockBreaked, 1);
-
-        animCtrl?.PlayDeath(() => FinalizeBreak());
+        RunGrowThenExplodeFlow();
     }
 
     void FinalizeBreak()
@@ -438,9 +528,14 @@ public class ClickableObject : MonoBehaviour, IDamagable
         crackIndex = Mathf.Clamp(crackIndex, 0, crackLevels - 1);
 
         // Apply to shader
-        crackMeshRenderer.GetPropertyBlock(propertyBlock);
-        propertyBlock.SetFloat(CrackIndexID, crackIndex);
-        crackMeshRenderer.SetPropertyBlock(propertyBlock);
+        crackMeshRenderer.GetPropertyBlock(crackPropertyBlock);
+        crackPropertyBlock.SetFloat(CrackIndexID, crackIndex);
+        crackMeshRenderer.SetPropertyBlock(crackPropertyBlock);
+
+        if (!isDyingEffect && MaxHealth > 0f)
+        {
+            transform.localScale = GetAliveScaleForHealth(currentHP);
+        }
     }
     public float GetDestroyBlockAnimTime() => 0f;
 
@@ -475,85 +570,180 @@ public class ClickableObject : MonoBehaviour, IDamagable
             return;
         }
 
+        EnsureGeneratedCubeMesh();
+        UpdateCubeUv();
+
+        if (cubeRenderer == null) cubeRenderer = gameObject.AddComponent<MeshRenderer>();
+        ApplyBaseMaterialPreserveSlots();
+
+        if (cubeMaterial != null && textureAtlas != null && cubeMaterial.mainTexture != textureAtlas)
+        {
+            cubeMaterial.mainTexture = textureAtlas;
+        }
+    }
+
+    void ApplyBaseMaterialPreserveSlots()
+    {
+        if (cubeRenderer == null || cubeMaterial == null)
+            return;
+
+        var mats = cubeRenderer.sharedMaterials;
+        if (mats == null || mats.Length == 0)
+        {
+            cubeRenderer.sharedMaterial = cubeMaterial;
+            return;
+        }
+
+        if (mats[0] == cubeMaterial)
+            return;
+
+        mats[0] = cubeMaterial;
+        cubeRenderer.sharedMaterials = mats;
+    }
+
+    void ApplyOutlineColorFromDatabase()
+    {
+        if (cubeRenderer == null || blockUVDatabase == null)
+            return;
+
+        if (!TryGetOutlineSlot(out int slotIndex, out var outlineMat))
+            return;
+
+        Color outlineColor = blockUVDatabase.GetOutlineColor(blockName);
+        cubeRenderer.GetPropertyBlock(outlinePropertyBlock, slotIndex);
+        if (TryGetColorPropertyId(outlineMat, out int colorPropertyId))
+            outlinePropertyBlock.SetColor(colorPropertyId, outlineColor);
+        if (outlineMat != null && outlineMat.HasProperty(ScaleID))
+        {
+            float baseScale = outlineMat.GetFloat(ScaleID);
+            float appliedScale = outlineColor.a <= 0.001f ? 0f : baseScale;
+            outlinePropertyBlock.SetFloat(ScaleID, appliedScale);
+        }
+        cubeRenderer.SetPropertyBlock(outlinePropertyBlock, slotIndex);
+    }
+
+    bool TryGetOutlineSlot(out int slotIndex, out Material outlineMaterial)
+    {
+        slotIndex = -1;
+        outlineMaterial = null;
+
+        if (cubeRenderer == null)
+            return false;
+
+        var mats = cubeRenderer.sharedMaterials;
+        if (mats == null || mats.Length == 0)
+            return false;
+
+        for (int i = 0; i < mats.Length; i++)
+        {
+            var mat = mats[i];
+            if (mat == null)
+                continue;
+
+            string shaderName = mat.shader != null ? mat.shader.name : string.Empty;
+            bool looksLikeOutline =
+                mat.name.IndexOf("outline", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                shaderName.IndexOf("outline", StringComparison.OrdinalIgnoreCase) >= 0;
+
+            if (!looksLikeOutline)
+                continue;
+
+            if (TryGetColorPropertyId(mat, out _))
+            {
+                slotIndex = i;
+                outlineMaterial = mat;
+                return true;
+            }
+        }
+
+        if (outlineMaterialIndex >= 0 &&
+            outlineMaterialIndex < mats.Length &&
+            TryGetColorPropertyId(mats[outlineMaterialIndex], out _))
+        {
+            slotIndex = outlineMaterialIndex;
+            outlineMaterial = mats[outlineMaterialIndex];
+            return true;
+        }
+
+        return false;
+    }
+
+    bool TryGetColorPropertyId(Material mat, out int colorPropertyId)
+    {
+        colorPropertyId = ColorID;
+
+        if (mat == null)
+            return false;
+
+        if (mat.HasProperty(ColorID))
+        {
+            colorPropertyId = ColorID;
+            return true;
+        }
+
+        if (mat.HasProperty(BaseColorID))
+        {
+            colorPropertyId = BaseColorID;
+            return true;
+        }
+
+        return false;
+    }
+
+    void EnsureGeneratedCubeMesh()
+    {
+        if (meshFilter == null)
+            meshFilter = GetComponent<MeshFilter>() ?? gameObject.AddComponent<MeshFilter>();
+
+        if (generatedCubeMesh == null)
+        {
+            generatedCubeMesh = new Mesh { name = "GeneratedCube" };
+
+            var verts = new Vector3[24];
+            for (int face = 0; face < CubeFaces.Length; face++)
+            {
+                int vi = face * 4;
+                verts[vi + 0] = CubeFaces[face][0];
+                verts[vi + 1] = CubeFaces[face][1];
+                verts[vi + 2] = CubeFaces[face][2];
+                verts[vi + 3] = CubeFaces[face][3];
+            }
+
+            generatedCubeMesh.vertices = verts;
+            generatedCubeMesh.triangles = CubeTriangles;
+            generatedCubeMesh.RecalculateNormals();
+        }
+
+        if (meshFilter.sharedMesh != generatedCubeMesh)
+            meshFilter.sharedMesh = generatedCubeMesh;
+    }
+
+    void UpdateCubeUv()
+    {
+        if (generatedCubeMesh == null)
+            return;
+
         float tileSizeX = 1f / atlasColumns;
         float tileSizeY = 1f / atlasRows;
-
-        Vector3[] verts = new Vector3[24];
-        Vector2[] uvs = new Vector2[24];
-        int[] tris = new int[36];
-
-        // Cube face vertices
-        Vector3[][] cubeFaces =
-        {
-            // Front
-            new Vector3[] { new Vector3(-0.5f, -0.5f,  0.5f), new Vector3( 0.5f, -0.5f,  0.5f),
-                            new Vector3(-0.5f,  0.5f,  0.5f), new Vector3( 0.5f,  0.5f,  0.5f)},
-            // Back
-            new Vector3[] { new Vector3( 0.5f, -0.5f, -0.5f), new Vector3(-0.5f, -0.5f, -0.5f),
-                            new Vector3( 0.5f,  0.5f, -0.5f), new Vector3(-0.5f,  0.5f, -0.5f)},
-            // Top
-            new Vector3[] { new Vector3(-0.5f,  0.5f,  0.5f), new Vector3( 0.5f,  0.5f,  0.5f),
-                            new Vector3(-0.5f,  0.5f, -0.5f), new Vector3( 0.5f,  0.5f, -0.5f)},
-            // Bottom
-            new Vector3[] { new Vector3(-0.5f, -0.5f, -0.5f), new Vector3( 0.5f, -0.5f, -0.5f),
-                            new Vector3(-0.5f, -0.5f,  0.5f), new Vector3( 0.5f, -0.5f,  0.5f)},
-            // Left
-            new Vector3[] { new Vector3(-0.5f, -0.5f, -0.5f), new Vector3(-0.5f, -0.5f,  0.5f),
-                            new Vector3(-0.5f,  0.5f, -0.5f), new Vector3(-0.5f,  0.5f,  0.5f)},
-            // Right
-            new Vector3[] { new Vector3( 0.5f, -0.5f,  0.5f), new Vector3( 0.5f, -0.5f, -0.5f),
-                            new Vector3( 0.5f,  0.5f,  0.5f), new Vector3( 0.5f,  0.5f, -0.5f)},
-        };
+        Vector2 tileScale = new Vector2(tileSizeX, tileSizeY);
+        Vector2Int mapOffset = SetMapByName(blockName);
 
         for (int i = 0; i < 6; i++)
         {
             int vi = i * 4;
-
-            // This is for handle position automaticly by index
-            Vector2Int tile = faceTiles[i] + SetMapByName(blockName);
-
-            if (flipY) tile.y = atlasRows - 1 - tile.y;
+            Vector2Int tile = faceTiles[i] + mapOffset;
+            if (flipY)
+                tile.y = atlasRows - 1 - tile.y;
 
             Vector2 uvOffset = new Vector2(tile.x * tileSizeX, tile.y * tileSizeY);
 
-            verts[vi + 0] = cubeFaces[i][0];
-            verts[vi + 1] = cubeFaces[i][1];
-            verts[vi + 2] = cubeFaces[i][2];
-            verts[vi + 3] = cubeFaces[i][3];
-
-            uvs[vi + 0] = uvOffset + new Vector2(0, 0) * new Vector2(tileSizeX, tileSizeY);
-            uvs[vi + 1] = uvOffset + new Vector2(1, 0) * new Vector2(tileSizeX, tileSizeY);
-            uvs[vi + 2] = uvOffset + new Vector2(0, 1) * new Vector2(tileSizeX, tileSizeY);
-            uvs[vi + 3] = uvOffset + new Vector2(1, 1) * new Vector2(tileSizeX, tileSizeY);
-
-            tris[i * 6 + 0] = vi + 0;
-            tris[i * 6 + 1] = vi + 1;
-            tris[i * 6 + 2] = vi + 2;
-            tris[i * 6 + 3] = vi + 2;
-            tris[i * 6 + 4] = vi + 1;
-            tris[i * 6 + 5] = vi + 3;
+            cubeUvBuffer[vi + 0] = uvOffset + Vector2.Scale(new Vector2(0f, 0f), tileScale);
+            cubeUvBuffer[vi + 1] = uvOffset + Vector2.Scale(new Vector2(1f, 0f), tileScale);
+            cubeUvBuffer[vi + 2] = uvOffset + Vector2.Scale(new Vector2(0f, 1f), tileScale);
+            cubeUvBuffer[vi + 3] = uvOffset + Vector2.Scale(new Vector2(1f, 1f), tileScale);
         }
 
-        Mesh mesh = new Mesh
-        {
-            name = "GeneratedCube",
-            vertices = verts,
-            uv = uvs,
-            triangles = tris
-        };
-        mesh.RecalculateNormals();
-
-        var mf = GetComponent<MeshFilter>();
-        if (mf == null) mf = gameObject.AddComponent<MeshFilter>();
-        mf.sharedMesh = mesh;
-
-        if (cubeRenderer == null) cubeRenderer = gameObject.AddComponent<MeshRenderer>();
-        cubeRenderer.sharedMaterial = cubeMaterial;
-
-        if (cubeMaterial != null && textureAtlas != null)
-        {
-            cubeMaterial.mainTexture = textureAtlas;
-        }
+        generatedCubeMesh.uv = cubeUvBuffer;
     }
 
     private Vector2Int SetMapByID(int index)
@@ -568,16 +758,92 @@ public class ClickableObject : MonoBehaviour, IDamagable
         return SetMapByID(blockUVDatabase.GetAtlasIndex(name));
     }
 
+    public bool TryGetRandomFaceTile(out Vector2Int tile)
+    {
+        tile = Vector2Int.zero;
+
+        if (faceTiles == null || faceTiles.Length == 0)
+            return false;
+
+        int faceIndex = UnityEngine.Random.Range(0, faceTiles.Length);
+        tile = faceTiles[faceIndex] + SetMapByName(blockName);
+        return true;
+    }
+
     #endregion
     #region HELPER --------------------------------------------------------------------------------------------
+    static Camera ResolveMainCamera()
+    {
+        if (cachedMainCamera != null && cachedMainCamera.isActiveAndEnabled)
+            return cachedMainCamera;
+
+        if (cachedMainCameraFrame == Time.frameCount)
+            return cachedMainCamera;
+
+        cachedMainCameraFrame = Time.frameCount;
+        cachedMainCamera = Camera.main;
+        return cachedMainCamera;
+    }
+
     string GetLocationString()
     {
         return DataSaver.Ins != null && DataSaver.Ins.currentLocation.HasValue
             ? DataSaver.Ins.currentLocation.Value.ToString()
             : "unknown";
     }
+
+    void CacheBaseAliveScale()
+    {
+        // Use configured uniform scale, but fallback to authored scale if config is invalid.
+        if (baseBlockScale > 0.001f)
+            baseAliveScale = Vector3.one * baseBlockScale;
+        else if (authoredBaseScale.sqrMagnitude > 0.0001f)
+            baseAliveScale = authoredBaseScale;
+        else
+            baseAliveScale = Vector3.one;
+
+        if (!isDyingEffect)
+            transform.localScale = baseAliveScale;
+    }
+
+    void KillDeathFlowTween()
+    {
+        deathFlowTween?.Kill();
+        deathFlowTween = null;
+    }
+
+    Vector3 GetAliveScaleForHealth(float currentHP)
+    {
+        if (MaxHealth <= 0f)
+            return baseAliveScale;
+
+        float hp = Mathf.Clamp(currentHP, 0f, MaxHealth);
+        float damage01 = 1f - (hp / MaxHealth);
+        float curveT = Mathf.Pow(Mathf.Clamp01(damage01), Mathf.Max(1f, nearDeathGrowthExponent));
+        float minMul = Mathf.Clamp(fullHealthScaleMultiplier, 0.05f, growNearDeathMaxScale);
+        float maxMul = Mathf.Max(minMul, growNearDeathMaxScale);
+        float scaleMul = Mathf.Lerp(minMul, maxMul, curveT);
+        return baseAliveScale * scaleMul;
+    }
+
+    void RunGrowThenExplodeFlow()
+    {
+        KillDeathFlowTween();
+        Vector3 burstScale = GetAliveScaleForHealth(CurrentHealth.Value) * Mathf.Max(1f, growThenExplodeBurstScale);
+        deathFlowTween = transform
+            .DOScale(burstScale, Mathf.Max(0.01f, growThenExplodeBurstDuration))
+            .SetEase(growThenExplodeBurstEase)
+            .OnComplete(() =>
+            {
+                // Death anim here is used for fragment spawn; do not wait to keep next block immediate.
+                animCtrl?.PlayDeath();
+                FinalizeBreak();
+            });
+    }
     #endregion
 }
+
+
 
 
 

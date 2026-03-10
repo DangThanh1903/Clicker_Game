@@ -1,135 +1,235 @@
-// #if UNITY_EDITOR
-// using UnityEngine;
-// using UnityEditor;
-// using System;
-// using System.Linq;
-// using System.IO;
-// using System.Collections.Generic;
+#if UNITY_EDITOR
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
+using System.Linq;
+using UnityEditor;
+using UnityEngine;
 
-// [CustomEditor(typeof(BlockUVDatabase))]
-// public class BlockUVDatabaseEditor : Editor
-// {
-//     public override void OnInspectorGUI()
-//     {
-//         DrawDefaultInspector();
+[CustomEditor(typeof(BlockUVDatabase))]
+public class BlockUVDatabaseEditor : Editor
+{
+    public override void OnInspectorGUI()
+    {
+        DrawDefaultInspector();
 
-//         BlockUVDatabase db = (BlockUVDatabase)target;
+        BlockUVDatabase db = (BlockUVDatabase)target;
 
-//         if (GUILayout.Button("Load From CSV"))
-//         {
-//             string path = EditorUtility.OpenFilePanel("Load Block CSV", "", "csv");
-//             if (!string.IsNullOrEmpty(path))
-//             {
-//                 LoadFromCSV(db, path);
-//             }
-//         }
-//     }
+        EditorGUILayout.Space();
+        if (GUILayout.Button("Load From CSV"))
+        {
+            string path = EditorUtility.OpenFilePanel("Load Block CSV", "", "csv");
+            if (!string.IsNullOrEmpty(path))
+            {
+                LoadFromCsv(db, path);
+            }
+        }
+    }
 
-//     private void LoadFromCSV(BlockUVDatabase db, string path)
-//     {
-//         var lines = File.ReadAllLines(path)
-//             .Where(l => !string.IsNullOrWhiteSpace(l) && !l.StartsWith("#"))
-//             .Skip(1) // Skip header
-//             .ToList();
+    private static void LoadFromCsv(BlockUVDatabase db, string path)
+    {
+        List<string> lines = File.ReadAllLines(path)
+            .Where(l => !string.IsNullOrWhiteSpace(l) && !l.TrimStart().StartsWith("#"))
+            .ToList();
 
-//         db.blocks.Clear();
+        if (lines.Count <= 1)
+        {
+            Debug.LogWarning("[BlockUVDatabaseEditor] CSV is empty or missing data rows.");
+            return;
+        }
 
-//         foreach (var line in lines)
-//         {
-//             var tokens = line.Split(',').Select(t => t.Trim()).ToArray(); // <-- split by tab
-//             if (tokens.Length < 9)
-//             {
-//                 Debug.LogWarning($"⛔ Skipping malformed line: {tokens.Length}");
-//                 continue;
-//             }
+        Undo.RecordObject(db, "Import Block UV CSV");
+        db.blocks.Clear();
 
-//             try
-//             {
-//                 var entry = new BlockUVEntry
-//                 {
-//                     blockName = tokens[0],
-//                     atlasIndex = int.Parse(tokens[1]),
-//                     health = int.Parse(tokens[2]),
-//                     BreakingSound = tokens[0] + "Breaking",
-//                     locationCondition = (BlockSpawnLocation)Enum.Parse(typeof(BlockSpawnLocation), tokens[3]),
-//                     timeStateCondition = (TimeState)Enum.Parse(typeof(TimeState), tokens[4]),
-//                     normalWeatherCondition = (NormalWeatherName)Enum.Parse(typeof(NormalWeatherName), tokens[5]),
-//                     specialWeatherCondition = (SpecialWeatherName)Enum.Parse(typeof(SpecialWeatherName), tokens[6]),
-//                     weight = float.Parse(tokens[7]),
-//                     drops = ParseDrops(tokens[8])
-//                 };  
+        int imported = 0;
+        foreach (string line in lines.Skip(1))
+        {
+            string[] tokens = line.Split(',').Select(t => t.Trim()).ToArray();
+            if (tokens.Length < 9)
+            {
+                Debug.LogWarning($"[BlockUVDatabaseEditor] Skipping malformed row ({tokens.Length} columns): {line}");
+                continue;
+            }
 
-//                 db.blocks.Add(entry);
-//             }
-//             catch (Exception ex)
-//             {
-//                 Debug.LogError($"❌ Failed to parse line: {line}\n{ex.Message}");
-//             }
-//         }
+            try
+            {
+                BlockUVEntry entry = new BlockUVEntry
+                {
+                    blockName = tokens[0],
+                    atlasIndex = int.Parse(tokens[1], CultureInfo.InvariantCulture),
+                    health = int.Parse(tokens[2], CultureInfo.InvariantCulture),
+                    BreakingSound = tokens[0] + "Breaking",
+                    locationCondition = (BlockSpawnLocation)Enum.Parse(typeof(BlockSpawnLocation), tokens[3], true),
+                    timeStateCondition = (TimeState)Enum.Parse(typeof(TimeState), tokens[4], true),
+                    normalWeatherCondition = (NormalWeatherName)Enum.Parse(typeof(NormalWeatherName), tokens[5], true),
+                    specialWeatherCondition = (SpecialWeatherName)Enum.Parse(typeof(SpecialWeatherName), tokens[6], true),
+                    weight = float.Parse(tokens[7], CultureInfo.InvariantCulture),
+                    drops = ParseDrops(tokens[8]),
+                    outlineColor = tokens.Length > 9 ? ParseOutlineColor(tokens[9], Color.black) : Color.black
+                };
 
-//         EditorUtility.SetDirty(db);
-//         Debug.Log($"✅ Loaded {db.blocks.Count} blocks from CSV.");
-//     }
+                db.blocks.Add(entry);
+                imported++;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[BlockUVDatabaseEditor] Failed to parse row:\n{line}\n{ex.Message}");
+            }
+        }
 
+        EditorUtility.SetDirty(db);
+        AssetDatabase.SaveAssets();
+        Debug.Log($"[BlockUVDatabaseEditor] Imported {imported} block rows from CSV.");
+    }
 
+    private static Color ParseOutlineColor(string raw, Color fallback)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return fallback;
+        }
 
-//     private List<ItemDrop> ParseDrops(string dropData)
-//     {
-//         var drops = new List<ItemDrop>();
+        raw = raw.Trim();
 
-//         if (string.IsNullOrWhiteSpace(dropData))
-//             return drops;
+        if (ColorUtility.TryParseHtmlString(raw, out Color htmlColor))
+        {
+            return htmlColor;
+        }
 
-//         var dropEntries = dropData.Split(';');
-//         foreach (var drop in dropEntries)
-//         {
-//             var parts = drop.Split(':');
-//             if (parts.Length != 4)
-//             {
-//                 Debug.LogWarning($"⚠️ Invalid drop format: {drop}");
-//                 continue;
-//             }
+        // New CSV format: R:G:B:A (0-255)
+        string[] rgba255 = raw.Split(':');
+        if (TryParseRgba255(rgba255, out Color color255))
+        {
+            return color255;
+        }
 
-//             string itemName = parts[0];
-//             int min = int.Parse(parts[1]);
-//             int max = int.Parse(parts[2]);
-//             float chance = float.Parse(parts[3]);
+        string[] parts = raw.Split('|');
+        if (parts.Length != 3 && parts.Length != 4)
+        {
+            return fallback;
+        }
 
-//             // Find the Item asset by name (assumes unique names and single asset per name)
-//             string[] guids = AssetDatabase.FindAssets($"t:Item");
-//             string path = guids
-//                 .Select(guid => AssetDatabase.GUIDToAssetPath(guid))
-//                 .FirstOrDefault(p =>
-//                 {
-//                     var asset = AssetDatabase.LoadAssetAtPath<Item>(p);
-//                     return asset != null && asset.name == itemName;
-//                 });
+        if (!float.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out float r) ||
+            !float.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out float g) ||
+            !float.TryParse(parts[2], NumberStyles.Float, CultureInfo.InvariantCulture, out float b))
+        {
+            return fallback;
+        }
 
-//             if (string.IsNullOrEmpty(path))
-//             {
-//                 Debug.LogWarning($"❌ Item not found: {itemName}");
-//                 continue;
-//             }
+        float a = 1f;
+        if (parts.Length == 4 &&
+            !float.TryParse(parts[3], NumberStyles.Float, CultureInfo.InvariantCulture, out a))
+        {
+            return fallback;
+        }
 
-//             Item item = AssetDatabase.LoadAssetAtPath<Item>(path);
-//             if (item == null)
-//             {
-//                 Debug.LogWarning($"❌ Failed to load Item asset at path: {path}");
-//                 continue;
-//             }
+        return new Color(r, g, b, a);
+    }
 
-//             drops.Add(new ItemDrop
-//             {
-//                 item = item,
-//                 minAmount = min,
-//                 maxAmount = max,
-//                 dropChance = chance
-//             });
-//         }
+    private static bool TryParseRgba255(string[] parts, out Color color)
+    {
+        color = Color.black;
+        if (parts == null || (parts.Length != 3 && parts.Length != 4))
+        {
+            return false;
+        }
 
-//         return drops;
-//     }
+        if (!TryParseByteComponent(parts[0], out float r) ||
+            !TryParseByteComponent(parts[1], out float g) ||
+            !TryParseByteComponent(parts[2], out float b))
+        {
+            return false;
+        }
 
+        float a = 1f;
+        if (parts.Length == 4 && !TryParseByteComponent(parts[3], out a))
+        {
+            return false;
+        }
 
-// }
-// #endif
+        color = new Color(r, g, b, a);
+        return true;
+    }
+
+    private static bool TryParseByteComponent(string raw, out float value01)
+    {
+        value01 = 0f;
+        if (!int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out int value255))
+        {
+            return false;
+        }
+
+        value255 = Mathf.Clamp(value255, 0, 255);
+        value01 = value255 / 255f;
+        return true;
+    }
+
+    private static List<ItemDrop> ParseDrops(string dropData)
+    {
+        List<ItemDrop> drops = new List<ItemDrop>();
+        if (string.IsNullOrWhiteSpace(dropData))
+        {
+            return drops;
+        }
+
+        Dictionary<string, Item> itemLookup = BuildItemLookup();
+
+        string[] dropEntries = dropData.Split(';');
+        foreach (string drop in dropEntries)
+        {
+            string[] parts = drop.Split(':');
+            if (parts.Length != 4)
+            {
+                Debug.LogWarning($"[BlockUVDatabaseEditor] Invalid drop format: {drop}");
+                continue;
+            }
+
+            string itemName = parts[0].Trim();
+            if (!itemLookup.TryGetValue(itemName, out Item item) || item == null)
+            {
+                Debug.LogWarning($"[BlockUVDatabaseEditor] Item not found: {itemName}");
+                continue;
+            }
+
+            drops.Add(new ItemDrop
+            {
+                item = item,
+                minAmount = int.Parse(parts[1], CultureInfo.InvariantCulture),
+                maxAmount = int.Parse(parts[2], CultureInfo.InvariantCulture),
+                dropChance = float.Parse(parts[3], CultureInfo.InvariantCulture)
+            });
+        }
+
+        return drops;
+    }
+
+    private static Dictionary<string, Item> BuildItemLookup()
+    {
+        Dictionary<string, Item> lookup = new Dictionary<string, Item>(StringComparer.OrdinalIgnoreCase);
+        string[] guids = AssetDatabase.FindAssets("t:Item");
+
+        foreach (string guid in guids)
+        {
+            string assetPath = AssetDatabase.GUIDToAssetPath(guid);
+            Item item = AssetDatabase.LoadAssetAtPath<Item>(assetPath);
+            if (item == null)
+            {
+                continue;
+            }
+
+            if (!lookup.ContainsKey(item.name))
+            {
+                lookup[item.name] = item;
+            }
+
+            if (!string.IsNullOrEmpty(item.itemName) && !lookup.ContainsKey(item.itemName))
+            {
+                lookup[item.itemName] = item;
+            }
+        }
+
+        return lookup;
+    }
+}
+#endif
