@@ -358,53 +358,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d16b50a8b3491ff42aaa3e2b8af74088, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
---- !u!1 &366309725
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 366309729}
-  - component: {fileID: 366309728}
-  m_Layer: 0
-  m_Name: PlayerManager
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &366309728
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 366309725}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 73b9401927c1c6542b4126be4b77ae4d, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  baseStat: {fileID: 11400000, guid: 71a19dfe1d1be984d855d00cd135e918, type: 2}
-  buffManager: {fileID: 0}
-  uiManager: {fileID: 0}
---- !u!4 &366309729
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 366309725}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &368301315
 GameObject:
   m_ObjectHideFlags: 0
@@ -1023,6 +976,17 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   gameSceneName: SampleScene
+  requireInternetToPlay: 1
+  requireVersionGate: 1
+  internetPollIntervalSeconds: 1
+  versionGateRetryDelaySeconds: 5
+  versionGateRequestTimeout: 8
+  versionConfigCollection: configs
+  versionConfigDocument: app
+  minSupportedVersionField: min_supported_version
+  storeUrlField: store_url
+  fallbackStoreUrl: 
+  autoOpenStoreWhenUnsupported: 0
   waitBootstrapTimeout: 5
   waitFirebaseTimeout: 10
   waitFirebaseHardTimeout: 30
@@ -1207,6 +1171,9 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 2211ad537f7af824e8fa7fb577cdbe4f, type: 2}
   - {fileID: 11400000, guid: 3406d5478e424094f94ba73e7b13739a, type: 2}
   craftNodeManager: {fileID: 0}
+  localSaveCooldown: 2
+  cloudSyncMode: 0
+  forceCloudSyncOnLifecycle: 1
   cloudSaveCooldown: 15
   maxSaveAttempts: 3
   retryBaseDelaySeconds: 0.5
@@ -1519,5 +1486,4 @@ SceneRoots:
   - {fileID: 368301316}
   - {fileID: 1848697407}
   - {fileID: 332964375}
-  - {fileID: 366309729}
   - {fileID: 1892666328}

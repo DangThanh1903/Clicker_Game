@@ -229,7 +229,11 @@ public class QuestManager : MonoBehaviour
 
             if (p.Completed.Value && !p.RewardClaimed.Value)
             {
-                GrantRewards(def);
+                if (!TryGrantRewards(def))
+                {
+                    Debug.LogWarning($"[QuestManager] Cannot claim reward for '{questId}' because inventory does not have enough space.");
+                    return;
+                }
                 p.RewardClaimed.Value = true;
                 SaveDict(progressTrackers, questDB.progressQuests, QuestType.Progress);
                 _onQuestUpdated.OnNext(questId);
@@ -244,7 +248,11 @@ public class QuestManager : MonoBehaviour
 
             if (d.Completed.Value && !d.RewardClaimed.Value)
             {
-                GrantRewards(def);
+                if (!TryGrantRewards(def))
+                {
+                    Debug.LogWarning($"[QuestManager] Cannot claim daily reward for '{questId}' because inventory does not have enough space.");
+                    return;
+                }
                 d.RewardClaimed.Value = true;
                 SaveDict(dailyTrackers,
                 questDB.dailyQuests.Where(q => dailySelectedIds.Contains(q.id)).ToList(),
@@ -629,13 +637,53 @@ public class QuestManager : MonoBehaviour
         return local.ToString("yyyyMMdd");
     }
 
-    private void GrantRewards(QuestDef def)
+    private bool TryGrantRewards(QuestDef def)
     {
+        if (def == null)
+            return false;
+
         if (def.rewards == null || def.rewards.Count == 0)
-            return;
+            return true;
+
+        var inventory = InventoryController.Instance;
+        var itemGrants = new List<(InventoryItem item, int requestedQty)>();
 
         foreach (var reward in def.rewards)
         {
+            if (reward == null || reward.items == null)
+                continue;
+
+            foreach (var invItem in reward.items)
+            {
+                if (invItem == null || invItem.itemData == null || invItem.itemData.Type == ItemType.None || invItem.quantity == null)
+                    continue;
+
+                int qty = Mathf.Max(0, invItem.quantity.Value);
+                if (qty <= 0)
+                    continue;
+
+                var runtimeItem = new InventoryItem(invItem.itemData, qty)
+                {
+                    prefix = invItem.prefix
+                };
+                itemGrants.Add((runtimeItem, qty));
+            }
+        }
+
+        if (itemGrants.Count > 0)
+        {
+            if (inventory == null)
+                return false;
+
+            if (!inventory.CanFullyAddItems(itemGrants.Select(x => x.item)))
+                return false;
+        }
+
+        foreach (var reward in def.rewards)
+        {
+            if (reward == null)
+                continue;
+
             // --- 1) Give Gems ---
             if (reward.gemAmount > 0)
             {
@@ -643,23 +691,27 @@ public class QuestManager : MonoBehaviour
                 Debug.Log($"[QuestManager] +{reward.gemAmount} Gems");
                 AnalyticsManager.Ins?.TrackCurrencyEarn("gems", reward.gemAmount, $"quest:{def.id}");
             }
-
-            // --- 2) Give Inventory Items ---
-            if (reward.items != null)
-            {
-                foreach (var invItem in reward.items)
-                {
-                    if (invItem == null || invItem.itemData == null || invItem.quantity.Value <= 0)
-                        continue;
-
-                    InventoryController.Instance.AddItemToInventory(invItem);
-
-                    Debug.Log($"[QuestManager] +{invItem.quantity.Value}x {invItem.itemData.name}");
-
-                    GameDebugHandler.LogStatic($"[Quest] +{invItem.quantity.Value}x {invItem.itemData.name}");
-                }
-            }
         }
+
+        // --- 2) Give Inventory Items ---
+        for (int i = 0; i < itemGrants.Count; i++)
+        {
+            var grant = itemGrants[i];
+            if (grant.item == null || grant.item.itemData == null)
+                continue;
+
+            bool added = inventory.TryAddItemToInventory(grant.item, requireFullAdd: true);
+            if (!added)
+            {
+                Debug.LogWarning($"[QuestManager] Failed to grant item '{grant.item.itemData.name}' x{grant.requestedQty} for quest '{def.id}'.");
+                return false;
+            }
+
+            Debug.Log($"[QuestManager] +{grant.requestedQty}x {grant.item.itemData.name}");
+            GameDebugHandler.LogStatic($"[Quest] +{grant.requestedQty}x {grant.item.itemData.name}");
+        }
+
+        return true;
     }
 
 }

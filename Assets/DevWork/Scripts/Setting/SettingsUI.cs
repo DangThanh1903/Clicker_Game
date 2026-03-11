@@ -16,6 +16,7 @@ public class SettingsUI : MonoBehaviour
     [SerializeField] private TMP_Dropdown languageDropdown;
     [SerializeField] private LocaleSwitcher localeSwitcher;
     [SerializeField] private Toggle fpsToggle;
+    [SerializeField] private Toggle cameraShakeToggle;
     [SerializeField] private FpsDisplay fpsDisplay;
     [Header("Gift Code")]
     [SerializeField] private TMP_InputField giftCodeInput;
@@ -29,6 +30,7 @@ public class SettingsUI : MonoBehaviour
     private readonly List<Locale> supportedLocales = new List<Locale>();
     private bool ignoreLanguageChange;
     private bool ignoreFpsChange;
+    private bool ignoreCameraShakeChange;
     private bool isRedeemingGiftCode;
 
     private void Awake()
@@ -67,6 +69,8 @@ public class SettingsUI : MonoBehaviour
 
         if (fpsToggle != null)
             SetupFpsToggle();
+        if (cameraShakeToggle != null)
+            SetupCameraShakeToggle();
 
         if (giftCodeRedeemButton != null)
             giftCodeRedeemButton.onClick.AddListener(OnGiftCodeRedeemClicked);
@@ -85,6 +89,8 @@ public class SettingsUI : MonoBehaviour
 
         if (fpsToggle != null)
             fpsToggle.onValueChanged.RemoveListener(OnFpsToggleChanged);
+        if (cameraShakeToggle != null)
+            cameraShakeToggle.onValueChanged.RemoveListener(OnCameraShakeToggleChanged);
 
         if (giftCodeRedeemButton != null)
             giftCodeRedeemButton.onClick.RemoveListener(OnGiftCodeRedeemClicked);
@@ -207,6 +213,21 @@ public class SettingsUI : MonoBehaviour
     {
         if (fpsDisplay != null)
             fpsDisplay.SetVisible(show);
+    }
+
+    void SetupCameraShakeToggle()
+    {
+        bool enabled = CameraShakeController.IsEnabled();
+        ignoreCameraShakeChange = true;
+        cameraShakeToggle.SetIsOnWithoutNotify(enabled);
+        ignoreCameraShakeChange = false;
+        cameraShakeToggle.onValueChanged.AddListener(OnCameraShakeToggleChanged);
+    }
+
+    void OnCameraShakeToggleChanged(bool value)
+    {
+        if (ignoreCameraShakeChange) return;
+        CameraShakeController.SetEnabled(value);
     }
 
     private void OnGiftCodeRedeemClicked()

@@ -230,6 +230,7 @@ public static class GiftCodeService
             return false;
         }
 
+        var inventory = InventoryController.Instance;
         List<(AsyncOperationHandle<Item> handle, int quantity)> loadedItems = new List<(AsyncOperationHandle<Item>, int)>();
 
         try
@@ -255,13 +256,31 @@ public static class GiftCodeService
                 }
             }
 
+            var itemsToGrant = new List<InventoryItem>(loadedItems.Count);
+            for (int i = 0; i < loadedItems.Count; i++)
+            {
+                var entry = loadedItems[i];
+                var grant = new InventoryItem(entry.handle.Result, entry.quantity);
+                itemsToGrant.Add(grant);
+            }
+
+            if (itemsToGrant.Count > 0 && (inventory == null || !inventory.CanFullyAddItems(itemsToGrant)))
+            {
+                Debug.LogWarning("[GiftCode] Inventory has no space for full reward package.");
+                return false;
+            }
+
             if (payload.gems > 0)
                 StatsManager.Ins.Add(StatType.Diamond, payload.gems);
 
-            foreach (var entry in loadedItems)
+            for (int i = 0; i < itemsToGrant.Count; i++)
             {
-                var invItem = new InventoryItem(entry.handle.Result, entry.quantity);
-                InventoryController.Instance?.AddItemToInventory(invItem);
+                bool added = inventory.TryAddItemToInventory(itemsToGrant[i], requireFullAdd: true);
+                if (!added)
+                {
+                    Debug.LogWarning("[GiftCode] Failed to add reward item to inventory.");
+                    return false;
+                }
             }
 
             return true;

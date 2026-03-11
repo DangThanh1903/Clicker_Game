@@ -163,6 +163,7 @@ public class BlockManager : MonoBehaviour
             (WeatherManager.Instance.CurrentSpecialWeather.Value as SpecialWeatherData)?.weatherName
             ?? SpecialWeatherName.Any;
         DataSaver.Ins.SaveDataFn();
+        CameraShakeController.TriggerBlockBreakShake(1.45f);
         currentBlock.SetClickableBlockByCondition(
             locationLoader.currentLocation,
             TimeSystem.Instance.CurrentTimeState.Value,

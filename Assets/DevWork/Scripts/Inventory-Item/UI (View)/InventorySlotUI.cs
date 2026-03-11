@@ -70,14 +70,12 @@ public class InventorySlotUI : MonoBehaviour, IDropHandler
 
     public void OnDrop(PointerEventData eventData)
     {
-        Debug.Log("Got something dropped in");
         var droppedItem = eventData.pointerDrag.GetComponent<DragableItem>();
         if (droppedItem == null) return;
 
         var droppedSlot = droppedItem.originSlot.GetComponent<InventorySlotUI>();
         if (droppedSlot == null || acceptRule == null || droppedSlot.acceptRule == null)
         {
-            Debug.Log("Missing something");
             return;
         }
 

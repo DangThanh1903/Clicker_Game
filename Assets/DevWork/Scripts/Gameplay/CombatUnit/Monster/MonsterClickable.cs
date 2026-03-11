@@ -252,11 +252,21 @@ public class MonsterClickable : MonoBehaviour, IDamagable
         foreach (var result in drops)
         {
             if (result.item == null || result.item.Type == ItemType.None) continue;
-            InventoryController.Instance.TryAddItemToInventory(new InventoryItem(result.item, result.amount));
-            QuestSignals.CollectItem(result.item.itemName, result.amount);
+            int requested = Mathf.Max(0, result.amount);
+            if (requested <= 0)
+                continue;
+
+            var toAdd = new InventoryItem(result.item, requested);
+            _ = InventoryController.Instance.TryAddItemToInventory(toAdd);
+            int remaining = toAdd.quantity != null ? Mathf.Max(0, toAdd.quantity.Value) : 0;
+            int added = Mathf.Max(0, requested - remaining);
+            if (added <= 0)
+                continue;
+
+            QuestSignals.CollectItem(result.item.itemName, added);
             var pos = Toaster.GetRandomAnchoredPosition();
             bool rainbow = result.item.rarity == Rarity.Exclusive;
-            Toaster.Show($"x{result.amount}", result.item.icon, 1.6f, pos, rainbow);
+            Toaster.Show($"x{added}", result.item.icon, 1.6f, pos, rainbow);
         }
     }
 

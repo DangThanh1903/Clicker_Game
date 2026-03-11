@@ -42,6 +42,10 @@ public class ClickableObject : MonoBehaviour, IDamagable
     private static readonly int ColorID = Shader.PropertyToID("_Color");
     private static readonly int BaseColorID = Shader.PropertyToID("_BaseColor");
     private static readonly int ScaleID = Shader.PropertyToID("_Scale");
+    private static readonly int EmissionColorID = Shader.PropertyToID("_EmissionColor");
+    private static readonly int GlowIntensityID = Shader.PropertyToID("_GlowIntensity");
+    private static readonly int EmissionStrengthID = Shader.PropertyToID("_EmissionStrength");
+    private static readonly int GlowPowerID = Shader.PropertyToID("_GlowPower");
     private MeshRenderer cubeRenderer;
     private float accumulatedHoldTime = 0f;
     private readonly float timeHoldReset = 0.1f;
@@ -82,9 +86,12 @@ public class ClickableObject : MonoBehaviour, IDamagable
     [SerializeField] private MeshRenderer crackMeshRenderer;
     private MaterialPropertyBlock crackPropertyBlock;
     private MaterialPropertyBlock outlinePropertyBlock;
+    private MaterialPropertyBlock baseGlowPropertyBlock;
     [Header("Outline")]
     [SerializeField, Min(0), Tooltip("Material slot index (0-based). Used as fallback when auto-detect cannot find outline material.")]
     private int outlineMaterialIndex = 2;
+    [Header("Base Glow (Material Slot 0)")]
+    [SerializeField] private bool applyBaseGlowFromOutline = true;
     [Header("Animation")]
     [SerializeField] private BlockAnimationController animCtrl;
     [SerializeField, Min(1f)] private float baseBlockScale = 2.5f;
@@ -116,6 +123,7 @@ public class ClickableObject : MonoBehaviour, IDamagable
     {
         crackPropertyBlock = new MaterialPropertyBlock();
         outlinePropertyBlock = new MaterialPropertyBlock();
+        baseGlowPropertyBlock = new MaterialPropertyBlock();
         cubeRenderer = GetComponent<MeshRenderer>();
         meshFilter = GetComponent<MeshFilter>();
         if (animCtrl == null) animCtrl = GetComponent<BlockAnimationController>();
@@ -202,6 +210,7 @@ public class ClickableObject : MonoBehaviour, IDamagable
         ListenRuntime();
         GenerateCube();
         ApplyOutlineColorFromDatabase();
+        ApplyBaseGlowFromDatabase();
         OnAppear();
     }
     public void SetClickableBlockByCondition(BlockSpawnLocation blockSpawnLocation, TimeState timeState, NormalWeatherName normalWeatherName, SpecialWeatherName specialWeatherName)
@@ -404,17 +413,26 @@ public class ClickableObject : MonoBehaviour, IDamagable
                 continue;
             }
 
-            InventoryController.Instance.TryAddItemToInventory(new InventoryItem(item, result.amount));
+            int requested = Mathf.Max(0, result.amount);
+            if (requested <= 0)
+                continue;
 
-            QuestSignals.CollectItem(item.itemName, result.amount);
+            var toAdd = new InventoryItem(item, requested);
+            _ = InventoryController.Instance.TryAddItemToInventory(toAdd);
+            int remaining = toAdd.quantity != null ? Mathf.Max(0, toAdd.quantity.Value) : 0;
+            int added = Mathf.Max(0, requested - remaining);
+            if (added <= 0)
+                continue;
+
+            QuestSignals.CollectItem(item.itemName, added);
             var pos = Toaster.GetRandomAnchoredPosition();
             bool rainbow = item.rarity == Rarity.Exclusive;
-            Toaster.Show($"x{result.amount}", item.icon, 1.6f, pos, rainbow);
+            Toaster.Show($"x{added}", item.icon, 1.6f, pos, rainbow);
 
             var itemId = Game.Discovery.BlockDiscoveryService.GetItemId(item);
             Game.Discovery.BlockDiscoveryService.Ins?.DiscoverDrop(dropBlockName, itemId);
 
-            dropName += (countTemp == 0) ? result.amount + " " + item.GetColoredName() : ", " + result.amount + " " + item.itemName;
+            dropName += (countTemp == 0) ? added + " " + item.GetColoredName() : ", " + added + " " + item.itemName;
             countTemp++;
         }
 
@@ -610,6 +628,7 @@ public class ClickableObject : MonoBehaviour, IDamagable
             return;
 
         Color outlineColor = blockUVDatabase.GetOutlineColor(blockName);
+        float glowIntensity = Mathf.Max(1f, blockUVDatabase.GetGlowIntensity(blockName));
         cubeRenderer.GetPropertyBlock(outlinePropertyBlock, slotIndex);
         if (TryGetColorPropertyId(outlineMat, out int colorPropertyId))
             outlinePropertyBlock.SetColor(colorPropertyId, outlineColor);
@@ -619,7 +638,43 @@ public class ClickableObject : MonoBehaviour, IDamagable
             float appliedScale = outlineColor.a <= 0.001f ? 0f : baseScale;
             outlinePropertyBlock.SetFloat(ScaleID, appliedScale);
         }
+        if (TryGetGlowPropertyId(outlineMat, out int glowPropertyId))
+            outlinePropertyBlock.SetFloat(glowPropertyId, glowIntensity);
         cubeRenderer.SetPropertyBlock(outlinePropertyBlock, slotIndex);
+    }
+
+    void ApplyBaseGlowFromDatabase()
+    {
+        if (cubeRenderer == null)
+            return;
+
+        var mats = cubeRenderer.sharedMaterials;
+        if (mats == null || mats.Length == 0)
+            return;
+
+        var baseMat = mats[0];
+        if (baseMat == null || !baseMat.HasProperty(EmissionColorID))
+            return;
+
+        Color emission = Color.black;
+        if (applyBaseGlowFromOutline && blockUVDatabase != null)
+        {
+            Color tint = blockUVDatabase.GetOutlineColor(blockName);
+            float dbIntensity = blockUVDatabase.GetGlowIntensity(blockName);
+            float strength = Mathf.Clamp(dbIntensity, 0f, 0.2f);
+            emission = new Color(tint.r * strength, tint.g * strength, tint.b * strength, 1f);
+
+            if (strength > 0.0001f)
+                baseMat.EnableKeyword("_EMISSION");
+            else
+                baseMat.DisableKeyword("_EMISSION");
+        }
+        else
+            baseMat.DisableKeyword("_EMISSION");
+
+        cubeRenderer.GetPropertyBlock(baseGlowPropertyBlock, 0);
+        baseGlowPropertyBlock.SetColor(EmissionColorID, emission);
+        cubeRenderer.SetPropertyBlock(baseGlowPropertyBlock, 0);
     }
 
     bool TryGetOutlineSlot(out int slotIndex, out Material outlineMaterial)
@@ -684,6 +739,34 @@ public class ClickableObject : MonoBehaviour, IDamagable
         if (mat.HasProperty(BaseColorID))
         {
             colorPropertyId = BaseColorID;
+            return true;
+        }
+
+        return false;
+    }
+
+    bool TryGetGlowPropertyId(Material mat, out int glowPropertyId)
+    {
+        glowPropertyId = GlowIntensityID;
+
+        if (mat == null)
+            return false;
+
+        if (mat.HasProperty(GlowIntensityID))
+        {
+            glowPropertyId = GlowIntensityID;
+            return true;
+        }
+
+        if (mat.HasProperty(EmissionStrengthID))
+        {
+            glowPropertyId = EmissionStrengthID;
+            return true;
+        }
+
+        if (mat.HasProperty(GlowPowerID))
+        {
+            glowPropertyId = GlowPowerID;
             return true;
         }
 

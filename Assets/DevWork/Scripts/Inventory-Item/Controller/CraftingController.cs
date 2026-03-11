@@ -45,28 +45,44 @@ public class CraftingController : MonoBehaviour
             .Where(change => change.index == 0)
             .Subscribe(change =>
             {
-                HandleCraftQuest(change);
-                RemoveIngredients();
+                HandleOutputClaimByPlayerAction(change);
             })
             .AddTo(disposables);
     }
 
-    private void HandleCraftQuest((int index, InventoryItem newItem) change)
+    private void HandleOutputClaimByPlayerAction((int index, InventoryItem newItem) change)
+    {
+        bool claimedOut =
+            change.newItem == null ||
+            change.newItem.itemData == null ||
+            change.newItem.itemData.Type == ItemType.None;
+
+        if (!claimedOut)
+            return;
+
+        if (currentRecipe == null || matchedVariant == null)
+            return;
+
+        TrackCraftQuestForCurrentRecipe();
+        RemoveIngredients();
+    }
+
+    private void TrackCraftQuestForCurrentRecipe()
     {
         // If no recipe, ignore
         if (currentRecipe == null || currentRecipe.result == null)
             return;
 
-        // The crafted output item
-        InventoryItem crafted = change.newItem;
-        if (crafted == null || crafted.itemData == null)
+        Item craftedItem = currentRecipe.result.itemData;
+        int craftedAmount = currentRecipe.result.quantity != null
+            ? Mathf.Max(0, currentRecipe.result.quantity.Value)
+            : 0;
+
+        if (craftedItem == null || craftedAmount <= 0)
             return;
 
         // The item ID used in QuestStepDef.targetId
-        string craftedId = crafted.itemData.itemName;
-
-        // Quantity crafted
-        int craftedAmount = crafted.quantity.Value;
+        string craftedId = craftedItem.itemName;
 
         // Emit quest signal
         QuestSignals.CraftItem(craftedId, craftedAmount);
@@ -91,6 +107,39 @@ public class CraftingController : MonoBehaviour
         {
             outputInventoryData.inventoryData.SetItem(0, null);
         }
+    }
+
+    public bool TryClaimCraftOutput()
+    {
+        if (outputInventoryData == null || outputInventoryData.inventoryData == null)
+            return false;
+
+        var outputData = outputInventoryData.inventoryData;
+        var outputItem = outputData.GetItem(0);
+        if (outputItem == null || outputItem.itemData == null || outputItem.itemData.Type == ItemType.None)
+            return false;
+
+        if (InventoryController.Instance == null)
+            return false;
+
+        int outputQty = Mathf.Max(0, outputItem.quantity.Value);
+        if (outputQty <= 0)
+            return false;
+
+        // Use existing inventory add path as requested.
+        var toAdd = new InventoryItem(outputItem.itemData, outputQty)
+        {
+            prefix = outputItem.prefix
+        };
+
+        bool fullyAdded = InventoryController.Instance.TryAddItemToInventory(toAdd, requireFullAdd: true);
+        if (!fullyAdded)
+            return false;
+
+        TrackCraftQuestForCurrentRecipe();
+        RemoveIngredients();
+        UpdateCraftingOutput();
+        return true;
     }
 
     private void RemoveIngredients()

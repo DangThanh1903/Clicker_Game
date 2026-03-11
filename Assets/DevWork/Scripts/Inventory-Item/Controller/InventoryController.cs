@@ -89,12 +89,22 @@ public class InventoryController : MonoBehaviour
         _ = TryAddItemToInventory(inventoryItem);
     }
 
-    public bool TryAddItemToInventory(InventoryItem inventoryItem)
+    public bool TryAddItemToInventory(InventoryItem inventoryItem, bool requireFullAdd = false)
     {
         if (inventoryUiManager == null)
         {
             Debug.LogWarning("InventoryUIManager is null, cannot add item.");
             return false;
+        }
+
+        if (inventoryItem == null || inventoryItem.itemData == null || inventoryItem.itemData.Type == ItemType.None)
+            return false;
+
+        if (requireFullAdd)
+        {
+            int requestQty = Mathf.Max(0, inventoryItem.quantity != null ? inventoryItem.quantity.Value : 0);
+            if (!CanFullyAddItem(inventoryItem.itemData, requestQty))
+                return false;
         }
 
         int beforeQty = inventoryItem != null && inventoryItem.quantity != null ? Mathf.Max(0, inventoryItem.quantity.Value) : 0;
@@ -115,6 +125,98 @@ public class InventoryController : MonoBehaviour
                 OnMainInventoryItemAdded?.Invoke(beforeItem, addedQty);
         }
         return ok;
+    }
+
+    public bool CanFullyAddItem(Item itemData, int quantity)
+    {
+        if (itemData == null || itemData.Type == ItemType.None)
+            return false;
+        if (quantity <= 0)
+            return true;
+
+        var single = new InventoryItem(itemData, quantity);
+        return CanFullyAddItems(new[] { single });
+    }
+
+    public bool CanFullyAddItems(IEnumerable<InventoryItem> items)
+    {
+        if (items == null)
+            return true;
+
+        var requested = new Dictionary<Item, int>();
+        foreach (var entry in items)
+        {
+            if (entry == null || entry.itemData == null || entry.itemData.Type == ItemType.None || entry.quantity == null)
+                continue;
+
+            int qty = Mathf.Max(0, entry.quantity.Value);
+            if (qty <= 0)
+                continue;
+
+            if (requested.TryGetValue(entry.itemData, out int existing))
+                requested[entry.itemData] = existing + qty;
+            else
+                requested[entry.itemData] = qty;
+        }
+
+        if (requested.Count == 0)
+            return true;
+
+        if (inventoryUiManager == null)
+            return false;
+
+        var mainInventory = inventoryUiManager.GetInventoryData(InventoryType.Inventory);
+        if (mainInventory == null)
+            return false;
+
+        int emptySlots = 0;
+        var freeInStacks = new Dictionary<Item, int>();
+
+        foreach (var slot in mainInventory.Items)
+        {
+            bool isEmpty =
+                slot == null ||
+                slot.itemData == null ||
+                slot.itemData.Type == ItemType.None ||
+                slot.quantity.Value <= 0;
+            if (isEmpty)
+            {
+                emptySlots++;
+                continue;
+            }
+
+            Item slotItem = slot.itemData;
+            int maxStack = Mathf.Max(1, slotItem.MaxStack);
+            int currentQty = Mathf.Max(0, slot.quantity.Value);
+            int free = Mathf.Max(0, maxStack - currentQty);
+            if (free <= 0)
+                continue;
+
+            if (freeInStacks.TryGetValue(slotItem, out int existing))
+                freeInStacks[slotItem] = existing + free;
+            else
+                freeInStacks[slotItem] = free;
+        }
+
+        int emptyNeeded = 0;
+        foreach (var pair in requested)
+        {
+            Item item = pair.Key;
+            int remaining = pair.Value;
+
+            if (freeInStacks.TryGetValue(item, out int stackFree))
+                remaining = Mathf.Max(0, remaining - stackFree);
+
+            if (remaining <= 0)
+                continue;
+
+            int maxStack = Mathf.Max(1, item.MaxStack);
+            emptyNeeded += Mathf.CeilToInt(remaining / (float)maxStack);
+            if (emptyNeeded > emptySlots)
+                return false;
+        }
+
+        return true;
     }
 
     public TMP_Text GetFirstStatText()

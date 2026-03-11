@@ -96,14 +96,14 @@ Material:
     - _DetailNormalMapScale: 1
     - _DstBlend: 0
     - _DstBlendAlpha: 0
-    - _EmissionStrength: 1.2
+    - _EmissionStrength: 3
     - _EnvironmentReflections: 1
     - _FPS: 8
     - _Frame: 0
     - _GlossMapScale: 0
     - _Glossiness: 0
     - _GlossyReflections: 0
-    - _GlowPower: 0.9
+    - _GlowPower: 4
     - _Metallic: 0
     - _OcclusionStrength: 1
     - _Parallax: 0.005

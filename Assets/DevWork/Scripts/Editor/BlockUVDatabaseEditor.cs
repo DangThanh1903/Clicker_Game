@@ -54,6 +54,14 @@ public class BlockUVDatabaseEditor : Editor
 
             try
             {
+                ParseOutlineVisual(
+                    tokens.Length > 9 ? tokens[9] : string.Empty,
+                    Color.black,
+                    0f,
+                    out Color outlineColor,
+                    out float glowIntensity
+                );
+
                 BlockUVEntry entry = new BlockUVEntry
                 {
                     blockName = tokens[0],
@@ -66,7 +74,8 @@ public class BlockUVDatabaseEditor : Editor
                     specialWeatherCondition = (SpecialWeatherName)Enum.Parse(typeof(SpecialWeatherName), tokens[6], true),
                     weight = float.Parse(tokens[7], CultureInfo.InvariantCulture),
                     drops = ParseDrops(tokens[8]),
-                    outlineColor = tokens.Length > 9 ? ParseOutlineColor(tokens[9], Color.black) : Color.black
+                    outlineColor = outlineColor,
+                    glowIntensity = glowIntensity
                 };
 
                 db.blocks.Add(entry);
@@ -83,48 +92,87 @@ public class BlockUVDatabaseEditor : Editor
         Debug.Log($"[BlockUVDatabaseEditor] Imported {imported} block rows from CSV.");
     }
 
-    private static Color ParseOutlineColor(string raw, Color fallback)
+    private static void ParseOutlineVisual(string raw, Color fallbackColor, float fallbackIntensity, out Color color, out float intensity)
     {
+        color = fallbackColor;
+        intensity = Mathf.Max(0f, fallbackIntensity);
+
         if (string.IsNullOrWhiteSpace(raw))
         {
-            return fallback;
+            return;
         }
 
         raw = raw.Trim();
 
         if (ColorUtility.TryParseHtmlString(raw, out Color htmlColor))
         {
-            return htmlColor;
+            color = htmlColor;
+            return;
         }
 
-        // New CSV format: R:G:B:A (0-255)
+        // New CSV format: R:G:B:A:I (RGBA in 0-255, intensity as float)
         string[] rgba255 = raw.Split(':');
-        if (TryParseRgba255(rgba255, out Color color255))
+        if (TryParseRgba255AndIntensity(rgba255, out Color color255, out float glowIntensity))
         {
-            return color255;
+            color = color255;
+            intensity = Mathf.Max(0f, glowIntensity);
+            return;
+        }
+
+        // Legacy format: R:G:B:A (0-255)
+        if (TryParseRgba255(rgba255, out color255))
+        {
+            color = color255;
+            intensity = 1f;
+            return;
         }
 
         string[] parts = raw.Split('|');
         if (parts.Length != 3 && parts.Length != 4)
         {
-            return fallback;
+            return;
         }
 
         if (!float.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out float r) ||
             !float.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out float g) ||
             !float.TryParse(parts[2], NumberStyles.Float, CultureInfo.InvariantCulture, out float b))
         {
-            return fallback;
+            return;
         }
 
         float a = 1f;
         if (parts.Length == 4 &&
             !float.TryParse(parts[3], NumberStyles.Float, CultureInfo.InvariantCulture, out a))
         {
-            return fallback;
+            return;
         }
 
-        return new Color(r, g, b, a);
+        color = new Color(r, g, b, a);
+        intensity = 1f;
+    }
+
+    private static bool TryParseRgba255AndIntensity(string[] parts, out Color color, out float intensity)
+    {
+        color = Color.black;
+        intensity = 0f;
+
+        if (parts == null || parts.Length != 5)
+            return false;
+
+        if (!TryParseByteComponent(parts[0], out float r) ||
+            !TryParseByteComponent(parts[1], out float g) ||
+            !TryParseByteComponent(parts[2], out float b) ||
+            !TryParseByteComponent(parts[3], out float a))
+        {
+            return false;
+        }
+
+        if (!float.TryParse(parts[4], NumberStyles.Float, CultureInfo.InvariantCulture, out float rawIntensity))
+            return false;
+
+        color = new Color(r, g, b, a);
+        intensity = Mathf.Max(0f, rawIntensity);
+        return true;
     }
 
     private static bool TryParseRgba255(string[] parts, out Color color)

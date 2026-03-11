@@ -67,7 +67,15 @@ public class DragableItem : MonoBehaviour, IBeginDragHandler, IDragHandler, IEnd
 
     private void OnSingleTap()
     {
-        Debug.Log("Single tap detected");
+        if (currentData != null && currentData.inventoryType == InventoryType.CraftingOut)
+        {
+            var crafting = InventoryController.Instance != null
+                ? InventoryController.Instance.CraftingController
+                : null;
+            crafting?.TryClaimCraftOutput();
+            return;
+        }
+
         InventoryController.Instance.GoToStatsPage();
         InventoryController.Instance.SetItemDescription(inventoryItem);
         if (inventoryItem != null && inventoryItem.itemData != null && inventoryItem.itemData.Type != ItemType.None)
@@ -76,7 +84,6 @@ public class DragableItem : MonoBehaviour, IBeginDragHandler, IDragHandler, IEnd
 
     private void OnDoubleTap()
     {
-        Debug.Log("Double tap detected!");
         // Your double tap logic here
     }
 }

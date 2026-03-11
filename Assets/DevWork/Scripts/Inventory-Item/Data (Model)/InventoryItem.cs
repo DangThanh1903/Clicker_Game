@@ -30,6 +30,7 @@ public class InventoryItem
 
         Addressables.LoadAssetAsync<Item>("None").Completed += handle =>
         {
+            _loadingNone = false;
             if (handle.Status == AsyncOperationStatus.Succeeded)
             {
                 _none = handle.Result;

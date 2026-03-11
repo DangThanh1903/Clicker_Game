@@ -23,6 +23,7 @@ MonoBehaviour:
     specialWeatherCondition: 0
     weight: 30
     outlineColor: {r: 0.5254902, g: 0.3764706, b: 0.2627451, a: 1}
+    glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: b58c152454d354b47b2cd8650bf8bf45, type: 2}
       itemAddress: 
@@ -40,6 +41,7 @@ MonoBehaviour:
     specialWeatherCondition: 0
     weight: 20
     outlineColor: {r: 0.37254903, g: 0.62352943, b: 0.20784314, a: 1}
+    glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: 0a4d8afb43ac54745a959c89d524b0cd, type: 2}
       itemAddress: 
@@ -57,6 +59,7 @@ MonoBehaviour:
     specialWeatherCondition: 0
     weight: 15
     outlineColor: {r: 0.60784316, g: 0.41960785, b: 0.24705882, a: 1}
+    glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: 15282561daa2fcc4590d4754049134ff, type: 2}
       itemAddress: 
@@ -86,6 +89,7 @@ MonoBehaviour:
     specialWeatherCondition: 0
     weight: 15
     outlineColor: {r: 0.24705882, g: 0.45882353, b: 0.1764706, a: 0.7058824}
+    glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: 5658c337be36c8c4587eeee8cd78bb87, type: 2}
       itemAddress: 
@@ -109,6 +113,7 @@ MonoBehaviour:
     specialWeatherCondition: 0
     weight: 15
     outlineColor: {r: 0.9647059, g: 0.8392157, b: 0.36078432, a: 0.9019608}
+    glowIntensity: 2
     drops:
     - item: {fileID: 11400000, guid: bf496e75ff78eed4fb67fa288495f97d, type: 2}
       itemAddress: 
@@ -132,6 +137,7 @@ MonoBehaviour:
     specialWeatherCondition: 0
     weight: 10
     outlineColor: {r: 1, g: 0.9019608, b: 0.47058824, a: 0.9411765}
+    glowIntensity: 4
     drops:
     - item: {fileID: 11400000, guid: 65cfc837310bb284e8fbe055ed609c44, type: 2}
       itemAddress: 
@@ -154,7 +160,8 @@ MonoBehaviour:
     normalWeatherCondition: 0
     specialWeatherCondition: 0
     weight: 5
-    outlineColor: {r: 0.627451, g: 0.654902, b: 0.7019608, a: 1}
+    outlineColor: {r: 0.70980394, g: 0.4745098, b: 0.37254903, a: 1}
+    glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: 69c48c737b5a3ef438799fd75b451469, type: 2}
       itemAddress: 
@@ -162,8 +169,26 @@ MonoBehaviour:
       maxAmount: 6
       dropChance: 1
       isSecret: 0
-  - blockName: Snow
+  - blockName: LuckyBlock
     atlasIndex: 7
+    health: 15
+    BreakingSound: LuckyBlockBreaking
+    locationCondition: 1
+    timeStateCondition: 2
+    normalWeatherCondition: 0
+    specialWeatherCondition: 0
+    weight: 0.5
+    outlineColor: {r: 0.96862745, g: 0.8, b: 0.18039216, a: 1}
+    glowIntensity: 4
+    drops:
+    - item: {fileID: 11400000, guid: 568a60f8923e63147a4d886034bf10da, type: 2}
+      itemAddress: 
+      minAmount: 1
+      maxAmount: 1
+      dropChance: 1
+      isSecret: 0
+  - blockName: Snow
+    atlasIndex: 8
     health: 50
     BreakingSound: SnowBreaking
     locationCondition: 2
@@ -172,6 +197,7 @@ MonoBehaviour:
     specialWeatherCondition: 0
     weight: 6
     outlineColor: {r: 0, g: 0, b: 0, a: 1}
+    glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: 2f06f9fef62d1564cb0a491165a88e04, type: 2}
       itemAddress: 
@@ -180,7 +206,7 @@ MonoBehaviour:
       dropChance: 1
       isSecret: 0
   - blockName: Ice
-    atlasIndex: 8
+    atlasIndex: 9
     health: 50
     BreakingSound: IceBreaking
     locationCondition: 2
@@ -189,6 +215,7 @@ MonoBehaviour:
     specialWeatherCondition: 0
     weight: 7
     outlineColor: {r: 0, g: 0, b: 0, a: 1}
+    glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: 904b66f360a855742ac90dc4777032b6, type: 2}
       itemAddress: 
@@ -203,7 +230,7 @@ MonoBehaviour:
       dropChance: 0.05
       isSecret: 0
   - blockName: SnowLog
-    atlasIndex: 9
+    atlasIndex: 10
     health: 50
     BreakingSound: SnowLogBreaking
     locationCondition: 2
@@ -212,6 +239,7 @@ MonoBehaviour:
     specialWeatherCondition: 0
     weight: 8
     outlineColor: {r: 0, g: 0, b: 0, a: 1}
+    glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: 15282561daa2fcc4590d4754049134ff, type: 2}
       itemAddress: 
@@ -226,7 +254,7 @@ MonoBehaviour:
       dropChance: 0.1
       isSecret: 0
   - blockName: IcedStone
-    atlasIndex: 10
+    atlasIndex: 11
     health: 50
     BreakingSound: IcedStoneBreaking
     locationCondition: 2
@@ -235,6 +263,7 @@ MonoBehaviour:
     specialWeatherCondition: 0
     weight: 9
     outlineColor: {r: 0, g: 0, b: 0, a: 1}
+    glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: af90eb75736662849aad659d1f498689, type: 2}
       itemAddress: 
@@ -249,7 +278,7 @@ MonoBehaviour:
       dropChance: 0.5
       isSecret: 0
   - blockName: CherryBrush
-    atlasIndex: 11
+    atlasIndex: 12
     health: 50
     BreakingSound: CherryBrushBreaking
     locationCondition: 2
@@ -258,6 +287,7 @@ MonoBehaviour:
     specialWeatherCondition: 0
     weight: 10
     outlineColor: {r: 0, g: 0, b: 0, a: 1}
+    glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: 5658c337be36c8c4587eeee8cd78bb87, type: 2}
       itemAddress: 
@@ -272,7 +302,7 @@ MonoBehaviour:
       dropChance: 0.6
       isSecret: 0
   - blockName: TrueIce
-    atlasIndex: 12
+    atlasIndex: 13
     health: 50
     BreakingSound: TrueIceBreaking
     locationCondition: 2
@@ -281,6 +311,7 @@ MonoBehaviour:
     specialWeatherCondition: 0
     weight: 11
     outlineColor: {r: 0, g: 0, b: 0, a: 1}
+    glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: 0ded06e44b0e29543847ecab5c3ba536, type: 2}
       itemAddress: 
@@ -289,7 +320,7 @@ MonoBehaviour:
       dropChance: 1
       isSecret: 0
   - blockName: CobbleStone
-    atlasIndex: 13
+    atlasIndex: 14
     health: 50
     BreakingSound: CobbleStoneBreaking
     locationCondition: 3
@@ -298,6 +329,7 @@ MonoBehaviour:
     specialWeatherCondition: 0
     weight: 12
     outlineColor: {r: 0, g: 0, b: 0, a: 1}
+    glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: af90eb75736662849aad659d1f498689, type: 2}
       itemAddress: 
@@ -306,7 +338,7 @@ MonoBehaviour:
       dropChance: 1
       isSecret: 0
   - blockName: HardStone
-    atlasIndex: 14
+    atlasIndex: 15
     health: 50
     BreakingSound: HardStoneBreaking
     locationCondition: 3
@@ -315,6 +347,7 @@ MonoBehaviour:
     specialWeatherCondition: 0
     weight: 13
     outlineColor: {r: 0, g: 0, b: 0, a: 1}
+    glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: af90eb75736662849aad659d1f498689, type: 2}
       itemAddress: 
@@ -323,7 +356,7 @@ MonoBehaviour:
       dropChance: 1
       isSecret: 0
   - blockName: Copper
-    atlasIndex: 15
+    atlasIndex: 16
     health: 50
     BreakingSound: CopperBreaking
     locationCondition: 3
@@ -332,6 +365,7 @@ MonoBehaviour:
     specialWeatherCondition: 0
     weight: 14
     outlineColor: {r: 0, g: 0, b: 0, a: 1}
+    glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: 29cbe6ecf8408004f8d8d687db60a892, type: 2}
       itemAddress: 
@@ -340,7 +374,7 @@ MonoBehaviour:
       dropChance: 1
       isSecret: 0
   - blockName: Iron
-    atlasIndex: 16
+    atlasIndex: 17
     health: 50
     BreakingSound: IronBreaking
     locationCondition: 3
@@ -349,6 +383,7 @@ MonoBehaviour:
     specialWeatherCondition: 0
     weight: 15
     outlineColor: {r: 0, g: 0, b: 0, a: 1}
+    glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: 16440b717d33e5f4ab2ba7e0018be097, type: 2}
       itemAddress: 
@@ -357,7 +392,7 @@ MonoBehaviour:
       dropChance: 1
       isSecret: 0
   - blockName: Gravel
-    atlasIndex: 17
+    atlasIndex: 18
     health: 50
     BreakingSound: GravelBreaking
     locationCondition: 3
@@ -366,6 +401,7 @@ MonoBehaviour:
     specialWeatherCondition: 0
     weight: 16
     outlineColor: {r: 0, g: 0, b: 0, a: 1}
+    glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: 25fd1d52d0fc7e64c9ec4919bbc1cb4b, type: 2}
       itemAddress: 
@@ -380,7 +416,7 @@ MonoBehaviour:
       dropChance: 0.2
       isSecret: 0
   - blockName: Cloud
-    atlasIndex: 18
+    atlasIndex: 19
     health: 50
     BreakingSound: CloudBreaking
     locationCondition: 4
@@ -389,6 +425,7 @@ MonoBehaviour:
     specialWeatherCondition: 0
     weight: 17
     outlineColor: {r: 0, g: 0, b: 0, a: 1}
+    glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: 7dc9610d6516d9a4691a52468dbbbcd0, type: 2}
       itemAddress: 
@@ -397,7 +434,7 @@ MonoBehaviour:
       dropChance: 1
       isSecret: 0
   - blockName: SkyOre
-    atlasIndex: 19
+    atlasIndex: 20
     health: 50
     BreakingSound: SkyOreBreaking
     locationCondition: 4
@@ -406,6 +443,7 @@ MonoBehaviour:
     specialWeatherCondition: 0
     weight: 18
     outlineColor: {r: 0, g: 0, b: 0, a: 1}
+    glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: 47eb6a003a39f374199cbbdcdd058c36, type: 2}
       itemAddress: 
@@ -414,7 +452,7 @@ MonoBehaviour:
       dropChance: 1
       isSecret: 0
   - blockName: Meteor
-    atlasIndex: 20
+    atlasIndex: 21
     health: 50
     BreakingSound: MeteorBreaking
     locationCondition: 4
@@ -423,6 +461,7 @@ MonoBehaviour:
     specialWeatherCondition: 0
     weight: 19
     outlineColor: {r: 0, g: 0, b: 0, a: 1}
+    glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: 19a06376a2f052245ad87e8265176925, type: 2}
       itemAddress: 
@@ -431,7 +470,7 @@ MonoBehaviour:
       dropChance: 1
       isSecret: 0
   - blockName: SkyDirt
-    atlasIndex: 21
+    atlasIndex: 22
     health: 50
     BreakingSound: SkyDirtBreaking
     locationCondition: 4
@@ -440,6 +479,7 @@ MonoBehaviour:
     specialWeatherCondition: 0
     weight: 20
     outlineColor: {r: 0, g: 0, b: 0, a: 1}
+    glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: b58c152454d354b47b2cd8650bf8bf45, type: 2}
       itemAddress: 
@@ -448,7 +488,7 @@ MonoBehaviour:
       dropChance: 1
       isSecret: 0
   - blockName: SunPlate
-    atlasIndex: 22
+    atlasIndex: 23
     health: 50
     BreakingSound: SunPlateBreaking
     locationCondition: 4
@@ -457,6 +497,7 @@ MonoBehaviour:
     specialWeatherCondition: 0
     weight: 21
     outlineColor: {r: 0, g: 0, b: 0, a: 1}
+    glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: c6ed369ce235f8f46b79ba83d7abbd2a, type: 2}
       itemAddress: 
@@ -465,7 +506,7 @@ MonoBehaviour:
       dropChance: 1
       isSecret: 0
   - blockName: RainCloud
-    atlasIndex: 23
+    atlasIndex: 24
     health: 50
     BreakingSound: RainCloudBreaking
     locationCondition: 4
@@ -474,6 +515,7 @@ MonoBehaviour:
     specialWeatherCondition: 0
     weight: 22
     outlineColor: {r: 0, g: 0, b: 0, a: 1}
+    glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: e83ef346264113f4fabe6267697da001, type: 2}
       itemAddress: 
@@ -482,7 +524,7 @@ MonoBehaviour:
       dropChance: 1
       isSecret: 0
   - blockName: Sand
-    atlasIndex: 24
+    atlasIndex: 25
     health: 50
     BreakingSound: SandBreaking
     locationCondition: 5
@@ -491,6 +533,7 @@ MonoBehaviour:
     specialWeatherCondition: 0
     weight: 23
     outlineColor: {r: 0, g: 0, b: 0, a: 1}
+    glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: 60eba10bb91811a428635d328b1eaa73, type: 2}
       itemAddress: 
@@ -499,7 +542,7 @@ MonoBehaviour:
       dropChance: 1
       isSecret: 0
   - blockName: Cactus
-    atlasIndex: 25
+    atlasIndex: 26
     health: 50
     BreakingSound: CactusBreaking
     locationCondition: 5
@@ -508,6 +551,7 @@ MonoBehaviour:
     specialWeatherCondition: 0
     weight: 24
     outlineColor: {r: 0, g: 0, b: 0, a: 1}
+    glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: 279e95db0f56b7a4d8cff915ba47b1ba, type: 2}
       itemAddress: 
@@ -516,7 +560,7 @@ MonoBehaviour:
       dropChance: 1
       isSecret: 0
   - blockName: SandStone
-    atlasIndex: 26
+    atlasIndex: 27
     health: 50
     BreakingSound: SandStoneBreaking
     locationCondition: 5
@@ -525,6 +569,7 @@ MonoBehaviour:
     specialWeatherCondition: 0
     weight: 25
     outlineColor: {r: 0, g: 0, b: 0, a: 1}
+    glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: f283a7837311ca04d9d35e8f889b1512, type: 2}
       itemAddress: 
@@ -533,7 +578,7 @@ MonoBehaviour:
       dropChance: 1
       isSecret: 0
   - blockName: PharaonGrave
-    atlasIndex: 27
+    atlasIndex: 28
     health: 50
     BreakingSound: PharaonGraveBreaking
     locationCondition: 5
@@ -542,6 +587,7 @@ MonoBehaviour:
     specialWeatherCondition: 0
     weight: 26
     outlineColor: {r: 0, g: 0, b: 0, a: 1}
+    glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: a675b34cf6191694aa93207bb07214da, type: 2}
       itemAddress: 
@@ -550,7 +596,7 @@ MonoBehaviour:
       dropChance: 1
       isSecret: 0
   - blockName: Amber
-    atlasIndex: 28
+    atlasIndex: 29
     health: 50
     BreakingSound: AmberBreaking
     locationCondition: 5
@@ -559,6 +605,7 @@ MonoBehaviour:
     specialWeatherCondition: 0
     weight: 27
     outlineColor: {r: 0, g: 0, b: 0, a: 1}
+    glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: a675b34cf6191694aa93207bb07214da, type: 2}
       itemAddress: 
@@ -567,7 +614,7 @@ MonoBehaviour:
       dropChance: 1
       isSecret: 0
   - blockName: DeadBrush
-    atlasIndex: 29
+    atlasIndex: 30
     health: 50
     BreakingSound: DeadBrushBreaking
     locationCondition: 5
@@ -576,6 +623,7 @@ MonoBehaviour:
     specialWeatherCondition: 0
     weight: 28
     outlineColor: {r: 0, g: 0, b: 0, a: 1}
+    glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: 5658c337be36c8c4587eeee8cd78bb87, type: 2}
       itemAddress: 
@@ -584,7 +632,7 @@ MonoBehaviour:
       dropChance: 1
       isSecret: 0
   - blockName: Stone
-    atlasIndex: 30
+    atlasIndex: 31
     health: 50
     BreakingSound: StoneBreaking
     locationCondition: 6
@@ -593,6 +641,7 @@ MonoBehaviour:
     specialWeatherCondition: 0
     weight: 29
     outlineColor: {r: 0, g: 0, b: 0, a: 1}
+    glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: af90eb75736662849aad659d1f498689, type: 2}
       itemAddress: 
@@ -601,7 +650,7 @@ MonoBehaviour:
       dropChance: 1
       isSecret: 0
   - blockName: HardGravel
-    atlasIndex: 31
+    atlasIndex: 32
     health: 50
     BreakingSound: HardGravelBreaking
     locationCondition: 6
@@ -610,6 +659,7 @@ MonoBehaviour:
     specialWeatherCondition: 0
     weight: 30
     outlineColor: {r: 0, g: 0, b: 0, a: 1}
+    glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: 25fd1d52d0fc7e64c9ec4919bbc1cb4b, type: 2}
       itemAddress: 
@@ -624,7 +674,7 @@ MonoBehaviour:
       dropChance: 0.6
       isSecret: 0
   - blockName: Silver
-    atlasIndex: 32
+    atlasIndex: 33
     health: 50
     BreakingSound: SilverBreaking
     locationCondition: 6
@@ -633,6 +683,7 @@ MonoBehaviour:
     specialWeatherCondition: 0
     weight: 31
     outlineColor: {r: 0, g: 0, b: 0, a: 1}
+    glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: e5f6aa03116f4214482efdda6fc8991c, type: 2}
       itemAddress: 
@@ -641,7 +692,7 @@ MonoBehaviour:
       dropChance: 1
       isSecret: 0
   - blockName: Gold
-    atlasIndex: 33
+    atlasIndex: 34
     health: 50
     BreakingSound: GoldBreaking
     locationCondition: 6
@@ -650,6 +701,7 @@ MonoBehaviour:
     specialWeatherCondition: 0
     weight: 32
     outlineColor: {r: 0, g: 0, b: 0, a: 1}
+    glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: 316db00a34b3a934f940b6b33978c119, type: 2}
       itemAddress: 
@@ -658,7 +710,7 @@ MonoBehaviour:
       dropChance: 1
       isSecret: 0
   - blockName: Emerald
-    atlasIndex: 34
+    atlasIndex: 35
     health: 50
     BreakingSound: EmeraldBreaking
     locationCondition: 6
@@ -667,6 +719,7 @@ MonoBehaviour:
     specialWeatherCondition: 0
     weight: 33
     outlineColor: {r: 0, g: 0, b: 0, a: 1}
+    glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: 6b9393087ac194444b338530596eec20, type: 2}
       itemAddress: 
@@ -675,7 +728,7 @@ MonoBehaviour:
       dropChance: 1
       isSecret: 0
   - blockName: TNT
-    atlasIndex: 35
+    atlasIndex: 36
     health: 50
     BreakingSound: TNTBreaking
     locationCondition: 6
@@ -684,9 +737,10 @@ MonoBehaviour:
     specialWeatherCondition: 0
     weight: 34
     outlineColor: {r: 0, g: 0, b: 0, a: 1}
+    glowIntensity: 0
     drops: []
   - blockName: Diamond
-    atlasIndex: 36
+    atlasIndex: 37
     health: 50
     BreakingSound: DiamondBreaking
     locationCondition: 6
@@ -695,6 +749,7 @@ MonoBehaviour:
     specialWeatherCondition: 0
     weight: 35
     outlineColor: {r: 0, g: 0, b: 0, a: 1}
+    glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: 26d693e4fc5369242b4dcd6fca32a202, type: 2}
       itemAddress: 
@@ -703,7 +758,7 @@ MonoBehaviour:
       dropChance: 1
       isSecret: 0
   - blockName: Ruby
-    atlasIndex: 37
+    atlasIndex: 38
     health: 50
     BreakingSound: RubyBreaking
     locationCondition: 6
@@ -712,6 +767,7 @@ MonoBehaviour:
     specialWeatherCondition: 0
     weight: 36
     outlineColor: {r: 0, g: 0, b: 0, a: 1}
+    glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: 2a2e148f032c0ff43b4c692380eac8ee, type: 2}
       itemAddress: 
@@ -720,7 +776,7 @@ MonoBehaviour:
       dropChance: 1
       isSecret: 0
   - blockName: WetSand
-    atlasIndex: 38
+    atlasIndex: 39
     health: 50
     BreakingSound: WetSandBreaking
     locationCondition: 7
@@ -729,6 +785,7 @@ MonoBehaviour:
     specialWeatherCondition: 0
     weight: 37
     outlineColor: {r: 0, g: 0, b: 0, a: 1}
+    glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: 60eba10bb91811a428635d328b1eaa73, type: 2}
       itemAddress: 
@@ -737,7 +794,7 @@ MonoBehaviour:
       dropChance: 1
       isSecret: 0
   - blockName: Corral
-    atlasIndex: 39
+    atlasIndex: 40
     health: 50
     BreakingSound: CorralBreaking
     locationCondition: 7
@@ -746,9 +803,10 @@ MonoBehaviour:
     specialWeatherCondition: 0
     weight: 38
     outlineColor: {r: 0, g: 0, b: 0, a: 1}
+    glowIntensity: 0
     drops: []
   - blockName: Water
-    atlasIndex: 40
+    atlasIndex: 41
     health: 50
     BreakingSound: WaterBreaking
     locationCondition: 7
@@ -757,9 +815,10 @@ MonoBehaviour:
     specialWeatherCondition: 0
     weight: 39
     outlineColor: {r: 0, g: 0, b: 0, a: 1}
+    glowIntensity: 0
     drops: []
   - blockName: Pearl
-    atlasIndex: 41
+    atlasIndex: 42
     health: 50
     BreakingSound: PearlBreaking
     locationCondition: 7
@@ -768,9 +827,10 @@ MonoBehaviour:
     specialWeatherCondition: 0
     weight: 40
     outlineColor: {r: 0, g: 0, b: 0, a: 1}
+    glowIntensity: 0
     drops: []
   - blockName: MermaidShell
-    atlasIndex: 42
+    atlasIndex: 43
     health: 50
     BreakingSound: MermaidShellBreaking
     locationCondition: 7
@@ -779,9 +839,10 @@ MonoBehaviour:
     specialWeatherCondition: 0
     weight: 41
     outlineColor: {r: 0, g: 0, b: 0, a: 1}
+    glowIntensity: 0
     drops: []
   - blockName: Mushroom
-    atlasIndex: 43
+    atlasIndex: 44
     health: 50
     BreakingSound: MushroomBreaking
     locationCondition: 8
@@ -790,9 +851,10 @@ MonoBehaviour:
     specialWeatherCondition: 0
     weight: 42
     outlineColor: {r: 0, g: 0, b: 0, a: 1}
+    glowIntensity: 0
     drops: []
   - blockName: Mud
-    atlasIndex: 44
+    atlasIndex: 45
     health: 50
     BreakingSound: MudBreaking
     locationCondition: 8
@@ -801,9 +863,10 @@ MonoBehaviour:
     specialWeatherCondition: 0
     weight: 43
     outlineColor: {r: 0, g: 0, b: 0, a: 1}
+    glowIntensity: 0
     drops: []
   - blockName: Spore
-    atlasIndex: 45
+    atlasIndex: 46
     health: 50
     BreakingSound: SporeBreaking
     locationCondition: 8
@@ -812,9 +875,10 @@ MonoBehaviour:
     specialWeatherCondition: 0
     weight: 44
     outlineColor: {r: 0, g: 0, b: 0, a: 1}
+    glowIntensity: 0
     drops: []
   - blockName: Sapphere
-    atlasIndex: 46
+    atlasIndex: 47
     health: 50
     BreakingSound: SapphereBreaking
     locationCondition: 8
@@ -823,9 +887,10 @@ MonoBehaviour:
     specialWeatherCondition: 0
     weight: 45
     outlineColor: {r: 0, g: 0, b: 0, a: 1}
+    glowIntensity: 0
     drops: []
   - blockName: ShroomLantern
-    atlasIndex: 47
+    atlasIndex: 48
     health: 50
     BreakingSound: ShroomLanternBreaking
     locationCondition: 8
@@ -834,9 +899,10 @@ MonoBehaviour:
     specialWeatherCondition: 0
     weight: 46
     outlineColor: {r: 0, g: 0, b: 0, a: 1}
+    glowIntensity: 0
     drops: []
   - blockName: HellOre
-    atlasIndex: 48
+    atlasIndex: 49
     health: 50
     BreakingSound: HellOreBreaking
     locationCondition: 9
@@ -845,9 +911,10 @@ MonoBehaviour:
     specialWeatherCondition: 0
     weight: 47
     outlineColor: {r: 0, g: 0, b: 0, a: 1}
+    glowIntensity: 0
     drops: []
   - blockName: Obsidien
-    atlasIndex: 49
+    atlasIndex: 50
     health: 50
     BreakingSound: ObsidienBreaking
     locationCondition: 9
@@ -856,9 +923,10 @@ MonoBehaviour:
     specialWeatherCondition: 0
     weight: 48
     outlineColor: {r: 0, g: 0, b: 0, a: 1}
+    glowIntensity: 0
     drops: []
   - blockName: Ash
-    atlasIndex: 50
+    atlasIndex: 51
     health: 50
     BreakingSound: AshBreaking
     locationCondition: 9
@@ -867,9 +935,10 @@ MonoBehaviour:
     specialWeatherCondition: 0
     weight: 49
     outlineColor: {r: 0, g: 0, b: 0, a: 1}
+    glowIntensity: 0
     drops: []
   - blockName: HellBrick
-    atlasIndex: 51
+    atlasIndex: 52
     health: 50
     BreakingSound: HellBrickBreaking
     locationCondition: 9
@@ -878,9 +947,10 @@ MonoBehaviour:
     specialWeatherCondition: 0
     weight: 50
     outlineColor: {r: 0, g: 0, b: 0, a: 1}
+    glowIntensity: 0
     drops: []
   - blockName: DungeonBrick
-    atlasIndex: 52
+    atlasIndex: 53
     health: 50
     BreakingSound: DungeonBrickBreaking
     locationCondition: 10
@@ -889,9 +959,10 @@ MonoBehaviour:
     specialWeatherCondition: 0
     weight: 51
     outlineColor: {r: 0, g: 0, b: 0, a: 1}
+    glowIntensity: 0
     drops: []
   - blockName: BookShelf
-    atlasIndex: 53
+    atlasIndex: 54
     health: 50
     BreakingSound: BookShelfBreaking
     locationCondition: 10
@@ -900,9 +971,10 @@ MonoBehaviour:
     specialWeatherCondition: 0
     weight: 52
     outlineColor: {r: 0, g: 0, b: 0, a: 1}
+    glowIntensity: 0
     drops: []
   - blockName: Lantern
-    atlasIndex: 54
+    atlasIndex: 55
     health: 50
     BreakingSound: LanternBreaking
     locationCondition: 10
@@ -911,9 +983,10 @@ MonoBehaviour:
     specialWeatherCondition: 0
     weight: 53
     outlineColor: {r: 0, g: 0, b: 0, a: 1}
+    glowIntensity: 0
     drops: []
   - blockName: Skull
-    atlasIndex: 55
+    atlasIndex: 56
     health: 50
     BreakingSound: SkullBreaking
     locationCondition: 10
@@ -922,9 +995,10 @@ MonoBehaviour:
     specialWeatherCondition: 0
     weight: 54
     outlineColor: {r: 0, g: 0, b: 0, a: 1}
+    glowIntensity: 0
     drops: []
   - blockName: Hallow ore
-    atlasIndex: 56
+    atlasIndex: 57
     health: 50
     BreakingSound: Hallow oreBreaking
     locationCondition: 11
@@ -933,9 +1007,10 @@ MonoBehaviour:
     specialWeatherCondition: 0
     weight: 55
     outlineColor: {r: 0, g: 0, b: 0, a: 1}
+    glowIntensity: 0
     drops: []
   - blockName: Crystal
-    atlasIndex: 57
+    atlasIndex: 58
     health: 50
     BreakingSound: CrystalBreaking
     locationCondition: 11
@@ -944,9 +1019,10 @@ MonoBehaviour:
     specialWeatherCondition: 0
     weight: 56
     outlineColor: {r: 0, g: 0, b: 0, a: 1}
+    glowIntensity: 0
     drops: []
   - blockName: Hallow Dirt
-    atlasIndex: 58
+    atlasIndex: 59
     health: 50
     BreakingSound: Hallow DirtBreaking
     locationCondition: 11
@@ -955,6 +1031,7 @@ MonoBehaviour:
     specialWeatherCondition: 0
     weight: 57
     outlineColor: {r: 0, g: 0, b: 0, a: 1}
+    glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: b58c152454d354b47b2cd8650bf8bf45, type: 2}
       itemAddress: 
@@ -963,7 +1040,7 @@ MonoBehaviour:
       dropChance: 1
       isSecret: 0
   - blockName: Hallow stone
-    atlasIndex: 59
+    atlasIndex: 60
     health: 50
     BreakingSound: Hallow stoneBreaking
     locationCondition: 11
@@ -972,6 +1049,7 @@ MonoBehaviour:
     specialWeatherCondition: 0
     weight: 58
     outlineColor: {r: 0, g: 0, b: 0, a: 1}
+    glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: af90eb75736662849aad659d1f498689, type: 2}
       itemAddress: 
@@ -980,7 +1058,7 @@ MonoBehaviour:
       dropChance: 1
       isSecret: 0
   - blockName: PixieDustBlock
-    atlasIndex: 60
+    atlasIndex: 61
     health: 50
     BreakingSound: PixieDustBlockBreaking
     locationCondition: 11
@@ -989,9 +1067,10 @@ MonoBehaviour:
     specialWeatherCondition: 0
     weight: 59
     outlineColor: {r: 0, g: 0, b: 0, a: 1}
+    glowIntensity: 0
     drops: []
   - blockName: RanbowBlock
-    atlasIndex: 61
+    atlasIndex: 62
     health: 50
     BreakingSound: RanbowBlockBreaking
     locationCondition: 11
@@ -1000,4 +1079,5 @@ MonoBehaviour:
     specialWeatherCondition: 0
     weight: 60
     outlineColor: {r: 0, g: 0, b: 0, a: 1}
+    glowIntensity: 0
     drops: []

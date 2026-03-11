@@ -53,6 +53,9 @@ public class BlockUVDatabase : ScriptableObject
     public Color GetOutlineColor(string name)
         => GetByName(name)?.outlineColor ?? Color.black;
 
+    public float GetGlowIntensity(string name)
+        => Mathf.Max(0f, GetByName(name)?.glowIntensity ?? 0f);
+
     // =========================
     // FILTERING
     // =========================
@@ -238,6 +241,7 @@ public class BlockUVEntry
 
     [Header("Visual")]
     public Color outlineColor = Color.black;
+    public float glowIntensity = 0f;
 
     [Header("Drop Settings")]
     public List<ItemDrop> drops = new();

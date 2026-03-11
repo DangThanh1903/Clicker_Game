@@ -26,14 +26,13 @@ public class BlockAnimationController : MonoBehaviour
 
     public void TryPlayIdle()
     {
-        if (isDeathPlaying) { Debug.Log("[Anim] Idle blocked: death flag"); return; }
+        if (isDeathPlaying) return;
         var s = Get(idleOptions, idleIndex);
         if (!s) { Debug.LogWarning("[Anim] No idle option selected"); return; }
 
         DOTween.Kill(RESUME_IDLE_ID);
         s.Stop(gameObject);
         s.PlayTween(gameObject);
-        Debug.Log("[Anim] Play Idle");
     }
 
     public void PlaySpawn(Action onDone = null, bool playAnimation = false)
@@ -73,8 +72,6 @@ public class BlockAnimationController : MonoBehaviour
         var tw = click.PlayTween(gameObject);
         if (tw != null) tw.OnComplete(() => { if (!isDeathPlaying) TryPlayIdle(); });
         else if (!isDeathPlaying) TryPlayIdle();
-
-        Debug.Log("Play Click");
     }
 
     public void PlayDeath(Action onDone = null)
@@ -90,8 +87,6 @@ public class BlockAnimationController : MonoBehaviour
         var tw = death.PlayTween(gameObject);
         if (tw != null) tw.OnComplete(() => onDone?.Invoke());
         else onDone?.Invoke();
-
-        Debug.Log("[Anim] Play Death");
     }
 
 
