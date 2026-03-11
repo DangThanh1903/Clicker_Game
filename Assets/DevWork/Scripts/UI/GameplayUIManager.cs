@@ -9,6 +9,7 @@ public class GameplayUIManager : MonoBehaviour
     [SerializeField] private TMP_Text clickNumberUI;
     [SerializeField] private TMP_Text clickPerTickUI;
     [SerializeField] private TMP_Text diamondUI;
+    [SerializeField] private TMP_Text blockNameUI;
     [SerializeField] private Image HpUI;
     [SerializeField] private Image ManaUI;
     [SerializeField] private Sprite manaSprite;
@@ -24,18 +25,25 @@ public class GameplayUIManager : MonoBehaviour
         Idle
     }
 
+    private string lastShownBlockName = string.Empty;
+    private readonly CompositeDisposable blockNameObserverDisposables = new CompositeDisposable();
+
     void OnEnable()
     {
         if (StatsManager.Ins != null)
             StatsManager.Ins.OnStatsRecalculated += RefreshBars;
 
+        BindBlockNameObserver();
         RefreshBars();
+        RefreshBlockName();
     }
 
     void OnDisable()
     {
         if (StatsManager.Ins != null)
             StatsManager.Ins.OnStatsRecalculated -= RefreshBars;
+
+        blockNameObserverDisposables.Clear();
     }
 
     void Start()
@@ -43,6 +51,7 @@ public class GameplayUIManager : MonoBehaviour
         AddReactToUI();
         ApplyResourceModeVisual(ResolveResourceMode());
         RefreshBars();
+        RefreshBlockName();
     }
 
     void AddReactToUI()
@@ -179,6 +188,46 @@ public class GameplayUIManager : MonoBehaviour
         displayedManaFill = Mathf.Clamp01(GetTargetResourceFill(mode));
         if (ManaUI != null)
             ManaUI.fillAmount = displayedManaFill;
+    }
+
+    private void RefreshBlockName()
+    {
+        SetBlockName(ResolveCurrentBlockName());
+    }
+
+    private void BindBlockNameObserver()
+    {
+        blockNameObserverDisposables.Clear();
+
+        Observable.EveryUpdate()
+            .Select(_ => ResolveCurrentBlockName())
+            .DistinctUntilChanged()
+            .Subscribe(SetBlockName)
+            .AddTo(blockNameObserverDisposables);
+    }
+
+    private string ResolveCurrentBlockName()
+    {
+        if (BlockManager.Ins != null && BlockManager.Ins.CurrentBlock != null)
+            return BlockManager.Ins.CurrentBlock.BlockName;
+
+        if (DataSaver.Ins != null)
+            return DataSaver.Ins.currentBlock;
+
+        return string.Empty;
+    }
+
+    private void SetBlockName(string blockName)
+    {
+        if (blockNameUI == null)
+            return;
+
+        string safeName = string.IsNullOrWhiteSpace(blockName) ? "Unknown" : blockName;
+        if (safeName == lastShownBlockName)
+            return;
+
+        lastShownBlockName = safeName;
+        blockNameUI.SetText(safeName);
     }
 
 }

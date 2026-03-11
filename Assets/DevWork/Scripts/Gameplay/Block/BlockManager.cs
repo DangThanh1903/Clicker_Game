@@ -11,6 +11,8 @@ public class BlockManager : MonoBehaviour
     [SerializeField] BossSO bossSO;
     [SerializeField] Transform  spawnPos;
     public float rareWeightCap = 10;
+    public ClickableObject CurrentBlock => currentBlock;
+    public event Action<string> CurrentBlockChanged;
     private GameObject activeBoss;
     private BossEntry activeBossInfo;
     Boss activeBossComp;
@@ -32,7 +34,10 @@ public class BlockManager : MonoBehaviour
         yield return new WaitUntil(() => DataSaver.Ins != null);
 
         if (currentBlock != null)
+        {
             currentBlock.SetClickableBlock(DataSaver.Ins.currentBlock ?? "Dirt");
+            NotifyCurrentBlockChanged();
+        }
 
         int startIndex = DataSaver.Ins.currentLocation.HasValue ? (int)DataSaver.Ins.currentLocation.Value : 1;
         if (startIndex == 0)
@@ -164,6 +169,7 @@ public class BlockManager : MonoBehaviour
             normalName,
             specialName
         );
+        NotifyCurrentBlockChanged();
     }
 
     public void RefreshBlockForLocationChange()
@@ -182,6 +188,7 @@ public class BlockManager : MonoBehaviour
             normalName,
             specialName
         );
+        NotifyCurrentBlockChanged();
     }
 
 
@@ -189,5 +196,11 @@ public class BlockManager : MonoBehaviour
     public bool IsBossOutOfCondition()
     {
         return activeBossInfo.Matches(TimeSystem.Instance.CurrentTimeState.Value, WeatherManager.Instance.CurrentNormalWeather.Value, WeatherManager.Instance.CurrentSpecialWeather.Value) == false;
+    }
+
+    private void NotifyCurrentBlockChanged()
+    {
+        string blockName = currentBlock != null ? currentBlock.BlockName : string.Empty;
+        CurrentBlockChanged?.Invoke(blockName);
     }
 }
