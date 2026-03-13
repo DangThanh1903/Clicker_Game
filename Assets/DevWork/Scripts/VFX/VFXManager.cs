@@ -10,6 +10,11 @@ public class VFXManager : MonoBehaviour
 
     [Header("VFX Triggers")]
     [SerializeField] private List<VFXTrigger> triggers;
+    [Header("Block Click VFX")]
+    [SerializeField] private GameObject blockClickVfxPrefab;
+    [SerializeField, Min(1)] private int maxBlockClicksPerRateWindow = 6;
+    [SerializeField, Min(0.05f)] private float blockClickRateWindowSeconds = 0.4f;
+    [SerializeField, Min(0f)] private float blockClickVfxDespawnDelay = 0.6f;
 
     [Header("Biome Music")]
     [SerializeField] private AudioSource musicSource;          // Loop ON, PlayOnAwake OFF
@@ -20,6 +25,10 @@ public class VFXManager : MonoBehaviour
 
     private Coroutine _fadeRoutine;
     private Coroutine _preloadRoutine;
+    private bool blockClickVfxPrewarmed;
+    private bool blockClickVfxRotationCached;
+    private Quaternion blockClickVfxCachedRotation = Quaternion.identity;
+    private readonly List<GameObject> pooledBlockClickVfxBuffer = new List<GameObject>(16);
 
     // 🎧 user volume (0–1)
     private float _musicVolume = 1f;
@@ -41,6 +50,7 @@ public class VFXManager : MonoBehaviour
     {
         SetupVFXTriggers();
         SetupBiomeMusic();
+        PrewarmBlockClickVfxIfNeeded();
     }
 
     #region VFX
@@ -100,6 +110,98 @@ public class VFXManager : MonoBehaviour
             LeanPool.Despawn(trigger.spawnedVFX);
             trigger.spawnedVFX = null;
             Debug.Log($"Stopped in-game VFX: {trigger.name}");
+        }
+    }
+
+    #endregion
+
+    #region Block Click VFX
+
+    public void EnsureBlockClickVfxPrewarmed()
+    {
+        PrewarmBlockClickVfxIfNeeded();
+    }
+
+    public void PlayBlockClickVfx(Vector3 worldPosition)
+    {
+        if (blockClickVfxPrefab == null)
+            return;
+
+        PrewarmBlockClickVfxIfNeeded();
+
+        Quaternion rotation = blockClickVfxRotationCached
+            ? blockClickVfxCachedRotation
+            : Quaternion.identity;
+
+        var fx = LeanPool.Spawn(blockClickVfxPrefab, worldPosition, rotation);
+        if (fx != null && blockClickVfxDespawnDelay > 0f)
+            LeanPool.Despawn(fx, blockClickVfxDespawnDelay);
+    }
+
+    private void PrewarmBlockClickVfxIfNeeded()
+    {
+        if (blockClickVfxPrewarmed || blockClickVfxPrefab == null)
+            return;
+
+        CacheBlockClickVfxRotation();
+
+        LeanGameObjectPool pool = null;
+        if (!LeanGameObjectPool.TryFindPoolByPrefab(blockClickVfxPrefab, ref pool))
+        {
+            var bootstrap = LeanPool.Spawn(blockClickVfxPrefab);
+            if (bootstrap != null)
+                LeanPool.Despawn(bootstrap);
+
+            LeanGameObjectPool.TryFindPoolByPrefab(blockClickVfxPrefab, ref pool);
+            if (pool == null)
+                return;
+        }
+
+        int prewarmCount = ResolveBlockClickVfxPrewarmCount();
+        if (pool.Preload < prewarmCount)
+            pool.Preload = prewarmCount;
+
+        pool.PreloadAll();
+        ApplyCachedBlockClickVfxRotationToPreloaded(pool);
+        blockClickVfxPrewarmed = true;
+    }
+
+    private int ResolveBlockClickVfxPrewarmCount()
+    {
+        float window = Mathf.Max(0.05f, blockClickRateWindowSeconds);
+        float scaledClicks = maxBlockClicksPerRateWindow * (0.4f / window);
+        return Mathf.Max(1, Mathf.CeilToInt(scaledClicks));
+    }
+
+    private void CacheBlockClickVfxRotation()
+    {
+        if (blockClickVfxRotationCached)
+            return;
+
+        Camera cam = Camera.main;
+        if (cam == null)
+            cam = FindObjectOfType<Camera>();
+        if (cam == null)
+            return;
+
+        // Cache one facing rotation once during preload.
+        blockClickVfxCachedRotation = Quaternion.LookRotation(-cam.transform.forward, cam.transform.up);
+        blockClickVfxRotationCached = true;
+    }
+
+    private void ApplyCachedBlockClickVfxRotationToPreloaded(LeanGameObjectPool pool)
+    {
+        if (pool == null || !blockClickVfxRotationCached)
+            return;
+
+        pooledBlockClickVfxBuffer.Clear();
+        pool.GetClones(pooledBlockClickVfxBuffer, addSpawnedClones: false, addDespawnedClones: true);
+        for (int i = 0; i < pooledBlockClickVfxBuffer.Count; i++)
+        {
+            var clone = pooledBlockClickVfxBuffer[i];
+            if (clone == null)
+                continue;
+            clone.transform.rotation = blockClickVfxCachedRotation;
         }
     }
 

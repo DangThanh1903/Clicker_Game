@@ -1,20 +1,8 @@
-using UnityEngine;
-
 public class IdleState : ClickerState
 {
-    public override void OnEnter(PlayerController controller)
-    {
-        Debug.Log("Entered Idle state.");
-    }
-
-    public override void OnExit(PlayerController controller)
-    {
-        Debug.Log("Exited Idle state.");
-    }
-
     public override void OnClick(IDamagable clickableObject)
     {
-        clickableObject.HandleClick();
+        clickableObject.ApplyDamageInput(DamageInputKind.Click);
     }
 
     public override void OnUpdate(PlayerController controller, IDamagable clickableObject)

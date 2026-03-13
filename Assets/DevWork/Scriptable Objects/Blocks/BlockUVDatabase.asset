@@ -26,7 +26,7 @@ MonoBehaviour:
     glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: b58c152454d354b47b2cd8650bf8bf45, type: 2}
-      itemAddress: 
+      itemAddress: Dirt
       minAmount: 1
       maxAmount: 3
       dropChance: 1
@@ -44,7 +44,7 @@ MonoBehaviour:
     glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: 0a4d8afb43ac54745a959c89d524b0cd, type: 2}
-      itemAddress: 
+      itemAddress: Grass
       minAmount: 2
       maxAmount: 5
       dropChance: 1
@@ -62,19 +62,19 @@ MonoBehaviour:
     glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: 15282561daa2fcc4590d4754049134ff, type: 2}
-      itemAddress: 
+      itemAddress: WoodPlank
       minAmount: 1
       maxAmount: 3
       dropChance: 1
       isSecret: 0
     - item: {fileID: 11400000, guid: 60b16f0202ef37f41a526bca0b284645, type: 2}
-      itemAddress: 
+      itemAddress: Log
       minAmount: 1
       maxAmount: 3
       dropChance: 0.15
       isSecret: 0
     - item: {fileID: 11400000, guid: 43dafd87ea180c740acd40a552af12c9, type: 2}
-      itemAddress: 
+      itemAddress: Resin
       minAmount: 2
       maxAmount: 4
       dropChance: 0.2
@@ -92,13 +92,13 @@ MonoBehaviour:
     glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: 5658c337be36c8c4587eeee8cd78bb87, type: 2}
-      itemAddress: 
+      itemAddress: Stick
       minAmount: 2
       maxAmount: 5
       dropChance: 0.5
       isSecret: 0
     - item: {fileID: 11400000, guid: dac4b888454f57f4daa7ff54d977b870, type: 2}
-      itemAddress: 
+      itemAddress: Apple
       minAmount: 1
       maxAmount: 2
       dropChance: 0.15
@@ -116,13 +116,13 @@ MonoBehaviour:
     glowIntensity: 2
     drops:
     - item: {fileID: 11400000, guid: bf496e75ff78eed4fb67fa288495f97d, type: 2}
-      itemAddress: 
+      itemAddress: Sunflower
       minAmount: 1
       maxAmount: 2
       dropChance: 0.2
       isSecret: 0
     - item: {fileID: 11400000, guid: 1e1abd19b7618de4fb588cc991792acf, type: 2}
-      itemAddress: 
+      itemAddress: SunflowerSeed
       minAmount: 2
       maxAmount: 4
       dropChance: 0.3
@@ -140,13 +140,13 @@ MonoBehaviour:
     glowIntensity: 4
     drops:
     - item: {fileID: 11400000, guid: 65cfc837310bb284e8fbe055ed609c44, type: 2}
-      itemAddress: 
+      itemAddress: Star
       minAmount: 1
       maxAmount: 2
       dropChance: 0.1
       isSecret: 0
     - item: {fileID: 11400000, guid: ecf93b30a50f8004da1f06c546509b21, type: 2}
-      itemAddress: 
+      itemAddress: StarDust
       minAmount: 3
       maxAmount: 6
       dropChance: 1
@@ -164,7 +164,7 @@ MonoBehaviour:
     glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: 69c48c737b5a3ef438799fd75b451469, type: 2}
-      itemAddress: 
+      itemAddress: Clay
       minAmount: 3
       maxAmount: 6
       dropChance: 1
@@ -182,7 +182,7 @@ MonoBehaviour:
     glowIntensity: 4
     drops:
     - item: {fileID: 11400000, guid: 568a60f8923e63147a4d886034bf10da, type: 2}
-      itemAddress: 
+      itemAddress: ClayHammer
       minAmount: 1
       maxAmount: 1
       dropChance: 1
@@ -200,7 +200,7 @@ MonoBehaviour:
     glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: 2f06f9fef62d1564cb0a491165a88e04, type: 2}
-      itemAddress: 
+      itemAddress: SnowBall
       minAmount: 2
       maxAmount: 4
       dropChance: 1
@@ -218,13 +218,13 @@ MonoBehaviour:
     glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: 904b66f360a855742ac90dc4777032b6, type: 2}
-      itemAddress: 
+      itemAddress: IceCube
       minAmount: 1
       maxAmount: 3
       dropChance: 1
       isSecret: 0
     - item: {fileID: 11400000, guid: 0ded06e44b0e29543847ecab5c3ba536, type: 2}
-      itemAddress: 
+      itemAddress: TrueIceCube
       minAmount: 1
       maxAmount: 1
       dropChance: 0.05
@@ -242,13 +242,13 @@ MonoBehaviour:
     glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: 15282561daa2fcc4590d4754049134ff, type: 2}
-      itemAddress: 
+      itemAddress: WoodPlank
       minAmount: 1
       maxAmount: 3
       dropChance: 1
       isSecret: 0
     - item: {fileID: 11400000, guid: 60b16f0202ef37f41a526bca0b284645, type: 2}
-      itemAddress: 
+      itemAddress: Log
       minAmount: 1
       maxAmount: 3
       dropChance: 0.1
@@ -266,13 +266,13 @@ MonoBehaviour:
     glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: af90eb75736662849aad659d1f498689, type: 2}
-      itemAddress: 
+      itemAddress: Stone
       minAmount: 1
       maxAmount: 2
       dropChance: 1
       isSecret: 0
     - item: {fileID: 11400000, guid: 904b66f360a855742ac90dc4777032b6, type: 2}
-      itemAddress: 
+      itemAddress: IceCube
       minAmount: 1
       maxAmount: 2
       dropChance: 0.5
@@ -290,13 +290,13 @@ MonoBehaviour:
     glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: 5658c337be36c8c4587eeee8cd78bb87, type: 2}
-      itemAddress: 
+      itemAddress: Stick
       minAmount: 1
       maxAmount: 3
       dropChance: 0.6
       isSecret: 0
     - item: {fileID: 11400000, guid: c80d6d5c9bc23dd41b6fd9f5a9548715, type: 2}
-      itemAddress: 
+      itemAddress: Cherry
       minAmount: 2
       maxAmount: 4
       dropChance: 0.6
@@ -314,7 +314,7 @@ MonoBehaviour:
     glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: 0ded06e44b0e29543847ecab5c3ba536, type: 2}
-      itemAddress: 
+      itemAddress: TrueIceCube
       minAmount: 3
       maxAmount: 5
       dropChance: 1
@@ -332,7 +332,7 @@ MonoBehaviour:
     glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: af90eb75736662849aad659d1f498689, type: 2}
-      itemAddress: 
+      itemAddress: Stone
       minAmount: 2
       maxAmount: 4
       dropChance: 1
@@ -350,7 +350,7 @@ MonoBehaviour:
     glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: af90eb75736662849aad659d1f498689, type: 2}
-      itemAddress: 
+      itemAddress: Stone
       minAmount: 5
       maxAmount: 8
       dropChance: 1
@@ -368,7 +368,7 @@ MonoBehaviour:
     glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: 29cbe6ecf8408004f8d8d687db60a892, type: 2}
-      itemAddress: 
+      itemAddress: CopperOre
       minAmount: 2
       maxAmount: 4
       dropChance: 1
@@ -386,7 +386,7 @@ MonoBehaviour:
     glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: 16440b717d33e5f4ab2ba7e0018be097, type: 2}
-      itemAddress: 
+      itemAddress: IronOre
       minAmount: 2
       maxAmount: 4
       dropChance: 1
@@ -404,13 +404,13 @@ MonoBehaviour:
     glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: 25fd1d52d0fc7e64c9ec4919bbc1cb4b, type: 2}
-      itemAddress: 
+      itemAddress: Gravel
       minAmount: 1
       maxAmount: 2
       dropChance: 1
       isSecret: 0
     - item: {fileID: 11400000, guid: 7edc2ad3ba06bac49ad1c0dc388b28b6, type: 2}
-      itemAddress: 
+      itemAddress: Flint
       minAmount: 1
       maxAmount: 1
       dropChance: 0.2
@@ -428,7 +428,7 @@ MonoBehaviour:
     glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: 7dc9610d6516d9a4691a52468dbbbcd0, type: 2}
-      itemAddress: 
+      itemAddress: Cloud
       minAmount: 1
       maxAmount: 3
       dropChance: 1
@@ -446,7 +446,7 @@ MonoBehaviour:
     glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: 47eb6a003a39f374199cbbdcdd058c36, type: 2}
-      itemAddress: 
+      itemAddress: SkyOre
       minAmount: 2
       maxAmount: 4
       dropChance: 1
@@ -464,7 +464,7 @@ MonoBehaviour:
     glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: 19a06376a2f052245ad87e8265176925, type: 2}
-      itemAddress: 
+      itemAddress: Meteorite
       minAmount: 2
       maxAmount: 4
       dropChance: 1
@@ -482,7 +482,7 @@ MonoBehaviour:
     glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: b58c152454d354b47b2cd8650bf8bf45, type: 2}
-      itemAddress: 
+      itemAddress: Dirt
       minAmount: 2
       maxAmount: 5
       dropChance: 1
@@ -500,7 +500,7 @@ MonoBehaviour:
     glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: c6ed369ce235f8f46b79ba83d7abbd2a, type: 2}
-      itemAddress: 
+      itemAddress: Sunplate
       minAmount: 1
       maxAmount: 3
       dropChance: 1
@@ -518,7 +518,7 @@ MonoBehaviour:
     glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: e83ef346264113f4fabe6267697da001, type: 2}
-      itemAddress: 
+      itemAddress: WetCloud
       minAmount: 1
       maxAmount: 3
       dropChance: 1
@@ -536,7 +536,7 @@ MonoBehaviour:
     glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: 60eba10bb91811a428635d328b1eaa73, type: 2}
-      itemAddress: 
+      itemAddress: Sand
       minAmount: 2
       maxAmount: 4
       dropChance: 1
@@ -554,7 +554,7 @@ MonoBehaviour:
     glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: 279e95db0f56b7a4d8cff915ba47b1ba, type: 2}
-      itemAddress: 
+      itemAddress: Cactus
       minAmount: 1
       maxAmount: 3
       dropChance: 1
@@ -572,7 +572,7 @@ MonoBehaviour:
     glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: f283a7837311ca04d9d35e8f889b1512, type: 2}
-      itemAddress: 
+      itemAddress: SandStone
       minAmount: 1
       maxAmount: 3
       dropChance: 1
@@ -590,7 +590,7 @@ MonoBehaviour:
     glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: a675b34cf6191694aa93207bb07214da, type: 2}
-      itemAddress: 
+      itemAddress: Amber
       minAmount: 3
       maxAmount: 6
       dropChance: 1
@@ -608,7 +608,7 @@ MonoBehaviour:
     glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: a675b34cf6191694aa93207bb07214da, type: 2}
-      itemAddress: 
+      itemAddress: Amber
       minAmount: 1
       maxAmount: 3
       dropChance: 1
@@ -626,7 +626,7 @@ MonoBehaviour:
     glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: 5658c337be36c8c4587eeee8cd78bb87, type: 2}
-      itemAddress: 
+      itemAddress: Stick
       minAmount: 2
       maxAmount: 5
       dropChance: 1
@@ -644,7 +644,7 @@ MonoBehaviour:
     glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: af90eb75736662849aad659d1f498689, type: 2}
-      itemAddress: 
+      itemAddress: Stone
       minAmount: 10
       maxAmount: 15
       dropChance: 1
@@ -662,13 +662,13 @@ MonoBehaviour:
     glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: 25fd1d52d0fc7e64c9ec4919bbc1cb4b, type: 2}
-      itemAddress: 
+      itemAddress: Gravel
       minAmount: 3
       maxAmount: 5
       dropChance: 1
       isSecret: 0
     - item: {fileID: 11400000, guid: 7edc2ad3ba06bac49ad1c0dc388b28b6, type: 2}
-      itemAddress: 
+      itemAddress: Flint
       minAmount: 2
       maxAmount: 4
       dropChance: 0.6
@@ -686,7 +686,7 @@ MonoBehaviour:
     glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: e5f6aa03116f4214482efdda6fc8991c, type: 2}
-      itemAddress: 
+      itemAddress: SilverOre
       minAmount: 2
       maxAmount: 4
       dropChance: 1
@@ -704,7 +704,7 @@ MonoBehaviour:
     glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: 316db00a34b3a934f940b6b33978c119, type: 2}
-      itemAddress: 
+      itemAddress: GoldOre
       minAmount: 2
       maxAmount: 4
       dropChance: 1
@@ -722,7 +722,7 @@ MonoBehaviour:
     glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: 6b9393087ac194444b338530596eec20, type: 2}
-      itemAddress: 
+      itemAddress: Emerald
       minAmount: 2
       maxAmount: 4
       dropChance: 1
@@ -752,7 +752,7 @@ MonoBehaviour:
     glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: 26d693e4fc5369242b4dcd6fca32a202, type: 2}
-      itemAddress: 
+      itemAddress: Diamond
       minAmount: 1
       maxAmount: 2
       dropChance: 1
@@ -770,7 +770,7 @@ MonoBehaviour:
     glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: 2a2e148f032c0ff43b4c692380eac8ee, type: 2}
-      itemAddress: 
+      itemAddress: Ruby
       minAmount: 1
       maxAmount: 2
       dropChance: 1
@@ -788,7 +788,7 @@ MonoBehaviour:
     glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: 60eba10bb91811a428635d328b1eaa73, type: 2}
-      itemAddress: 
+      itemAddress: Sand
       minAmount: 2
       maxAmount: 4
       dropChance: 1
@@ -1034,7 +1034,7 @@ MonoBehaviour:
     glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: b58c152454d354b47b2cd8650bf8bf45, type: 2}
-      itemAddress: 
+      itemAddress: Dirt
       minAmount: 4
       maxAmount: 6
       dropChance: 1
@@ -1052,7 +1052,7 @@ MonoBehaviour:
     glowIntensity: 0
     drops:
     - item: {fileID: 11400000, guid: af90eb75736662849aad659d1f498689, type: 2}
-      itemAddress: 
+      itemAddress: Stone
       minAmount: 3
       maxAmount: 6
       dropChance: 1

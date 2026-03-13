@@ -15,14 +15,22 @@ public class PlayerController : MonoBehaviour
     public ClickerState currentState = new NormalState();
     public event Action OnDied;
     public bool IsDead { get; private set; }
-    private int lastProcessedFrame = -1;
-    private int pendingFrame = -1;
-    private int pendingPriority = int.MinValue;
     private IDamagable pendingTarget;
+    private IDamagable pressedTarget;
+    private bool pointerHoldActive;
+    private static Camera cachedMainCamera;
+    private static int cachedMainCameraFrame = -1;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+    private int debugDispatchFrame = -1;
+    private int debugClickDispatchCount;
+    private int debugHoldDispatchCount;
+#endif
 
     [Header("Tick Settings")]
     [SerializeField] float tickSeconds = 1f;
     [SerializeField] bool useUnscaledTime = true;
+    [Header("Player Health")]
+    [SerializeField] bool disablePlayerHealthSystem = true;
     IDisposable regenSub;
     IDisposable deathSub;
 
@@ -69,13 +77,23 @@ public class PlayerController : MonoBehaviour
         if (StatsManager.Ins == null)
             return;
 
-        StatsManager.Ins.Set(StatType.CurrentHP, StatsManager.Ins.Get(StatType.HP));
+        if (disablePlayerHealthSystem)
+            ForcePlayerHpToMax();
+        else
+            StatsManager.Ins.Set(StatType.CurrentHP, StatsManager.Ins.Get(StatType.HP));
         StatsManager.Ins.Set(StatType.CurrentMana, StatsManager.Ins.Get(StatType.Mana));
         StatsManager.Ins.Set(StatType.CurrentStamina, StatsManager.Ins.Get(StatType.Stamina));
         StatsManager.Ins.ForceNotifyStatsChanged();
     }
     void Update()
     {
+        if (disablePlayerHealthSystem)
+        {
+            IsDead = false;
+            ForcePlayerHpToMax();
+        }
+
+        ProcessPointerInput();
         UpdateIdleStackLifetime();
         UpdateStaminaOverTime();
 
@@ -92,24 +110,27 @@ public class PlayerController : MonoBehaviour
 
     void LateUpdate()
     {
-        int frame = Time.frameCount;
-        bool hasFreshTargetFrame = pendingFrame == frame || pendingFrame == frame - 1;
-        bool isPendingTargetDamageable = IsTargetDamageable(pendingTarget);
-        if (pendingTarget == null ||
-            !isPendingTargetDamageable ||
-            !hasFreshTargetFrame ||
-            lastProcessedFrame == frame)
+        RefreshPendingTargetFromRegistry();
+        if (!IsTargetDamageable(pendingTarget))
         {
-            if (pendingTarget != null && !isPendingTargetDamageable)
-                pendingTarget = null;
+            pendingTarget = null;
             return;
         }
 
-        lastProcessedFrame = frame;
         currentState.OnUpdate(this, pendingTarget);
     }
     void OnEnable()
     {
+        regenSub?.Dispose(); regenSub = null;
+        deathSub?.Dispose(); deathSub = null;
+
+        if (disablePlayerHealthSystem)
+        {
+            IsDead = false;
+            ForcePlayerHpToMax();
+            return;
+        }
+
         var scheduler = useUnscaledTime ? Scheduler.MainThreadIgnoreTimeScale : Scheduler.MainThread;
 
         // HP regen tick (skip when dead)
@@ -140,17 +161,24 @@ public class PlayerController : MonoBehaviour
         regenSub?.Dispose(); regenSub = null;
         deathSub?.Dispose(); deathSub = null;
         ResetIdleStack();
+        pressedTarget = null;
+        pointerHoldActive = false;
         pendingTarget = null;
-        pendingFrame = -1;
-        pendingPriority = int.MinValue;
-        lastProcessedFrame = -1;
         StopHoldBeam(immediate: true);
         StopIdlePetVisual(immediate: true);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        debugDispatchFrame = -1;
+        debugClickDispatchCount = 0;
+        debugHoldDispatchCount = 0;
+#endif
     }
 
     void SubscribeDeath()
     {
         deathSub?.Dispose();
+        if (disablePlayerHealthSystem)
+            return;
+
         deathSub = StatsManager.Ins?.GetReactive(StatType.CurrentHP)
             .Where(hp => hp <= 0f)
             .Take(1)
@@ -205,32 +233,121 @@ public class PlayerController : MonoBehaviour
 
         RefreshIdlePetVisual();
     }
-    public void OnUpdate(IDamagable clickableObject)
-    {
-        if (clickableObject == null) return;
-        if (!IsTargetDamageable(clickableObject)) return;
-
-        int frame = Time.frameCount;
-        if (pendingFrame != frame)
-        {
-            pendingFrame = frame;
-            pendingPriority = int.MinValue;
-            pendingTarget = null;
-        }
-
-        int priority = GetPriority(clickableObject);
-        if (priority >= pendingPriority)
-        {
-            pendingPriority = priority;
-            pendingTarget = clickableObject;
-        }
-    }
-
     public void OnClick(IDamagable clickableObject)
     {
         TryAddIdleStackFromNormalClick();
         currentState.OnClick(clickableObject);
     }
+
+    private void RefreshPendingTargetFromRegistry()
+    {
+        DamageTargetRegistry.CompactInvalidTargets();
+        var targets = DamageTargetRegistry.ActiveTargets;
+
+        IDamagable bestTarget = null;
+        int bestPriority = int.MinValue;
+
+        for (int i = 0; i < targets.Count; i++)
+        {
+            IDamagable target = targets[i];
+            if (!IsTargetDamageable(target))
+                continue;
+
+            int priority = GetPriority(target);
+            if (priority >= bestPriority)
+            {
+                bestPriority = priority;
+                bestTarget = target;
+            }
+        }
+
+        pendingTarget = bestTarget;
+    }
+
+    private void ProcessPointerInput()
+    {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        BeginPointerDispatchDiagnosticsFrame(Time.frameCount);
+#endif
+
+        if (Input.GetMouseButtonUp(0))
+        {
+            if (pointerHoldActive && StatsManager.Ins != null)
+                StatsManager.Ins.Set(StatType.HoldedTime, 0f);
+
+            pointerHoldActive = false;
+            pressedTarget = null;
+        }
+
+        if (!IsGameplayInputAllowed())
+            return;
+
+        bool mouseDown = Input.GetMouseButtonDown(0);
+        bool mouseHeld = Input.GetMouseButton(0);
+        if (!mouseDown && !mouseHeld)
+            return;
+
+        if (mouseDown)
+            pressedTarget = null;
+
+        if (!TryResolvePointerTarget(out IDamagable target, out Vector3 hitPoint))
+            return;
+        if (!IsTargetDamageable(target))
+            return;
+
+        if (mouseDown)
+        {
+            ApplyPointerHitContext(target, hitPoint);
+            pressedTarget = target;
+            OnClick(target);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            RegisterPointerClickDispatch();
+#endif
+        }
+
+        if (mouseHeld && CanDispatchHoldToTarget(target))
+        {
+            if (!mouseDown)
+                ApplyPointerHitContext(target, hitPoint);
+
+            OnHold(target, hitPoint);
+            pointerHoldActive = true;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            RegisterPointerHoldDispatch();
+#endif
+        }
+    }
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+    private void BeginPointerDispatchDiagnosticsFrame(int frame)
+    {
+        if (debugDispatchFrame == frame)
+            return;
+
+        if (debugDispatchFrame >= 0)
+        {
+            if (debugClickDispatchCount > 1)
+                Debug.LogWarning($"[PlayerController] Multiple click dispatches in one frame: {debugClickDispatchCount} (frame {debugDispatchFrame}).", this);
+
+            if (debugHoldDispatchCount > 1)
+                Debug.LogWarning($"[PlayerController] Multiple hold dispatches in one frame: {debugHoldDispatchCount} (frame {debugDispatchFrame}).", this);
+        }
+
+        debugDispatchFrame = frame;
+        debugClickDispatchCount = 0;
+        debugHoldDispatchCount = 0;
+    }
+
+    private void RegisterPointerClickDispatch()
+    {
+        debugClickDispatchCount++;
+    }
+
+    private void RegisterPointerHoldDispatch()
+    {
+        debugHoldDispatchCount++;
+    }
+#endif
 
     public float ApplyStaminaToFinalDamage(float finalClickDamage)
     {
@@ -269,12 +386,6 @@ public class PlayerController : MonoBehaviour
 
         float multiplier = Mathf.Max(0f, StatsManager.Ins.Get(StatType.LowStaminaDamageMultiplier));
         return safeFinalDamage * Mathf.Max(0f, multiplier);
-    }
-
-    // Backward-compatible alias.
-    public float HandleNormalClickInput(float baseClickDamage)
-    {
-        return ApplyStaminaToFinalDamage(baseClickDamage);
     }
 
     public void UpdateStaminaOverTime()
@@ -377,11 +488,6 @@ public class PlayerController : MonoBehaviour
         return Mathf.Max(0.1f, resetTime);
     }
 
-    public void OnHold(IDamagable clickableObject)
-    {
-        OnHold(clickableObject, Vector3.zero);
-    }
-
     public void OnHold(IDamagable clickableObject, Vector3 holdPoint)
     {
         if (currentState is HoldState)
@@ -436,36 +542,103 @@ public class PlayerController : MonoBehaviour
 
     private static int GetPriority(IDamagable target)
     {
-        if (target is Boss) return 2;
-        if (target is MonsterClickable) return 1;
-        if (target is ClickableObject) return 0;
-        return 0;
+        if (IsNullTarget(target))
+            return int.MinValue;
+
+        return target.InputPriority;
+    }
+
+    private bool IsGameplayInputAllowed()
+    {
+        var ui = UIManager.Ins;
+        if (ui == null || !ui.IsBlockCanClick())
+            return false;
+
+        if (PopupController.Instance != null && PopupController.Instance.IsAnyPopupOpen())
+            return false;
+
+        return true;
+    }
+
+    private bool CanDispatchHoldToTarget(IDamagable target)
+    {
+        if (target is not MonsterClickable)
+            return true;
+
+        return ReferenceEquals(pressedTarget, target);
+    }
+
+    private bool TryResolvePointerTarget(out IDamagable target, out Vector3 hitPoint)
+    {
+        target = null;
+        hitPoint = Vector3.zero;
+
+        Camera cam = ResolveMainCamera();
+        if (cam == null)
+            return false;
+
+        Ray ray = cam.ScreenPointToRay(Input.mousePosition);
+        if (!Physics.Raycast(ray, out RaycastHit hit))
+            return false;
+
+        hitPoint = hit.point;
+
+        if (!TryGetDamageTargetFromHit(hit.transform, out IDamagable damageTarget))
+            return false;
+
+        target = damageTarget;
+        return true;
+    }
+
+    private static void ApplyPointerHitContext(IDamagable target, Vector3 hitPoint)
+    {
+        target?.SetPointerHit(hitPoint);
+    }
+
+    private static Camera ResolveMainCamera()
+    {
+        if (cachedMainCamera != null && cachedMainCamera.isActiveAndEnabled)
+            return cachedMainCamera;
+
+        if (cachedMainCameraFrame == Time.frameCount)
+            return cachedMainCamera;
+
+        cachedMainCameraFrame = Time.frameCount;
+        cachedMainCamera = Camera.main;
+        return cachedMainCamera;
     }
 
     private static bool IsTargetDamageable(IDamagable target)
     {
-        if (target == null)
+        if (IsNullTarget(target))
             return false;
 
-        if (target is MonsterClickable monster)
-            return monster.isActiveAndEnabled &&
-                   monster.MaxHealth > 0f &&
-                   monster.CurrentHealth != null &&
-                   monster.CurrentHealth.Value > 0f;
+        return target.CanReceiveDamage;
+    }
 
-        if (target is ClickableObject block)
-            return block.isActiveAndEnabled &&
-                   block.MaxHealth > 0f &&
-                   block.CurrentHealth != null &&
-                   block.CurrentHealth.Value > 0f;
+    private static bool TryGetDamageTargetFromHit(Transform hitTransform, out IDamagable damageTarget)
+    {
+        damageTarget = null;
+        if (hitTransform == null)
+            return false;
 
-        if (target is Boss boss)
-            return boss.isActiveAndEnabled;
+        damageTarget = hitTransform.GetComponent(typeof(IDamagable)) as IDamagable;
+        if (!IsNullTarget(damageTarget))
+            return true;
 
-        if (target is MonoBehaviour mb)
-            return mb.isActiveAndEnabled;
+        damageTarget = hitTransform.GetComponentInParent(typeof(IDamagable)) as IDamagable;
+        return !IsNullTarget(damageTarget);
+    }
 
-        return true;
+    private static bool IsNullTarget(IDamagable target)
+    {
+        if (ReferenceEquals(target, null))
+            return true;
+
+        if (target is UnityEngine.Object unityObj)
+            return unityObj == null;
+
+        return false;
     }
 
     #region COMBAT_LOGIC -----------------------------------------------------------------------------------
@@ -497,6 +670,13 @@ public class PlayerController : MonoBehaviour
     }
     void Die()
     {
+        if (disablePlayerHealthSystem)
+        {
+            IsDead = false;
+            ForcePlayerHpToMax();
+            return;
+        }
+
         if (IsDead) return;
         IsDead = true;
         StopHoldBeam();
@@ -508,6 +688,13 @@ public class PlayerController : MonoBehaviour
     }
     public void Respawn(float hpPercent = 1f)
     {
+        if (disablePlayerHealthSystem)
+        {
+            IsDead = false;
+            ForcePlayerHpToMax();
+            return;
+        }
+
         float percent = Mathf.Clamp01(hpPercent);
         float max = StatsManager.Ins.Get(StatType.HP);
         StatsManager.Ins.Set(StatType.CurrentHP, max * percent);
@@ -515,6 +702,17 @@ public class PlayerController : MonoBehaviour
         IsDead = false;
 
         SubscribeDeath();
+    }
+
+    private void ForcePlayerHpToMax()
+    {
+        if (StatsManager.Ins == null)
+            return;
+
+        float maxHp = Mathf.Max(0f, StatsManager.Ins.Get(StatType.HP));
+        float currentHp = Mathf.Max(0f, StatsManager.Ins.Get(StatType.CurrentHP));
+        if (!Mathf.Approximately(currentHp, maxHp))
+            StatsManager.Ins.Set(StatType.CurrentHP, maxHp);
     }
 
     public void SetEquippedPickaxe(Pickaxe pickaxe)
@@ -568,7 +766,7 @@ public class PlayerController : MonoBehaviour
         idleAttackTimer -= ticks * interval;
 
         for (int i = 0; i < ticks; i++)
-            target.HandleIdle();
+            target.ApplyDamageInput(DamageInputKind.Idle);
     }
 
     private float GetSummonAttackInterval()

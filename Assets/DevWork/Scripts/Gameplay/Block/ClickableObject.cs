@@ -37,6 +37,12 @@ public class ClickableObject : MonoBehaviour, IDamagable
     public string BlockName => blockName;
     public float MaxHealth { get; private set; }
     public ReactiveProperty<float> CurrentHealth { get; private set; } = new ReactiveProperty<float>();
+    public int InputPriority => 0;
+    public bool CanReceiveDamage =>
+        isActiveAndEnabled &&
+        MaxHealth > 0f &&
+        CurrentHealth != null &&
+        CurrentHealth.Value > 0f;
     public float BlockWeight;
     private static readonly int CrackIndexID = Shader.PropertyToID("_CrackIndex");
     private static readonly int ColorID = Shader.PropertyToID("_Color");
@@ -52,8 +58,6 @@ public class ClickableObject : MonoBehaviour, IDamagable
     private readonly float timeIdleReset = 1f;
     bool isDyingEffect;
     private bool breakFinalized;
-
-    private bool isMouseHeld = false;
 
     [Header("Settings")]
     [SerializeField] private int crackLevels = 9;
@@ -109,6 +113,8 @@ public class ClickableObject : MonoBehaviour, IDamagable
     private bool isReady;
     private Vector3 authoredBaseScale;
     private Vector3 baseAliveScale;
+    private Vector3 lastClickWorldPoint;
+    private bool hasLastClickWorldPoint;
     private Mesh generatedCubeMesh;
     private MeshFilter meshFilter;
     private readonly Vector2[] cubeUvBuffer = new Vector2[24];
@@ -133,12 +139,14 @@ public class ClickableObject : MonoBehaviour, IDamagable
 
     void OnEnable()
     {
+        DamageTargetRegistry.Register(this);
         if (isReady)
             ListenRuntime();
     }
 
     void OnDisable()
     {
+        DamageTargetRegistry.Unregister(this);
         KillDeathFlowTween();
         runtimeSubs?.Dispose();
         runtimeSubs = null;
@@ -158,10 +166,6 @@ public class ClickableObject : MonoBehaviour, IDamagable
         }
     }
 
-    void Update()
-    {
-        HandleClickDetection();
-    }
     #region SETUP ---------------------------------------------------------------------------------------------
     void ListenRuntime()
     {
@@ -226,48 +230,6 @@ public class ClickableObject : MonoBehaviour, IDamagable
     }
     #endregion
     #region CLICK_LOGIC -------------------------------------------------------------------------------------
-    // Click logic
-    public void HandleClickDetection()
-    {
-        var player = PlayerController.Instance;
-        if (player == null) return;
-        player.OnUpdate(this);
-
-        var ui = UIManager.Ins;
-        if (ui == null || !ui.IsBlockCanClick()) return;
-        if (isDyingEffect) return;
-        if (PopupController.Instance != null && PopupController.Instance.IsAnyPopupOpen()) return;
-
-        bool mouseDown = Input.GetMouseButtonDown(0);
-        bool mouseHeld = Input.GetMouseButton(0);
-
-        if (mouseHeld)
-        {
-            if (!isMouseHeld)
-                isMouseHeld = true;
-
-            var cam = ResolveMainCamera();
-            if (cam == null) return;
-
-            Ray ray = cam.ScreenPointToRay(Input.mousePosition);
-            if (Physics.Raycast(ray, out RaycastHit hit) && hit.transform == transform)
-            {
-                onClickPos = GetUIPosition(cam, hit.point);
-                if (mouseDown)
-                    player.OnClick(this);
-                player.OnHold(this, hit.point);
-            }
-        }
-        else if (Input.GetMouseButtonUp(0))
-        {
-            if (isMouseHeld)
-            {
-                isMouseHeld = false;
-                StatsManager.Ins.Set(StatType.HoldedTime, 0);
-            }
-        }
-    }
-
     /// <summary>
     /// Convert world pos -> RectTransform anchored position
     /// </summary>
@@ -283,38 +245,59 @@ public class ClickableObject : MonoBehaviour, IDamagable
         return localPoint;
     }
 
+    public void SetPointerHit(Vector3 worldPoint)
+    {
+        var cam = ResolveMainCamera();
+        if (cam == null)
+            return;
+
+        onClickPos = GetUIPosition(cam, worldPoint);
+        lastClickWorldPoint = worldPoint;
+        hasLastClickWorldPoint = true;
+    }
+
 
     public void HandleClick()
     {
-        float finalDamage = StatsManager.Ins.Get(StatType.NormalPower);
-        float power = PlayerController.Instance != null
-            ? PlayerController.Instance.ApplyStaminaToFinalDamage(finalDamage)
-            : finalDamage;
+        float power = DamageInputPowerResolver.GetClickPower();
         TakeDamage(power, "click");
     }
+
+    public void ApplyDamageInput(DamageInputKind inputKind)
+    {
+        switch (inputKind)
+        {
+            case DamageInputKind.Click:
+                HandleClick();
+                return;
+            case DamageInputKind.Hold:
+                HandleHold();
+                return;
+            case DamageInputKind.Idle:
+                HandleIdle();
+                return;
+            default:
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                Debug.LogWarning($"[ClickableObject] Unknown damage input kind: {inputKind}", this);
+#endif
+                return;
+        }
+    }
+
     public void HandleHold()
     {
-        var player = PlayerController.Instance;
-        float dt = player != null && player.UseUnscaledTime ? Time.unscaledDeltaTime : Time.deltaTime;
-        accumulatedHoldTime += dt;
+        float dt = DamageInputPowerResolver.GetInputDeltaTime();
         StatsManager.Ins.Add(StatType.HoldedTime, dt);
-        if (accumulatedHoldTime >= timeHoldReset)
+        if (DamageTickAccumulator.TryConsumeTick(ref accumulatedHoldTime, dt, timeHoldReset))
         {
-            float manaMul = player != null
-                ? player.GetHoldDamageMultiplier()
-                : 1f;
-            float power = StatsManager.Ins.Get(StatType.HoldPower) * manaMul * timeHoldReset;
+            float power = DamageInputPowerResolver.GetHoldTickPower(timeHoldReset);
             TakeDamage(power, "hold", timeHoldReset);
-            accumulatedHoldTime = 0f;
         }
     }
 
     public void HandleIdle()
     {
-        float idleMul = PlayerController.Instance != null
-            ? PlayerController.Instance.GetIdleDamageMultiplier()
-            : 1f;
-        float power = StatsManager.Ins.Get(StatType.IdlePower) * idleMul * timeIdleReset;
+        float power = DamageInputPowerResolver.GetIdleTickPower(timeIdleReset);
         TakeDamage(power, "idle", timeIdleReset);
         PlayerController.Instance?.NotifyIdleDamageDealt(power, transform.position);
     }
@@ -329,12 +312,14 @@ public class ClickableObject : MonoBehaviour, IDamagable
 
         CurrentHealth.Value = Mathf.Max(0, CurrentHealth.Value - power);
 
-        StatsManager.Ins.Add(StatType.Clicks, 1 * timeReset);
-        StatsManager.Ins.Add(StatType.TotalDamageDealed, power);
+        DamageStatsRecorder.RecordDamage(power, 1f * timeReset);
 
         AnalyticsManager.Ins?.TrackBlockClick(blockName, GetLocationString(), power, source);
 
         Toaster.Show($"-{power:F1}", null, 0.2f, onClickPos);
+
+        if (string.Equals(source, "click", StringComparison.Ordinal) && hasLastClickWorldPoint)
+            VFXManager.Ins?.PlayBlockClickVfx(lastClickWorldPoint);
 
         animCtrl?.PlayClick();
     }

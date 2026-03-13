@@ -9,8 +9,15 @@ public class MonsterClickable : MonoBehaviour, IDamagable
     public event Action<MonsterClickable, bool> Resolved;
 
     private MonsterDef def;
-     public float MaxHealth { get; private set; }
+    public float MaxHealth { get; private set; }
     public ReactiveProperty<float> CurrentHealth { get; private set; } = new ReactiveProperty<float>();
+    public int InputPriority => 1;
+    public bool CanReceiveDamage =>
+        isActiveAndEnabled &&
+        !resolved &&
+        MaxHealth > 0f &&
+        CurrentHealth != null &&
+        CurrentHealth.Value > 0f;
 
     private MonsterSpawner owner;
     private IMonsterMovement[] movementComponents;
@@ -20,9 +27,6 @@ public class MonsterClickable : MonoBehaviour, IDamagable
     private float spawnTime;
     private string monsterId;
     private Collider aimCollider;
-
-    private bool isMouseHeld;
-    private bool isPressedOnThis;
     private float accumulatedHoldTime = 0f;
     private readonly float timeHoldReset = 0.1f;
     private readonly float timeIdleReset = 1f;
@@ -53,7 +57,7 @@ public class MonsterClickable : MonoBehaviour, IDamagable
 
     private bool resolved;
 
-    // gọi từ spawner
+    // gá»i tá»« spawner
     public void Init(MonsterDef d, MonsterSpawner spawner)
     {
         def = d;
@@ -84,102 +88,60 @@ public class MonsterClickable : MonoBehaviour, IDamagable
             .Subscribe(_ => OnMiss());
     }
 
+    void OnEnable()
+    {
+        DamageTargetRegistry.Register(this);
+    }
+
     void Update()
     {
         UpdateMovement();
-        HandleClickDetection();
     }
 
     // ===== IDamagable =====
 
-    public void HandleClickDetection()
-    {
-        if (resolved) return;
-        // giống Boss/Block
-        var player = PlayerController.Instance;
-        if (player == null) return;
-        player.OnUpdate(this);
-
-        var ui = UIManager.Ins;
-        if (ui == null || !ui.IsBlockCanClick()) return;
-        if (PopupController.Instance != null && PopupController.Instance.IsAnyPopupOpen()) return;
-        
-        // Mouse Down
-        if (Input.GetMouseButtonDown(0))
-        {
-            var cam = Camera.main;
-            if (cam == null) return;
-            Ray ray = cam.ScreenPointToRay(Input.mousePosition);
-            if (Physics.Raycast(ray, out RaycastHit hit) && (hit.transform == transform || hit.transform.IsChildOf(transform)))
-            {
-                isPressedOnThis = true;
-                onClickPos = GetUIPosition(hit.point);
-                PlayerController.Instance.OnClick(this);
-            }
-            else
-            {
-                isPressedOnThis = false;
-            }
-        }
-
-        // Mouse Held
-        if (Input.GetMouseButton(0))
-        {
-            if (!isMouseHeld && isPressedOnThis) isMouseHeld = true;
-
-            var cam = Camera.main;
-            if (cam == null) return;
-            Ray ray = cam.ScreenPointToRay(Input.mousePosition);
-            if (isPressedOnThis && Physics.Raycast(ray, out RaycastHit hit) && (hit.transform == transform || hit.transform.IsChildOf(transform)))
-            {
-                onClickPos = GetUIPosition(hit.point);
-                PlayerController.Instance.OnHold(this, hit.point);
-            }
-        }
-        else if (Input.GetMouseButtonUp(0))
-        {
-            if (isMouseHeld)
-            {
-                isMouseHeld = false;
-                StatsManager.Ins.Set(StatType.HoldedTime, 0);
-            }
-            isPressedOnThis = false;
-        }
-    }
-
     public void HandleClick()
     {
-        float finalDamage = StatsManager.Ins.Get(StatType.NormalPower);
-        float power = PlayerController.Instance != null
-            ? PlayerController.Instance.ApplyStaminaToFinalDamage(finalDamage)
-            : finalDamage;
+        float power = DamageInputPowerResolver.GetClickPower();
         TakeDamage(power);
+    }
+
+    public void ApplyDamageInput(DamageInputKind inputKind)
+    {
+        switch (inputKind)
+        {
+            case DamageInputKind.Click:
+                HandleClick();
+                return;
+            case DamageInputKind.Hold:
+                HandleHold();
+                return;
+            case DamageInputKind.Idle:
+                HandleIdle();
+                return;
+            default:
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                Debug.LogWarning($"[MonsterClickable] Unknown damage input kind: {inputKind}", this);
+#endif
+                return;
+        }
     }
 
     public void HandleHold()
     {
-        var player = PlayerController.Instance;
-        float dt = player != null && player.UseUnscaledTime ? Time.unscaledDeltaTime : Time.deltaTime;
-        accumulatedHoldTime += dt;
+        float dt = DamageInputPowerResolver.GetInputDeltaTime();
         StatsManager.Ins.Add(StatType.HoldedTime, dt);
 
-        if (accumulatedHoldTime >= timeHoldReset)
+        if (DamageTickAccumulator.TryConsumeTick(ref accumulatedHoldTime, dt, timeHoldReset))
         {
-            float manaMul = player != null
-                ? player.GetHoldDamageMultiplier()
-                : 1f;
-            float power = StatsManager.Ins.Get(StatType.HoldPower) * manaMul * timeHoldReset;
+            float power = DamageInputPowerResolver.GetHoldTickPower(timeHoldReset);
             TakeDamage(power);
-            accumulatedHoldTime = 0f;
         }
     }
 
     public void HandleIdle()
     {
-        float idleMul = PlayerController.Instance != null
-            ? PlayerController.Instance.GetIdleDamageMultiplier()
-            : 1f;
-        float power = StatsManager.Ins.Get(StatType.IdlePower) * idleMul * timeIdleReset;
+        float power = DamageInputPowerResolver.GetIdleTickPower(timeIdleReset);
         Vector3 aimPoint = GetAimWorldPosition();
         onClickPos = GetUIPosition(aimPoint);
         TakeDamage(power);
@@ -196,8 +158,7 @@ public class MonsterClickable : MonoBehaviour, IDamagable
         CurrentHealth.Value = Mathf.Max(0f, CurrentHealth.Value - power);
 
         // Optional: stats tracking
-        StatsManager.Ins.Add(StatType.TotalDamageDealed, power);
-        StatsManager.Ins.Add(StatType.Clicks, 1);
+        DamageStatsRecorder.RecordDamage(power, 1f);
 
         // Optional: hit feedback (toast / anim)
         Toaster.Show($"-{power:F1}", null, 0.2f, onClickPos);
@@ -282,12 +243,12 @@ public class MonsterClickable : MonoBehaviour, IDamagable
 
     void OnDisable()
     {
+        DamageTargetRegistry.Unregister(this);
         lifeTimer?.Dispose();
         lifeTimer = null;
         healthSub?.Dispose();
         healthSub = null;
         resolved = false;
-        isMouseHeld = false;
         accumulatedHoldTime = 0f;
         spawnTime = 0f;
         monsterId = null;
@@ -499,4 +460,10 @@ public class MonsterClickable : MonoBehaviour, IDamagable
         );
         return localPoint;
     }
+
+    public void SetPointerHit(Vector3 worldPoint)
+    {
+        onClickPos = GetUIPosition(worldPoint);
+    }
 }
+

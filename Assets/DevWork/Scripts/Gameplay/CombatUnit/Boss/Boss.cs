@@ -8,11 +8,12 @@ public class Boss : MonoBehaviour, IDamagable
 {
     [SerializeField] EnemyStatsManager enemyStatsManager;
     [SerializeField] Image HpUI;
-    private bool isMouseHeld;
     private float accumulatedHoldTime = 0f;
     private readonly float timeHoldReset = 0.1f;
     private readonly float timeIdleReset = 1f;
     public event Action<Boss> Died;
+    public int InputPriority => 2;
+    public bool CanReceiveDamage => isActiveAndEnabled;
 
     [SerializeField] private BossAnimManager bossAnimManager;
 
@@ -56,8 +57,6 @@ public class Boss : MonoBehaviour, IDamagable
 
     void Update()
     {
-        HandleClickDetection();
-
         float now = BossNow;
         bool normalReady  = now >= _nextNormalTime;
         bool specialReady = now >= _nextSpecialTime;
@@ -95,6 +94,7 @@ public class Boss : MonoBehaviour, IDamagable
     }
     void OnEnable()
     {
+        DamageTargetRegistry.Register(this);
         hasDied = false;
         if (spawnTime <= 0f)
             spawnTime = BossNow;
@@ -123,6 +123,7 @@ public class Boss : MonoBehaviour, IDamagable
 
     void OnDisable()
     {
+        DamageTargetRegistry.Unregister(this);
         sub?.Dispose();
         sub = null;
         runtimeSubs?.Dispose();
@@ -167,76 +168,45 @@ public class Boss : MonoBehaviour, IDamagable
                 .AddTo(runtimeSubs);
         }
     }
-    public void HandleClickDetection()
-    {
-        var player = PlayerController.Instance;
-        if (player == null) return;
-        player.OnUpdate(this);
-
-        var ui = UIManager.Ins;
-        if (ui == null || !ui.IsBlockCanClick()) return;
-        if (PopupController.Instance != null && PopupController.Instance.IsAnyPopupOpen()) return;
-
-        if (Input.GetMouseButtonDown(0))
-        {
-            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-            if (Physics.Raycast(ray, out RaycastHit hit) && hit.transform == transform)
-            {
-                PlayerController.Instance.OnClick(this);
-            }
-        }
-
-        if (Input.GetMouseButton(0))
-        {
-            if (!isMouseHeld)
-            {
-                isMouseHeld = true;
-            }
-
-            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-            if (Physics.Raycast(ray, out RaycastHit hit) && hit.transform == transform)
-            {
-                PlayerController.Instance.OnHold(this, hit.point);
-            }
-        }
-        else if (Input.GetMouseButtonUp(0))
-        {
-            if (isMouseHeld)
-            {
-                isMouseHeld = false;
-            }
-        }
-    }
-
     public void HandleClick()
     {
-        float finalDamage = StatsManager.Ins.Get(StatType.NormalPower);
-        float power = PlayerController.Instance != null
-            ? PlayerController.Instance.ApplyStaminaToFinalDamage(finalDamage)
-            : finalDamage;
+        float power = DamageInputPowerResolver.GetClickPower();
         TakeDamage(power);
+    }
+
+    public void ApplyDamageInput(DamageInputKind inputKind)
+    {
+        switch (inputKind)
+        {
+            case DamageInputKind.Click:
+                HandleClick();
+                return;
+            case DamageInputKind.Hold:
+                HandleHold();
+                return;
+            case DamageInputKind.Idle:
+                HandleIdle();
+                return;
+            default:
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                Debug.LogWarning($"[Boss] Unknown damage input kind: {inputKind}", this);
+#endif
+                return;
+        }
     }
 
     public void HandleHold()
     {
-        accumulatedHoldTime += BossDelta;
-        if (accumulatedHoldTime >= timeHoldReset)
+        if (DamageTickAccumulator.TryConsumeTick(ref accumulatedHoldTime, BossDelta, timeHoldReset))
         {
-            float manaMul = PlayerController.Instance != null
-                ? PlayerController.Instance.GetHoldDamageMultiplier()
-                : 1f;
-            float power = StatsManager.Ins.Get(StatType.HoldPower) * manaMul * timeHoldReset;
+            float power = DamageInputPowerResolver.GetHoldTickPower(timeHoldReset);
             TakeDamage(power);
-            accumulatedHoldTime = 0f;
         }
     }
 
     public void HandleIdle()
     {
-        float idleMul = PlayerController.Instance != null
-            ? PlayerController.Instance.GetIdleDamageMultiplier()
-            : 1f;
-        float power = StatsManager.Ins.Get(StatType.IdlePower) * idleMul * timeIdleReset;
+        float power = DamageInputPowerResolver.GetIdleTickPower(timeIdleReset);
         TakeDamage(power);
         PlayerController.Instance?.NotifyIdleDamageDealt(power, transform.position);
     }
@@ -246,8 +216,7 @@ public class Boss : MonoBehaviour, IDamagable
             return;
 
         enemyStatsManager.Set(StatType.CurrentHP, Mathf.Max(0, enemyStatsManager.Get(StatType.CurrentHP) - power));
-        StatsManager.Ins.Add(StatType.TotalDamageDealed, power);
-        StatsManager.Ins.Add(StatType.Clicks, 1);
+        DamageStatsRecorder.RecordDamage(power, 1f);
         long time = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         clickStream.OnNext(time);
     }
@@ -280,5 +249,10 @@ public class Boss : MonoBehaviour, IDamagable
     {
         bossId = string.IsNullOrEmpty(id) ? gameObject.name : id;
         spawnTime = BossNow;
+    }
+
+    public void SetPointerHit(Vector3 worldPoint)
+    {
+        // Boss currently does not use pointer-hit context.
     }
 }
