@@ -7,6 +7,9 @@ using Lean.Pool;
 [RequireComponent(typeof(DamageTargetRegistrant))]
 public class MonsterClickable : MonoBehaviour, IDamageReceiver, IPointerHitContext
 {
+    private static Camera cachedMainCamera;
+    private static int cachedMainCameraFrame = -1;
+
     public event Action<MonsterClickable, bool> Resolved;
 
     private MonsterDef def;
@@ -427,7 +430,8 @@ public class MonsterClickable : MonoBehaviour, IDamageReceiver, IPointerHitConte
     {
         if (Toaster.Ins == null || Toaster.Ins.canvas == null)
             return Vector2.zero;
-        var cam = Camera.main;
+
+        var cam = ResolveMainCamera();
         if (cam == null)
             return Vector2.zero;
 
@@ -439,6 +443,19 @@ public class MonsterClickable : MonoBehaviour, IDamageReceiver, IPointerHitConte
             out Vector2 localPoint
         );
         return localPoint;
+    }
+
+    private static Camera ResolveMainCamera()
+    {
+        if (cachedMainCamera != null && cachedMainCamera.isActiveAndEnabled)
+            return cachedMainCamera;
+
+        if (cachedMainCameraFrame == Time.frameCount)
+            return cachedMainCamera;
+
+        cachedMainCameraFrame = Time.frameCount;
+        cachedMainCamera = Camera.main;
+        return cachedMainCamera;
     }
 
     public void SetPointerHit(Vector3 worldPoint)

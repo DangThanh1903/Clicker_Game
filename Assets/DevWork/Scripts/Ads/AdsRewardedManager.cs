@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using GoogleMobileAds.Api;
 using UnityEngine;
 
@@ -45,7 +45,7 @@ public class AdsRewardedManager : MonoBehaviour
         MobileAds.Initialize(initStatus =>
         {
             isInitialized = true;
-            Debug.Log("[Ads] MobileAds initialized.");
+            DevLog.Log("[Ads] MobileAds initialized.");
             LoadRewarded();
         });
     }
@@ -81,7 +81,7 @@ public class AdsRewardedManager : MonoBehaviour
             }
 
             rewardedAd = ad;
-            Debug.Log("[Ads] Rewarded loaded.");
+            DevLog.Log("[Ads] Rewarded loaded.");
             RegisterRewardedHandlers(rewardedAd);
         });
     }
@@ -129,7 +129,7 @@ public class AdsRewardedManager : MonoBehaviour
         isShowing = true;
         rewardedAd.Show(reward =>
         {
-            Debug.Log("[Ads] Reward granted.");
+            DevLog.Log("[Ads] Reward granted.");
             this.onRewardGranted?.Invoke();
         });
     }
@@ -138,12 +138,12 @@ public class AdsRewardedManager : MonoBehaviour
     {
         ad.OnAdFullScreenContentOpened += () =>
         {
-            Debug.Log("[Ads] Rewarded opened.");
+            DevLog.Log("[Ads] Rewarded opened.");
         };
 
         ad.OnAdFullScreenContentClosed += () =>
         {
-            Debug.Log("[Ads] Rewarded closed.");
+            DevLog.Log("[Ads] Rewarded closed.");
             isShowing = false;
             nextAllowedShowTime = Time.unscaledTime + Mathf.Max(0f, showCooldownSeconds);
             onClosed?.Invoke();
@@ -161,7 +161,7 @@ public class AdsRewardedManager : MonoBehaviour
 
         ad.OnAdPaid += adValue =>
         {
-            Debug.Log($"[Ads] Paid event: {adValue.Value} {adValue.CurrencyCode} ({adValue.Precision})");
+            DevLog.Log($"[Ads] Paid event: {adValue.Value} {adValue.CurrencyCode} ({adValue.Precision})");
         };
     }
 
@@ -189,8 +189,9 @@ public class AdsRewardedManager : MonoBehaviour
                 else
                     Debug.LogWarning("[Ads] StatsManager missing, cannot grant diamonds.");
             },
-            onClosed: () => Debug.Log("[Ads] Rewarded closed."),
+            onClosed: () => DevLog.Log("[Ads] Rewarded closed."),
             onFailed: err => Debug.LogWarning($"[Ads] Rewarded failed: {err}")
         );
     }
 }
+

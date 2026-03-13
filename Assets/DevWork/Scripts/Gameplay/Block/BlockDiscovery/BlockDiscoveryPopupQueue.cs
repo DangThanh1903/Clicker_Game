@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using Game.Discovery;
@@ -52,7 +52,9 @@ public class BlockDiscoveryPopupQueue : MonoBehaviour
         {
             BlockDiscoveryService.Ins.OnBlockDiscovered += Enqueue;
             _subscribed = true;
-            Debug.Log("[DiscoveryPopupQueue] Subscribed to OnBlockDiscovered");
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            DevLog.Log("[DiscoveryPopupQueue] Subscribed to OnBlockDiscovered");
+#endif
         }
 
         _subscribeRoutine = null;
@@ -60,7 +62,9 @@ public class BlockDiscoveryPopupQueue : MonoBehaviour
 
     private void Enqueue(string blockName)
     {
-        Debug.Log($"[DiscoveryPopupQueue] Enqueue {blockName}");
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        DevLog.Log($"[DiscoveryPopupQueue] Enqueue {blockName}");
+#endif
         _queue.Enqueue(blockName);
         if (_runRoutine == null)
             _runRoutine = StartCoroutine(RunQueue());
@@ -113,3 +117,4 @@ public class BlockDiscoveryPopupQueue : MonoBehaviour
         _runRoutine = null;
     }
 }
+

@@ -1,4 +1,4 @@
-#if UNITY_EDITOR
+﻿#if UNITY_EDITOR
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -89,7 +89,7 @@ public class BlockUVDatabaseEditor : Editor
 
         EditorUtility.SetDirty(db);
         AssetDatabase.SaveAssets();
-        Debug.Log($"[BlockUVDatabaseEditor] Imported {imported} block rows from CSV.");
+        DevLog.Log($"[BlockUVDatabaseEditor] Imported {imported} block rows from CSV.");
     }
 
     private static void ParseOutlineVisual(string raw, Color fallbackColor, float fallbackIntensity, out Color color, out float intensity)
@@ -281,3 +281,4 @@ public class BlockUVDatabaseEditor : Editor
     }
 }
 #endif
+

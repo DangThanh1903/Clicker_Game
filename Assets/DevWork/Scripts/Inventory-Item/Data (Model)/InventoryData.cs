@@ -1,4 +1,4 @@
-using Sirenix.OdinInspector;
+﻿using Sirenix.OdinInspector;
 using UniRx;
 using UnityEngine;
 using System.Collections.Generic;
@@ -94,7 +94,7 @@ public class InventoryData : ScriptableObject
                 Items[i] = new InventoryItem(item.itemData, toAdd);
                 item.quantity.Value -= toAdd;
                 InventoryChanged.OnNext(item);
-                Debug.Log("Try place in empty slot");
+                DevLog.Log("Try place in empty slot");
                 if (item.quantity.Value <= 0) return true;
             }
         }
@@ -215,3 +215,4 @@ public class InventoryData : ScriptableObject
 
     private bool IsValidSlot(int index) => index >= 0 && index < Items.Count && Items[index] != null;
 }
+

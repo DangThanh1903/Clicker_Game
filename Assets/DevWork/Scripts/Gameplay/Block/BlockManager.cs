@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using Lean.Pool;
 using UnityEngine;
@@ -62,7 +62,7 @@ public class BlockManager : MonoBehaviour
     {
         if (activeBoss)
         {
-            Debug.Log("[BossSpawner] Boss already active.");
+            DevLog.Log("[BossSpawner] Boss already active.");
             return activeBoss;
         }
 
@@ -85,7 +85,7 @@ public class BlockManager : MonoBehaviour
 
         if (IsBossOutOfCondition())
         {
-            Debug.Log($"[BossSpawner] Boss {activeBossInfo.bossName} cannot be summoned due to time/weather conditions.");
+            DevLog.Log($"[BossSpawner] Boss {activeBossInfo.bossName} cannot be summoned due to time/weather conditions.");
             // Game log
             return null;
         }
@@ -261,3 +261,4 @@ public class BlockManager : MonoBehaviour
         CurrentBlockChanged?.Invoke(blockName);
     }
 }
+

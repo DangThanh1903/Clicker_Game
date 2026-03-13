@@ -1,4 +1,4 @@
-using Sirenix.OdinInspector;
+﻿using Sirenix.OdinInspector;
 using UnityEngine;
 using UniRx;
 using UnityEngine.AddressableAssets;
@@ -34,7 +34,7 @@ public class InventoryItem
             if (handle.Status == AsyncOperationStatus.Succeeded)
             {
                 _none = handle.Result;
-                Debug.Log("Loaded 'None' item.");
+                DevLog.Log("Loaded 'None' item.");
                 onLoaded?.Invoke();
             }
             else
@@ -68,3 +68,4 @@ public class InventoryItem
         return toAdd;
     }
 }
+

@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.Rendering; // AmbientMode
 using UniRx;
 using System;
@@ -340,7 +340,7 @@ public class TimeSystem : MonoBehaviour
     private void SwitchToDay()
     {
         CurrentTimeState.Value = TimeState.Day;
-        Debug.Log("Switched to Day");
+        DevLog.Log("Switched to Day");
         GameDebugHandler.LogStaticKey("UI_Debug", "time_day");
         WeatherManager.Instance?.ClearSpecialWeatherAndTriggerNext();
     }
@@ -348,7 +348,7 @@ public class TimeSystem : MonoBehaviour
     private void SwitchToNight()
     {
         CurrentTimeState.Value = TimeState.Night;
-        Debug.Log("Switched to Night");
+        DevLog.Log("Switched to Night");
         GameDebugHandler.LogStaticKey("UI_Debug", "time_night");
         WeatherManager.Instance?.ClearSpecialWeatherAndTriggerNext();
     }
@@ -359,3 +359,4 @@ public class TimeSystem : MonoBehaviour
         CurrentTime.Value = (CurrentTime.Value + deltaSeconds) % CycleLength;
     }
 }
+

@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Text;
 using TMPro;
 using UnityEngine;
@@ -138,7 +138,7 @@ public class TMPChangeWatcher : MonoBehaviour
         }
 
         if (shown > 0)
-            Debug.Log(sb.ToString(), this);
+            DevLog.Log(sb.ToString(), this);
     }
 
     private static string GetPath(Transform t)
@@ -153,3 +153,4 @@ public class TMPChangeWatcher : MonoBehaviour
         return path;
     }
 }
+

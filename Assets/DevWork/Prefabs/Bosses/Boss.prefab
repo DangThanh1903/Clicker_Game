@@ -899,6 +899,7 @@ GameObject:
   - component: {fileID: 6021545352703993269}
   - component: {fileID: 3085339068626609759}
   - component: {fileID: 372659972207645479}
+  - component: {fileID: 4853219076543210001}
   m_Layer: 6
   m_Name: Boss
   m_TagString: Untagged
@@ -1022,6 +1023,18 @@ MonoBehaviour:
   minSeparation: 0.3
   normalJitterRange: 0.15
   specialJitterRange: 0.15
+--- !u!114 &4853219076543210001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7950708091266567536}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d5cae298b9e34133bb4e8968012f1626, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!114 &6021545352703993269
 MonoBehaviour:
   m_ObjectHideFlags: 0

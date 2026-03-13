@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -57,7 +57,7 @@ public class CraftRecipePanel : MonoBehaviour
             return;
         }
 
-        // lấy recipe đầu tiên (nếu có nhiều bạn có thể làm UI để chuyển tab)
+        // láº¥y recipe Ä‘áº§u tiĂªn (náº¿u cĂ³ nhiá»u báº¡n cĂ³ thá»ƒ lĂ m UI Ä‘á»ƒ chuyá»ƒn tab)
         ShowRecipe(list[0]);
     }
 
@@ -71,7 +71,7 @@ public class CraftRecipePanel : MonoBehaviour
 
         currentRecipe = recipe;
 
-        // Fill ingredients (đã normalize 4 slot trong DB; nếu không, tự bảo vệ null)
+        // Fill ingredients (Ä‘Ă£ normalize 4 slot trong DB; náº¿u khĂ´ng, tá»± báº£o vá»‡ null)
         for (int i = 0; i < 4; i++)
         {
             var it = (i < recipe.ingredients.Count) ? recipe.ingredients[i] : null;
@@ -81,7 +81,7 @@ public class CraftRecipePanel : MonoBehaviour
             if (ingIcons != null && i < ingIcons.Length && ingIcons[i])
             {
                 ingIcons[i].sprite = data != null && data.Type != ItemType.None ? data.icon : null;
-                ingIcons[i].color = data != null && data.Type != ItemType.None ? Color.white : new Color(1,1,1,0); // ẩn nếu null
+                ingIcons[i].color = data != null && data.Type != ItemType.None ? Color.white : new Color(1,1,1,0); // áº©n náº¿u null
             }
 
             if (ingQtyTexts != null && i < ingQtyTexts.Length && ingQtyTexts[i])
@@ -150,7 +150,7 @@ public class CraftRecipePanel : MonoBehaviour
     public void ShowEmpty(string reason = "")
     {
         currentRecipe = null;
-        // Xoá/ẩn sạch slot
+        // XoĂ¡/áº©n sáº¡ch slot
         for (int i = 0; i < 4; i++)
         {
             if (ingIcons != null && i < ingIcons.Length && ingIcons[i])
@@ -173,8 +173,8 @@ public class CraftRecipePanel : MonoBehaviour
         if (root) root.SetActive(true);
         else gameObject.SetActive(true);
 
-        // (tuỳ chọn) có thể hiển thị một label “No recipe”
-        Debug.Log($"RecipePanel: {reason}");
+        // (tuá»³ chá»n) cĂ³ thá»ƒ hiá»ƒn thá»‹ má»™t label â€œNo recipeâ€
+        DevLog.Log($"RecipePanel: {reason}");
     }
 
     public void Hide()
@@ -242,3 +242,4 @@ public class CraftRecipePanel : MonoBehaviour
         }
     }
 }
+

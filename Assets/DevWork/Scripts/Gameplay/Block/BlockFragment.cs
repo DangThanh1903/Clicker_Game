@@ -10,7 +10,8 @@ public class BlockFragment : MonoBehaviour
     [SerializeField] bool useMaterialInstanceFallback = false;
 
     [Header("Interaction")]
-    [SerializeField] bool setIgnoreRaycastLayer = true;
+    [SerializeField, Tooltip("When enabled, validates that this prefab already uses Ignore Raycast layer. No runtime auto-fix.")]
+    bool setIgnoreRaycastLayer = true;
     [SerializeField] string ignoreRaycastLayerName = "Ignore Raycast";
 
     [Header("Physics Launch")]
@@ -50,9 +51,9 @@ public class BlockFragment : MonoBehaviour
     Collider physicsCollider;
     Tween scaleTween;
     Coroutine despawnRoutine;
-    Coroutine outOfCameraRoutine;
     int ignoreRaycastLayer = -1;
     bool warnedMissingIgnoreRaycastLayer;
+    bool warnedInvalidIgnoreRaycastLayer;
     bool warnedMissingRigidbody;
     bool warnedMissingCollider;
     bool warnedInvalidMeshCollider;
@@ -65,6 +66,8 @@ public class BlockFragment : MonoBehaviour
     static readonly int BaseMapStId = Shader.PropertyToID("_BaseMap_ST");
 
     Vector3 initialLocalScale;
+    float nextOutOfCameraCheckAt;
+    float outOfCameraElapsed;
 
     void Awake()
     {
@@ -74,7 +77,7 @@ public class BlockFragment : MonoBehaviour
         physicsCollider = GetComponent<Collider>();
         initialLocalScale = transform.localScale;
         physicsConfigured = ConfigurePhysicsComponents();
-        ApplyIgnoreRaycastLayer();
+        ValidateIgnoreRaycastLayer();
         ApplyRendererOptimization();
     }
 
@@ -83,21 +86,21 @@ public class BlockFragment : MonoBehaviour
         transform.localScale = initialLocalScale;
         KillTweens();
         StopDespawnRoutine();
-        StopOutOfCameraRoutine();
-        ApplyIgnoreRaycastLayer();
+        ResetOutOfCameraCullingState();
+        if (despawnWhenOutOfCamera)
+            BlockFragmentCullingManager.Register(this);
+        ValidateIgnoreRaycastLayer();
         ApplyRendererOptimization();
         if (!physicsConfigured)
             physicsConfigured = ConfigurePhysicsComponents();
         LaunchWithPhysicsInternal(null, 1f, 0, true);
-
-        StartOutOfCameraRoutine();
     }
 
     void OnDisable()
     {
         KillTweens();
         StopDespawnRoutine();
-        StopOutOfCameraRoutine();
+        BlockFragmentCullingManager.Unregister(this);
         transform.localScale = initialLocalScale;
 
         if (rb != null)
@@ -213,7 +216,7 @@ public class BlockFragment : MonoBehaviour
         }
     }
 
-    void ApplyIgnoreRaycastLayer()
+    void ValidateIgnoreRaycastLayer()
     {
         if (!setIgnoreRaycastLayer)
             return;
@@ -232,18 +235,16 @@ public class BlockFragment : MonoBehaviour
         }
 
         if (gameObject.layer != ignoreRaycastLayer)
-            SetLayerRecursively(gameObject, ignoreRaycastLayer);
-    }
-
-    static void SetLayerRecursively(GameObject root, int layer)
-    {
-        if (root == null)
-            return;
-
-        root.layer = layer;
-        var transforms = root.GetComponentsInChildren<Transform>(true);
-        for (int i = 0; i < transforms.Length; i++)
-            transforms[i].gameObject.layer = layer;
+        {
+            if (!warnedInvalidIgnoreRaycastLayer)
+            {
+                warnedInvalidIgnoreRaycastLayer = true;
+                Debug.LogError(
+                    $"[BlockFragment] '{name}' must be on layer '{ignoreRaycastLayerName}'. " +
+                    $"Current layer is '{LayerMask.LayerToName(gameObject.layer)}'.",
+                    this);
+            }
+        }
     }
 
     bool ConfigurePhysicsComponents()
@@ -382,51 +383,31 @@ public class BlockFragment : MonoBehaviour
         despawnRoutine = null;
     }
 
-    void StartOutOfCameraRoutine()
+    void ResetOutOfCameraCullingState()
     {
-        if (!despawnWhenOutOfCamera)
-            return;
-
-        if (outOfCameraRoutine != null)
-            StopCoroutine(outOfCameraRoutine);
-
-        outOfCameraRoutine = StartCoroutine(DespawnWhenOutOfCamera());
+        nextOutOfCameraCheckAt = 0f;
+        outOfCameraElapsed = 0f;
     }
 
-    void StopOutOfCameraRoutine()
+    internal bool ShouldDespawnOutOfCamera(float nowUnscaled)
     {
-        if (outOfCameraRoutine == null)
-            return;
+        if (!despawnWhenOutOfCamera || !isActiveAndEnabled)
+            return false;
 
-        StopCoroutine(outOfCameraRoutine);
-        outOfCameraRoutine = null;
-    }
+        if (nowUnscaled < nextOutOfCameraCheckAt)
+            return false;
 
-    IEnumerator DespawnWhenOutOfCamera()
-    {
         float interval = Mathf.Max(0.02f, outOfCameraCheckInterval);
-        float grace = Mathf.Max(0f, outOfCameraGraceTime);
-        var wait = new WaitForSecondsRealtime(interval);
-        float outTimer = 0f;
+        nextOutOfCameraCheckAt = nowUnscaled + interval;
 
-        while (isActiveAndEnabled)
+        if (IsOutOfMainCameraView())
         {
-            if (IsOutOfMainCameraView())
-            {
-                outTimer += interval;
-                if (outTimer >= grace)
-                {
-                    LeanPool.Despawn(gameObject);
-                    yield break;
-                }
-            }
-            else
-            {
-                outTimer = 0f;
-            }
-
-            yield return wait;
+            outOfCameraElapsed += interval;
+            return outOfCameraElapsed >= Mathf.Max(0f, outOfCameraGraceTime);
         }
+
+        outOfCameraElapsed = 0f;
+        return false;
     }
 
     bool IsOutOfMainCameraView()

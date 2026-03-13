@@ -1,4 +1,4 @@
-using Sirenix.OdinInspector;
+﻿using Sirenix.OdinInspector;
 using UnityEngine;
 using UniRx;
 using System;
@@ -114,6 +114,9 @@ public class ClickableObject : MonoBehaviour, IDamageReceiver, IPointerHitContex
     private Vector3 baseAliveScale;
     private Vector3 lastClickWorldPoint;
     private bool hasLastClickWorldPoint;
+    private Vector3 lastPointerRayDirection;
+    private bool hasLastPointerRayDirection;
+    private int lastPointerHitFrame = -1;
     private Mesh generatedCubeMesh;
     private MeshFilter meshFilter;
     private readonly Vector2[] cubeUvBuffer = new Vector2[24];
@@ -232,6 +235,72 @@ public class ClickableObject : MonoBehaviour, IDamageReceiver, IPointerHitContex
         onClickPos = GetUIPosition(cam, worldPoint);
         lastClickWorldPoint = worldPoint;
         hasLastClickWorldPoint = true;
+        Ray ray = cam.ScreenPointToRay(Input.mousePosition);
+        lastPointerRayDirection = ray.direction.normalized;
+        hasLastPointerRayDirection = true;
+        lastPointerHitFrame = Time.frameCount;
+    }
+
+    public bool TryGetPointerScreenDirectionFromCenter(out Vector2 direction, out float distancePx, int maxAgeFrames = -1)
+    {
+        direction = Vector2.zero;
+        distancePx = 0f;
+
+        if (!HasPointerHitWithinFrames(maxAgeFrames))
+            return false;
+
+        var cam = ResolveMainCamera();
+        if (cam == null)
+            return false;
+
+        Vector3 centerScreen = cam.WorldToScreenPoint(transform.position);
+        Vector3 hitScreen = cam.WorldToScreenPoint(lastClickWorldPoint);
+        if (centerScreen.z <= 0f || hitScreen.z <= 0f)
+            return false;
+
+        Vector2 delta = new Vector2(hitScreen.x - centerScreen.x, hitScreen.y - centerScreen.y);
+        distancePx = delta.magnitude;
+        if (distancePx <= 0.0001f)
+            return false;
+
+        direction = delta / distancePx;
+        return true;
+    }
+
+    public bool TryGetPointerTorqueWorldAxis(out Vector3 worldAxis, int maxAgeFrames = -1)
+    {
+        worldAxis = Vector3.zero;
+        if (!HasPointerHitWithinFrames(maxAgeFrames))
+            return false;
+
+        // Physical torque from a ray "push": tau = r x F
+        // r: vector from center of mass to hit point, F: ray direction into scene.
+        if (!hasLastPointerRayDirection || lastPointerRayDirection.sqrMagnitude <= 0.000001f)
+            return false;
+
+        Vector3 forceDir = lastPointerRayDirection;
+
+        Vector3 r = lastClickWorldPoint - transform.position;
+        if (r.sqrMagnitude <= 0.000001f)
+            return false;
+
+        Vector3 torqueWorld = Vector3.Cross(r, forceDir);
+        if (torqueWorld.sqrMagnitude <= 0.000001f)
+            return false;
+
+        worldAxis = torqueWorld.normalized;
+        return true;
+    }
+
+    private bool HasPointerHitWithinFrames(int maxAgeFrames)
+    {
+        if (!hasLastClickWorldPoint || lastPointerHitFrame < 0)
+            return false;
+
+        if (maxAgeFrames < 0)
+            return true;
+
+        return Time.frameCount - lastPointerHitFrame <= maxAgeFrames;
     }
 
 
@@ -296,7 +365,9 @@ public class ClickableObject : MonoBehaviour, IDamageReceiver, IPointerHitContex
 
         Toaster.Show($"-{power:F1}", null, 0.2f, onClickPos);
 
-        if (string.Equals(source, "click", StringComparison.Ordinal) && hasLastClickWorldPoint)
+        if ((string.Equals(source, "click", StringComparison.Ordinal) ||
+             string.Equals(source, "hold", StringComparison.Ordinal)) &&
+            hasLastClickWorldPoint)
             VFXManager.Ins?.PlayBlockClickVfx(lastClickWorldPoint);
 
         animCtrl?.PlayClick();
@@ -318,7 +389,7 @@ public class ClickableObject : MonoBehaviour, IDamageReceiver, IPointerHitContex
     {
         if (drops == null || drops.Count == 0)
         {
-            Debug.Log("There is no item drop");
+            DevLog.Log("There is no item drop");
             GameDebugHandler.LogStaticKey(
                 "UI_Debug",
                 "block_drops_none",
@@ -812,6 +883,7 @@ public class ClickableObject : MonoBehaviour, IDamageReceiver, IPointerHitContex
     }
     #endregion
 }
+
 
 
 

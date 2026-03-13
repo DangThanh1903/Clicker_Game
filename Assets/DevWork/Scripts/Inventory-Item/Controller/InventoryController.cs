@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using TMPro;
@@ -42,7 +42,7 @@ public class InventoryController : MonoBehaviour
 
         InventoryItem.LoadNoneItem(() =>
         {
-            Debug.Log("'None' item ready for inventory.");
+            DevLog.Log("'None' item ready for inventory.");
         });
 
     }
@@ -273,7 +273,7 @@ public class InventoryController : MonoBehaviour
     InventoryData toData, int toIndex,
     SlotAcceptRuleSO fromRule, SlotAcceptRuleSO toRule)
     {
-        Debug.Log("Attempting swap...");
+        DevLog.Log("Attempting swap...");
 
         if (fromData == null || toData == null) return false;
         if (fromIndex < 0 || fromIndex >= fromData.Items.Count) return false;
@@ -301,10 +301,10 @@ public class InventoryController : MonoBehaviour
             }
         }
 
-        // Same item type and stackable → Proper stacking logic
+        // Same item type and stackable â†’ Proper stacking logic
         if (itemA.itemData == itemB.itemData && itemA.itemData.MaxStack > 1)
         {
-            Debug.Log("Stacking items");
+            DevLog.Log("Stacking items");
 
             int totalQuantity = itemA.quantity.Value + itemB.quantity.Value;
             int maxStack = itemB.itemData.MaxStack;
@@ -335,7 +335,7 @@ public class InventoryController : MonoBehaviour
         fromData.SetItem(fromIndex, itemB, true);
         toData.SetItem(toIndex, itemA, true);
 
-        Debug.Log("Swapped items");
+        DevLog.Log("Swapped items");
 
         if (fromData.inventoryType != InventoryType.Inventory || toData.inventoryType != InventoryType.Inventory)
         {
@@ -451,8 +451,8 @@ public class InventoryController : MonoBehaviour
     void UpdateStat()
     {
         StatsManager.Ins.RecalculateAllStats();
-        UpdateStatTextsImmediate();     // ✅ update list text ngay lập tức
-        UpdateStatDescription();        // ✅ update description (buffs)
+        UpdateStatTextsImmediate();     // âœ… update list text ngay láº­p tá»©c
+        UpdateStatDescription();        // âœ… update description (buffs)
     }
 
 
@@ -461,10 +461,10 @@ public class InventoryController : MonoBehaviour
         var activeBuffs    = StatsManager.Ins.ActiveBuffs?.ToList()    ?? new List<BuffInstance>();
         var conditionBuffs = StatsManager.Ins.ConditionBuffs?.ToList() ?? new List<BuffInstance>();
 
-        // ✅ Update stat list (đề phòng thay đổi state/buff)
+        // âœ… Update stat list (Ä‘á» phĂ²ng thay Ä‘á»•i state/buff)
         UpdateStatTextsImmediate();
 
-        // ✅ Chỉ show buff vào description
+        // âœ… Chá»‰ show buff vĂ o description
         if (!isItemDescriptionLocked)
         {
             string buffText = GetBuffOnlyDescription(activeBuffs, conditionBuffs);
@@ -476,7 +476,7 @@ public class InventoryController : MonoBehaviour
     {
         if (statTexts == null || statTexts.Count == 0) return;
 
-        // Order: HP, Mana, Damage, Crit, Def (giống bạn đang build)
+        // Order: HP, Mana, Damage, Crit, Def (giá»‘ng báº¡n Ä‘ang build)
         var hp   = StatsManager.Ins.Get(StatType.HP);
         var mana = StatsManager.Ins.Get(StatType.Mana);
         var dmg  = GetDamageByState();
@@ -484,7 +484,7 @@ public class InventoryController : MonoBehaviour
         var def  = StatsManager.Ins.Get(StatType.Def);
         var luck = StatsManager.Ins.Get(StatType.Lucky);
 
-        // đảm bảo list đủ phần tử
+        // Ä‘áº£m báº£o list Ä‘á»§ pháº§n tá»­
         void Set(int idx, string value)
         {
             if (idx >= 0 && idx < statTexts.Count && statTexts[idx] != null)
@@ -551,7 +551,7 @@ public class InventoryController : MonoBehaviour
         if (consumable.buffToApply != null)
         {
             StatsManager.Ins.ApplyConsumableBuff(consumable.buffToApply);
-            Debug.Log($"Applied buff: {consumable.buffToApply.buffName}");
+            DevLog.Log($"Applied buff: {consumable.buffToApply.buffName}");
         }
     }
 
@@ -571,3 +571,4 @@ public class InventoryController : MonoBehaviour
         caseRollController.UseLootbox(lootbox);
     }
 }
+

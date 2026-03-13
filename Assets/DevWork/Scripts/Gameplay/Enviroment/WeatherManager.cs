@@ -1,4 +1,4 @@
-using UniRx;
+﻿using UniRx;
 using System.Collections.Generic;
 using UnityEngine;
 using System;
@@ -111,7 +111,7 @@ public class WeatherManager : MonoBehaviour
 
         CurrentSpecialWeather.Value = nextWeather;
         var name = nextWeather?.weatherName.ToString() ?? "Cleared";
-        Debug.Log($"[Special Weather] {name}");
+        DevLog.Log($"[Special Weather] {name}");
     }
     public void ClearSpecialWeatherAndTriggerNext()
     {
@@ -152,3 +152,4 @@ public class WeatherManager : MonoBehaviour
         return validWeathers[0]; // fallback
     }
 }
+

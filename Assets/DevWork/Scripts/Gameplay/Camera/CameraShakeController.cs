@@ -32,6 +32,7 @@ public class CameraShakeController : MonoBehaviour
 
     private static bool hasCachedEnabled;
     private static bool cachedEnabled;
+    private static bool hasLoggedMissingInstance;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetStaticState()
@@ -39,6 +40,7 @@ public class CameraShakeController : MonoBehaviour
         Ins = null;
         hasCachedEnabled = false;
         cachedEnabled = true;
+        hasLoggedMissingInstance = false;
     }
 
     public static bool IsEnabled()
@@ -68,7 +70,7 @@ public class CameraShakeController : MonoBehaviour
         if (!IsEnabled())
             return;
 
-        CameraShakeController instance = ResolveOrCreate();
+        CameraShakeController instance = ResolveExisting();
         if (instance == null)
             return;
 
@@ -76,22 +78,19 @@ public class CameraShakeController : MonoBehaviour
         instance.AddTrauma(traumaAmount);
     }
 
-    private static CameraShakeController ResolveOrCreate()
+    private static CameraShakeController ResolveExisting()
     {
         if (Ins != null)
             return Ins;
 
-        var cam = Camera.main;
-        if (cam == null)
-            cam = Object.FindObjectOfType<Camera>();
-        if (cam == null)
-            return null;
-
-        var instance = cam.GetComponent<CameraShakeController>();
-        if (instance != null)
-            return instance;
-
-        return cam.gameObject.AddComponent<CameraShakeController>();
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        if (!hasLoggedMissingInstance)
+        {
+            hasLoggedMissingInstance = true;
+            Debug.LogError("[CameraShakeController] No instance bound in scene. Add CameraShakeController to the active camera.");
+        }
+#endif
+        return null;
     }
 
     private void Awake()
@@ -103,6 +102,7 @@ public class CameraShakeController : MonoBehaviour
         }
 
         Ins = this;
+        hasLoggedMissingInstance = false;
         if (shakeTarget == null)
             shakeTarget = transform;
         UpgradeLegacySerializedValues();

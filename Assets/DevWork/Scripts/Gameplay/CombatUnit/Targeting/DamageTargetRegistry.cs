@@ -7,28 +7,25 @@ public interface ITargetRegistry
     void CompactInvalidTargets();
 }
 
-public sealed class DamageTargetRegistryRuntimeAdapter : ITargetRegistry
+public interface ITargetRegistryWriter : ITargetRegistry
 {
-    public static readonly DamageTargetRegistryRuntimeAdapter Instance = new DamageTargetRegistryRuntimeAdapter();
-
-    private DamageTargetRegistryRuntimeAdapter()
-    {
-    }
-
-    public IReadOnlyList<IDamageReceiver> ActiveTargets => DamageTargetRegistry.ActiveTargets;
-
-    public void CompactInvalidTargets()
-    {
-        DamageTargetRegistry.CompactInvalidTargets();
-    }
+    void Register(IDamageReceiver target);
+    void Unregister(IDamageReceiver target);
+    void Clear();
 }
 
-public static class DamageTargetRegistry
+public sealed class RuntimeDamageTargetRegistry : ITargetRegistryWriter
 {
-    private static readonly List<IDamageReceiver> activeTargets = new List<IDamageReceiver>(32);
-    public static IReadOnlyList<IDamageReceiver> ActiveTargets => activeTargets;
+    private readonly List<IDamageReceiver> activeTargets;
 
-    public static void Register(IDamageReceiver target)
+    public RuntimeDamageTargetRegistry(int initialCapacity = 32)
+    {
+        activeTargets = new List<IDamageReceiver>(Mathf.Max(1, initialCapacity));
+    }
+
+    public IReadOnlyList<IDamageReceiver> ActiveTargets => activeTargets;
+
+    public void Register(IDamageReceiver target)
     {
         if (IsNullTarget(target))
             return;
@@ -39,7 +36,7 @@ public static class DamageTargetRegistry
         activeTargets.Add(target);
     }
 
-    public static void Unregister(IDamageReceiver target)
+    public void Unregister(IDamageReceiver target)
     {
         if (activeTargets.Count == 0)
             return;
@@ -52,7 +49,7 @@ public static class DamageTargetRegistry
         }
     }
 
-    public static void CompactInvalidTargets()
+    public void CompactInvalidTargets()
     {
         if (activeTargets.Count == 0)
             return;
@@ -62,6 +59,11 @@ public static class DamageTargetRegistry
             if (IsNullTarget(activeTargets[i]))
                 activeTargets.RemoveAt(i);
         }
+    }
+
+    public void Clear()
+    {
+        activeTargets.Clear();
     }
 
     private static bool IsNullTarget(IDamageReceiver target)

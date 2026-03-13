@@ -47,6 +47,10 @@ public class UIManager : MonoBehaviour
     private bool isOpenSetting;
     [SerializeField] private Button settingButton;
 
+    [Header("Inventory Camera Focus")]
+    [SerializeField] private int inventoryPageIndex = 0;
+    [SerializeField] private InventoryChestCameraFocus inventoryCameraFocus;
+
     [Header("Location")]
     [SerializeField] private Image[] locationBackground;
     [SerializeField] private Sprite[] locationTexture2D;
@@ -91,11 +95,54 @@ public class UIManager : MonoBehaviour
 
             buttons[index].onClick.AddListener(() =>
             {
-                if (isTweening || currentIndex == index) return;
-                SlideTo(index);
-                BottomButtonAnim(index);
+                TryOpenPage(index, useInventoryCameraFocus: true);
             });
         }
+    }
+
+    private void TryOpenPage(int targetIndex, bool useInventoryCameraFocus)
+    {
+        if (navigationLocked)
+            return;
+
+        targetIndex = Mathf.Clamp(targetIndex, 0, panels.Count - 1);
+        if (isTweening || currentIndex == targetIndex)
+            return;
+
+        if (useInventoryCameraFocus &&
+            targetIndex == inventoryPageIndex &&
+            inventoryCameraFocus != null &&
+            inventoryCameraFocus.CanFocus)
+        {
+            BeginInventoryCameraFocusThenSlide(targetIndex);
+            return;
+        }
+
+        SlideTo(targetIndex);
+        BottomButtonAnim(targetIndex);
+    }
+
+    private void BeginInventoryCameraFocusThenSlide(int targetIndex)
+    {
+        isTweening = true;
+        if (disableButtonInteractableWhileSliding)
+            SetButtonsInteractable(false);
+
+        inventoryCameraFocus.PlayFocusThen(() =>
+        {
+            if (this == null || !isActiveAndEnabled)
+                return;
+
+            isTweening = false;
+            if (disableButtonInteractableWhileSliding)
+                SetButtonsInteractable(true);
+
+            if (currentIndex == targetIndex)
+                return;
+
+            SlideTo(targetIndex);
+            BottomButtonAnim(targetIndex);
+        });
     }
 
     void SlideTo(int target)
@@ -103,6 +150,14 @@ public class UIManager : MonoBehaviour
         if (navigationLocked) return;
         RefreshLayout(snapToCurrent: false);
         target = Mathf.Clamp(target, 0, panels.Count - 1);
+
+        if (currentIndex == inventoryPageIndex &&
+            target != inventoryPageIndex &&
+            inventoryCameraFocus != null &&
+            inventoryCameraFocus.RestoreOnExit)
+        {
+            inventoryCameraFocus.RestoreGameplayView();
+        }
 
         int previousIndex = currentIndex;
         if (previousIndex == target)
@@ -144,17 +199,17 @@ public class UIManager : MonoBehaviour
 
     public void MoveToMain()
     {
-        if (navigationLocked) return;
-        SlideTo(startIndex);
-        BottomButtonAnim(startIndex);
+        TryOpenPage(startIndex, useInventoryCameraFocus: true);
     }
 
     public void GoToPage(int index)
     {
-        if (navigationLocked) return;
-        if (isTweening || currentIndex == index) return;
-        SlideTo(index);
-        BottomButtonAnim(index);
+        GoToPage(index, useInventoryCameraFocus: true);
+    }
+
+    public void GoToPage(int index, bool useInventoryCameraFocus)
+    {
+        TryOpenPage(index, useInventoryCameraFocus);
     }
 
     void ActivateOnly(int idx, bool snap)
@@ -185,7 +240,11 @@ public class UIManager : MonoBehaviour
             var panel = panels[i];
             if (panel == null) continue;
             var cg = panelGroups.Count > i ? panelGroups[i] : null;
-            if (cg == null) continue;
+            if (cg == null)
+            {
+                panel.gameObject.SetActive(i >= from && i <= to);
+                continue;
+            }
 
             bool visible = i >= from && i <= to;
             bool interact = allowInteract && i == to;
@@ -215,7 +274,11 @@ public class UIManager : MonoBehaviour
 
             var cg = panel.GetComponent<CanvasGroup>();
             if (cg == null)
-                cg = panel.gameObject.AddComponent<CanvasGroup>();
+            {
+                Debug.LogError($"[UIManager] keepPanelsActive requires CanvasGroup on panel '{panel.name}'.", panel);
+                panelGroups.Add(null);
+                continue;
+            }
 
             panelGroups.Add(cg);
         }
@@ -322,6 +385,7 @@ public class UIManager : MonoBehaviour
 
         navButtonLayouts.Clear();
         navButtonBaseWidths.Clear();
+        bool hasAnyLayoutElement = false;
 
         for (int i = 0; i < buttons.Count; i++)
         {
@@ -343,10 +407,22 @@ public class UIManager : MonoBehaviour
 
             var layout = btn.GetComponent<LayoutElement>();
             if (layout == null)
-                layout = btn.gameObject.AddComponent<LayoutElement>();
+            {
+                Debug.LogError($"[UIManager] animateSelectedButtonWidth requires LayoutElement on button '{btn.name}'.", btn);
+                navButtonLayouts.Add(null);
+                navButtonBaseWidths.Add(0f);
+                continue;
+            }
 
             navButtonLayouts.Add(layout);
             navButtonBaseWidths.Add(0f);
+            hasAnyLayoutElement = true;
+        }
+
+        if (!hasAnyLayoutElement)
+        {
+            animateSelectedButtonWidth = false;
+            return;
         }
 
         RefreshBottomButtonWidthBase();

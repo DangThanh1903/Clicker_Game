@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -143,7 +143,7 @@ public class FirebaseBootstrap : MonoBehaviour
 
         State = FirebaseInitState.Ready;
         readyTcs.TrySetResult(true);
-        Debug.Log($"✅ Firebase ready. uid={Uid}");
+        DevLog.Log($"âœ… Firebase ready. uid={Uid}");
 
         if (runDiagnosticsOnReady)
             StartCoroutine(CoRunDiagnostics());
@@ -154,7 +154,7 @@ public class FirebaseBootstrap : MonoBehaviour
         InitError = ex;
         State = FirebaseInitState.Failed;
         readyTcs.TrySetException(ex);
-        Debug.LogError($"❌ Firebase init failed: {ex}");
+        Debug.LogError($"âŒ Firebase init failed: {ex}");
     }
 
     IEnumerator CoRunDiagnostics()
@@ -173,11 +173,11 @@ public class FirebaseBootstrap : MonoBehaviour
             var app = FirebaseApp.DefaultInstance;
             var opt = app.Options;
             string dbUrl = opt.DatabaseUrl != null ? opt.DatabaseUrl.ToString() : "null";
-            Debug.Log($"Firebase config: ProjectId={opt.ProjectId}, AppId={opt.AppId}, StorageBucket={opt.StorageBucket}, DatabaseUrl={dbUrl}");
+            DevLog.Log($"Firebase config: ProjectId={opt.ProjectId}, AppId={opt.AppId}, StorageBucket={opt.StorageBucket}, DatabaseUrl={dbUrl}");
         }
         catch (Exception ex)
         {
-            Debug.LogWarning($"⚠️ Firebase config log failed: {ex}");
+            Debug.LogWarning($"â ï¸ Firebase config log failed: {ex}");
         }
     }
 
@@ -185,14 +185,14 @@ public class FirebaseBootstrap : MonoBehaviour
     {
         if (Db == null)
         {
-            Debug.LogWarning("⚠️ Firestore ping skipped: Db not ready.");
+            Debug.LogWarning("â ï¸ Firestore ping skipped: Db not ready.");
             yield break;
         }
 
         string uid = Auth?.CurrentUser?.UserId;
         if (string.IsNullOrEmpty(uid))
         {
-            Debug.LogWarning("⚠️ Firestore ping skipped: uid missing.");
+            Debug.LogWarning("â ï¸ Firestore ping skipped: uid missing.");
             yield break;
         }
 
@@ -220,14 +220,15 @@ public class FirebaseBootstrap : MonoBehaviour
             }
             if (!task.IsCompleted)
             {
-                Debug.LogWarning($"⚠️ Firestore ping timed out after {timeout:F1}s.");
+                Debug.LogWarning($"â ï¸ Firestore ping timed out after {timeout:F1}s.");
                 yield break;
             }
         }
 
         if (task.Exception != null)
-            Debug.LogError($"❌ Firestore ping failed: {task.Exception}");
+            Debug.LogError($"âŒ Firestore ping failed: {task.Exception}");
         else
-            Debug.Log("✅ Firestore ping write OK.");
+            DevLog.Log("âœ… Firestore ping write OK.");
     }
 }
+

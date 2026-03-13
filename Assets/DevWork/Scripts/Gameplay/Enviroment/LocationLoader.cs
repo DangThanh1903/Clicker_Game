@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using Lean.Pool;
 using System;
 using UniRx;
@@ -72,7 +72,7 @@ public class LocationLoader : MonoBehaviour
         var loc = locationSO.GetByEnum(currentLocation);
         if (!loc.HasValue)
         {
-            Debug.Log($"No LocationData for {currentLocation}");
+            DevLog.Log($"No LocationData for {currentLocation}");
             return;
         }
 
@@ -88,7 +88,7 @@ public class LocationLoader : MonoBehaviour
     {
         if (!Enum.IsDefined(typeof(BlockSpawnLocation), index))
         {
-            Debug.Log($"Invalid location index: {index}");
+            DevLog.Log($"Invalid location index: {index}");
             return;
         }
 
@@ -96,7 +96,7 @@ public class LocationLoader : MonoBehaviour
 
         if (!isInitiate && !IsLocationUnlocked(newLoc))
         {
-            Debug.Log($"Location is locked: {newLoc}");
+            DevLog.Log($"Location is locked: {newLoc}");
             return;
         }
 
@@ -123,7 +123,7 @@ public class LocationLoader : MonoBehaviour
         var data = locationSO.GetByEnum(newLoc);
         if (!data.HasValue)
         {
-            Debug.Log($"No LocationData for {newLoc}");
+            DevLog.Log($"No LocationData for {newLoc}");
             return;
         }
 
@@ -206,7 +206,7 @@ public class LocationLoader : MonoBehaviour
     {
         if (data.prefab == null)
         {
-            Debug.Log($"Prefab is null for {data.location}");
+            DevLog.Log($"Prefab is null for {data.location}");
             return;
         }
 
@@ -302,3 +302,4 @@ public class LocationLoader : MonoBehaviour
         }
     }
 }
+

@@ -1,4 +1,4 @@
-#if UNITY_EDITOR
+﻿#if UNITY_EDITOR
 using System.IO;
 using System.Collections.Generic;
 using UnityEditor;
@@ -22,11 +22,11 @@ public static class ItemLocalizationQuickMigrator
         var locales = new List<Locale>(LocalizationEditorSettings.GetLocales());
         if (locales.Count == 0)
         {
-            // Tạo và thêm Locale asset
+            // Táº¡o vĂ  thĂªm Locale asset
             var newLocale = Locale.CreateLocale(SOURCE_LOCALE);
             AssetDatabase.CreateAsset(newLocale, $"Assets/{SOURCE_LOCALE}.asset");
             LocalizationEditorSettings.AddLocale(newLocale);
-            Debug.Log($"[Localization] Added missing locale: {SOURCE_LOCALE}");
+            DevLog.Log($"[Localization] Added missing locale: {SOURCE_LOCALE}");
             locales = new List<Locale>(LocalizationEditorSettings.GetLocales());
         }
 
@@ -77,7 +77,7 @@ public static class ItemLocalizationQuickMigrator
             AssetDatabase.SaveAssets();
         }
 
-        Debug.Log($"Migrated {count} items. Export CSV (EN) và dịch VI sau đó Build Addressables.");
+        DevLog.Log($"Migrated {count} items. Export CSV (EN) vĂ  dá»‹ch VI sau Ä‘Ă³ Build Addressables.");
     }
 
     static StringTableCollection GetOrCreateCollection(string tableName, string assetDir, IList<Locale> locales)
@@ -100,3 +100,4 @@ public static class ItemLocalizationQuickMigrator
     }
 }
 #endif
+

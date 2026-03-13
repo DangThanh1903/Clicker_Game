@@ -4,6 +4,7 @@ using UnityEngine;
 public sealed class DamageTargetRegistrant : MonoBehaviour
 {
     private IDamageReceiver cachedTarget;
+    private bool isRegistered;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
     private bool hasLoggedMissingTarget;
 #endif
@@ -19,15 +20,25 @@ public sealed class DamageTargetRegistrant : MonoBehaviour
         if (cachedTarget == null)
             return;
 
-        DamageTargetRegistry.Register(cachedTarget);
+        CombatRuntimeBootstrap.TargetRegistryBound -= HandleTargetRegistryBound;
+        CombatRuntimeBootstrap.TargetRegistryBound += HandleTargetRegistryBound;
+        TryRegisterToRuntimeRegistry();
     }
 
     private void OnDisable()
     {
-        if (cachedTarget == null)
-            return;
+        CombatRuntimeBootstrap.TargetRegistryBound -= HandleTargetRegistryBound;
 
-        DamageTargetRegistry.Unregister(cachedTarget);
+        if (!isRegistered || cachedTarget == null)
+        {
+            isRegistered = false;
+            return;
+        }
+
+        if (CombatRuntimeBootstrap.TryGetTargetRegistryWriter(out ITargetRegistryWriter registry, logIfMissing: false))
+            registry.Unregister(cachedTarget);
+
+        isRegistered = false;
     }
 
     private IDamageReceiver ResolveTarget()
@@ -47,5 +58,26 @@ public sealed class DamageTargetRegistrant : MonoBehaviour
         hasLoggedMissingTarget = true;
         Debug.LogError($"[DamageTargetRegistrant] {message}", this);
 #endif
+    }
+
+    private void TryRegisterToRuntimeRegistry()
+    {
+        if (isRegistered || cachedTarget == null)
+            return;
+
+        if (!CombatRuntimeBootstrap.TryGetTargetRegistryWriter(out ITargetRegistryWriter registry, logIfMissing: false))
+            return;
+
+        registry.Register(cachedTarget);
+        isRegistered = true;
+    }
+
+    private void HandleTargetRegistryBound(ITargetRegistryWriter registry)
+    {
+        if (!isActiveAndEnabled || cachedTarget == null || isRegistered || registry == null)
+            return;
+
+        registry.Register(cachedTarget);
+        isRegistered = true;
     }
 }

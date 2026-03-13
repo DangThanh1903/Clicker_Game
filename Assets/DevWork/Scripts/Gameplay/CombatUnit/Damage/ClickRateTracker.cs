@@ -1,24 +1,23 @@
-using System;
 using System.Collections.Generic;
 using UnityEngine;
 
 public sealed class ClickRateTracker
 {
-    private const long DefaultWindowMs = 1000;
-    private readonly List<long> hitTimestamps;
-    private readonly long defaultWindowMs;
+    private const float DefaultWindowSeconds = 1f;
+    private readonly List<float> hitTimestamps;
+    private readonly float defaultWindowSeconds;
 
-    public ClickRateTracker(int initialCapacity = 16, long defaultWindowMs = DefaultWindowMs)
+    public ClickRateTracker(int initialCapacity = 16, float defaultWindowSeconds = DefaultWindowSeconds)
     {
-        hitTimestamps = new List<long>(Mathf.Max(1, initialCapacity));
-        this.defaultWindowMs = Mathf.Max(1, (int)defaultWindowMs);
+        hitTimestamps = new List<float>(Mathf.Max(1, initialCapacity));
+        this.defaultWindowSeconds = Mathf.Max(0.05f, defaultWindowSeconds);
     }
 
     public void RecordHitNow()
     {
-        long nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        hitTimestamps.Add(nowMs);
-        Trim(nowMs, defaultWindowMs);
+        float now = Time.unscaledTime;
+        hitTimestamps.Add(now);
+        Trim(now, defaultWindowSeconds);
     }
 
     public int GetRecentHitCount(float windowSeconds = 1f)
@@ -26,12 +25,10 @@ public sealed class ClickRateTracker
         if (hitTimestamps.Count == 0)
             return 0;
 
-        long nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        long windowMs = Math.Max(
-            50L,
-            (long)Mathf.RoundToInt(Mathf.Max(0.05f, windowSeconds) * 1000f));
+        float now = Time.unscaledTime;
+        float window = Mathf.Max(0.05f, windowSeconds);
 
-        Trim(nowMs, windowMs);
+        Trim(now, window);
         return hitTimestamps.Count;
     }
 
@@ -40,15 +37,15 @@ public sealed class ClickRateTracker
         hitTimestamps.Clear();
     }
 
-    private void Trim(long nowMs, long windowMs)
+    private void Trim(float now, float windowSeconds)
     {
-        if (windowMs <= 0)
-            windowMs = defaultWindowMs;
+        if (windowSeconds <= 0f)
+            windowSeconds = defaultWindowSeconds;
 
         int removeCount = 0;
         for (int i = 0; i < hitTimestamps.Count; i++)
         {
-            if (nowMs - hitTimestamps[i] <= windowMs)
+            if (now - hitTimestamps[i] <= windowSeconds)
                 break;
             removeCount++;
         }

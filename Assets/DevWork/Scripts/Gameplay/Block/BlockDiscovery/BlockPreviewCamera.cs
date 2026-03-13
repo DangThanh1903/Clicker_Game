@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
 #if UNITY_RENDER_PIPELINE_URP || UNITY_RENDER_PIPELINE_UNIVERSAL
@@ -63,6 +63,7 @@ namespace Game.UI.Dictionary
         private readonly List<PreviewInstance> activeInstances = new List<PreviewInstance>();
         private readonly Stack<int> freeSlots = new Stack<int>();
         private readonly Dictionary<int, ActivePreview> activePreviews = new Dictionary<int, ActivePreview>();
+        private readonly List<ActivePreview> activePreviewSnapshot = new List<ActivePreview>(128);
         private readonly HashSet<int> queuedSlots = new HashSet<int>();
         private bool warnedMissingCamera;
         private bool warnedMissingDatabase;
@@ -145,12 +146,12 @@ namespace Game.UI.Dictionary
                 hasNextRenderTime = true;
             }
 
-            var previews = new List<ActivePreview>(activePreviews.Values);
+            BuildActivePreviewSnapshot();
             int limit = Mathf.Max(1, maxRendersPerFrame);
             int processed = 0;
-            for (int i = 0; i < previews.Count && processed < limit; i++)
+            for (int i = 0; i < activePreviewSnapshot.Count && processed < limit; i++)
             {
-                var preview = previews[i];
+                var preview = activePreviewSnapshot[i];
                 if (!IsPreviewVisible(preview))
                     continue;
                 RenderBlock(preview.instance, preview.blockName, preview.slot);
@@ -163,7 +164,7 @@ namespace Game.UI.Dictionary
                 var rot = rotationSource != null ? rotationSource.localRotation : Quaternion.identity;
                 bool rotChanged = rot != lastDebugRotation;
                 lastDebugRotation = rot;
-                Debug.Log($"[BlockPreviewCamera] Update fallback tick. Active={activePreviews.Count}, Limit={limit}, RotChanged={rotChanged}");
+                DevLog.Log($"[BlockPreviewCamera] Update fallback tick. Active={activePreviews.Count}, Limit={limit}, RotChanged={rotChanged}");
             }
         }
 
@@ -186,6 +187,8 @@ namespace Game.UI.Dictionary
 #if UNITY_RENDER_PIPELINE_URP || UNITY_RENDER_PIPELINE_UNIVERSAL
             ReleaseRenderHook();
 #endif
+
+            activePreviewSnapshot.Clear();
         }
 
         public PreviewInstance AcquirePreview()
@@ -222,10 +225,18 @@ namespace Game.UI.Dictionary
             nextSlotIndex = 0;
             freeSlots.Clear();
             activePreviews.Clear();
+            activePreviewSnapshot.Clear();
             queuedSlots.Clear();
 #if UNITY_RENDER_PIPELINE_URP || UNITY_RENDER_PIPELINE_UNIVERSAL
             renderQueue.Clear();
 #endif
+        }
+
+        private void BuildActivePreviewSnapshot()
+        {
+            activePreviewSnapshot.Clear();
+            foreach (var preview in activePreviews.Values)
+                activePreviewSnapshot.Add(preview);
         }
 
         public bool TryAcquireSlot(out PreviewSlot slot)
@@ -406,7 +417,7 @@ namespace Game.UI.Dictionary
                 var rot = rotationSource != null ? rotationSource.localRotation : Quaternion.identity;
                 bool rotChanged = rot != lastDebugRotation;
                 lastDebugRotation = rot;
-                Debug.Log($"[BlockPreviewCamera] SRP tick. Queue={renderQueue.Count}, Active={activePreviews.Count}, RotChanged={rotChanged}");
+                DevLog.Log($"[BlockPreviewCamera] SRP tick. Queue={renderQueue.Count}, Active={activePreviews.Count}, RotChanged={rotChanged}");
             }
         }
 #endif
@@ -817,3 +828,4 @@ namespace Game.UI.Dictionary
         }
     }
 }
+

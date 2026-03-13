@@ -1,4 +1,4 @@
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using Firebase.Auth;
 using UnityEngine;
 
@@ -26,13 +26,14 @@ public class GooglePlayGamesLinker : MonoBehaviour
         {
             Credential credential = PlayGamesAuthProvider.GetCredential(authCode);
             var res = await FirebaseTaskTracker.Track(auth.CurrentUser.LinkWithCredentialAsync(credential));
-            Debug.Log($"✅ Linked Google Play Games. uid still = {res.User.UserId}");
+            DevLog.Log($"âœ… Linked Google Play Games. uid still = {res.User.UserId}");
             return true;
         }
         catch (System.Exception e)
         {
-            Debug.LogError($"❌ Link Google failed: {e}");
+            Debug.LogError($"âŒ Link Google failed: {e}");
             return false;
         }
     }
 }
+

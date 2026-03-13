@@ -1,4 +1,4 @@
-#if UNITY_EDITOR
+﻿#if UNITY_EDITOR
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -167,7 +167,7 @@ public class RecipeCsvAddressableImporter : Editor
         AssetDatabase.SaveAssets();
         db.Initialize();
 
-        Debug.Log($"[RecipeCsvAddressableImporter] Imported {created} recipe(s) from CSV.");
+        DevLog.Log($"[RecipeCsvAddressableImporter] Imported {created} recipe(s) from CSV.");
     }
 
     private static void BuildItemLookup(
@@ -337,3 +337,4 @@ public class RecipeCsvAddressableImporter : Editor
     }
 }
 #endif
+

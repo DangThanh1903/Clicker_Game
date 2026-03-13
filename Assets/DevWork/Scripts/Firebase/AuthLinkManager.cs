@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -289,6 +289,7 @@ public class AuthLinkManager : MonoBehaviour
     private void LogVerbose(string message)
     {
         if (verboseLogs)
-            Debug.Log(message);
+            DevLog.Log(message);
     }
 }
+

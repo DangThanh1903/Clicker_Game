@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections;
 using System.Linq;
@@ -188,14 +188,14 @@ public class QuestManager : MonoBehaviour
             var tracker = new QuestTracker(def, saved);
             dict[def.id] = tracker;
 
-            // Auto-save khi có tiến độ đổi (throttle nhẹ để giảm I/O)
+            // Auto-save khi cĂ³ tiáº¿n Ä‘á»™ Ä‘á»•i (throttle nháº¹ Ä‘á»ƒ giáº£m I/O)
             tracker.OnStepProgressChanged += t =>
             {
                 RequestSave(def.type);
                 _onQuestUpdated.OnNext(t.QuestId);
             };
 
-            // Auto-complete → save
+            // Auto-complete â†’ save
             tracker.Completed
                 .DistinctUntilChanged()
                 .Where(done => done)
@@ -688,7 +688,7 @@ public class QuestManager : MonoBehaviour
             if (reward.gemAmount > 0)
             {
                 StatsManager.Ins.Add(StatType.Diamond, reward.gemAmount);
-                Debug.Log($"[QuestManager] +{reward.gemAmount} Gems");
+                DevLog.Log($"[QuestManager] +{reward.gemAmount} Gems");
                 AnalyticsManager.Ins?.TrackCurrencyEarn("gems", reward.gemAmount, $"quest:{def.id}");
             }
         }
@@ -707,7 +707,7 @@ public class QuestManager : MonoBehaviour
                 return false;
             }
 
-            Debug.Log($"[QuestManager] +{grant.requestedQty}x {grant.item.itemData.name}");
+            DevLog.Log($"[QuestManager] +{grant.requestedQty}x {grant.item.itemData.name}");
             GameDebugHandler.LogStatic($"[Quest] +{grant.requestedQty}x {grant.item.itemData.name}");
         }
 
@@ -715,3 +715,4 @@ public class QuestManager : MonoBehaviour
     }
 
 }
+

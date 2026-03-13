@@ -17,14 +17,15 @@ public class NormalClickAnim : BlockAnimationAsset
     public Ease rotateOutEase = Ease.OutQuad;
     public Ease rotateBackEase = Ease.OutBack;
 
-    [Header("Mouse Direction Momentum")]
+    [Header("Pointer Hit Momentum")]
     public bool rotateByMouseDirection = true;
-    public Vector3 directionalRotationDegrees = new(10f, 6f, 14f);
     [Min(1f)] public float momentumMaxDistancePx = 220f;
     [Range(0f, 1f)] public float minMomentum = 0.25f;
     [Range(0.05f, 3f)] public float maxMomentum = 1f;
     [Min(0.5f)] public float momentumCurvePower = 1.4f;
-    [Min(0f)] public float centerDeadZonePx = 6f;
+    [Min(0.5f)] public float pointerSensitivity = 1.25f;
+    [Tooltip("Flip camera-space physical torque direction if it feels reversed in your scene setup.")]
+    public bool invertPhysicalPointerDirection = false;
     public bool addRandomJitter = true;
     public Vector3 randomJitterDegrees = new(1.5f, 2f, 2f);
 
@@ -65,35 +66,40 @@ public class NormalClickAnim : BlockAnimationAsset
         {
             Vector3 spinDirection = Vector3.zero;
             float momentum = 1f;
-            bool hasMouseDirection = false;
+            bool hasPointerDirection = false;
 
-            if (rotateByMouseDirection && TryGetMouseDirectionMomentum(t, out Vector2 mouseDir, out momentum))
+            if (rotateByMouseDirection &&
+                TryGetPointerDrivenSpin(t, out Vector3 pointerSpinAxis, out momentum))
             {
-                hasMouseDirection = true;
-                spinDirection += new Vector3(
-                    -mouseDir.y * Mathf.Max(0.0001f, directionalRotationDegrees.x),
-                    mouseDir.x * Mathf.Max(0.0001f, directionalRotationDegrees.y),
-                    -mouseDir.x * Mathf.Max(0.0001f, directionalRotationDegrees.z));
+                hasPointerDirection = true;
+                spinDirection += pointerSpinAxis;
             }
 
-            if (!hasMouseDirection && enableRandomRotation)
+            if (!hasPointerDirection && enableRandomRotation)
             {
-                spinDirection += new Vector3(
+                Vector3 randomLocal = new Vector3(
                     Random.Range(-randomRotationDegrees.x, randomRotationDegrees.x),
                     Random.Range(-randomRotationDegrees.y, randomRotationDegrees.y),
                     Random.Range(-randomRotationDegrees.z, randomRotationDegrees.z));
+                spinDirection += t.TransformDirection(randomLocal);
             }
             else if (addRandomJitter)
             {
-                spinDirection += new Vector3(
+                Vector3 jitterLocal = new Vector3(
                     Random.Range(-randomJitterDegrees.x, randomJitterDegrees.x),
                     Random.Range(-randomJitterDegrees.y, randomJitterDegrees.y),
-                    Random.Range(-randomJitterDegrees.z, randomJitterDegrees.z)) * momentum;
+                    Random.Range(-randomJitterDegrees.z, randomJitterDegrees.z));
+                spinDirection += t.TransformDirection(jitterLocal) * momentum;
             }
 
             if (spinDirection.sqrMagnitude > 0.000001f)
             {
-                if (invertSpinDirection)
+                if (hasPointerDirection)
+                {
+                    if (invertPhysicalPointerDirection)
+                        spinDirection = -spinDirection;
+                }
+                else if (invertSpinDirection)
                     spinDirection = -spinDirection;
 
                 spinDirection.Normalize();
@@ -108,9 +114,9 @@ public class NormalClickAnim : BlockAnimationAsset
                 float rotTotalDuration = Mathf.Max(0.05f, spinDuration);
 
                 var rotateSeq = DOTween.Sequence()
-                    .Append(t.DOLocalRotate(spinDirection * (spinTotal * p1), rotTotalDuration * 0.45f, RotateMode.LocalAxisAdd).SetEase(spinEase1))
-                    .Append(t.DOLocalRotate(spinDirection * (spinTotal * p2), rotTotalDuration * 0.33f, RotateMode.LocalAxisAdd).SetEase(spinEase2))
-                    .Append(t.DOLocalRotate(spinDirection * (spinTotal * p3), rotTotalDuration * 0.22f, RotateMode.LocalAxisAdd).SetEase(spinEase3));
+                    .Append(CreateWorldAxisRotateTween(t, spinDirection, spinTotal * p1, rotTotalDuration * 0.45f, spinEase1))
+                    .Append(CreateWorldAxisRotateTween(t, spinDirection, spinTotal * p2, rotTotalDuration * 0.33f, spinEase2))
+                    .Append(CreateWorldAxisRotateTween(t, spinDirection, spinTotal * p3, rotTotalDuration * 0.22f, spinEase3));
 
                 seq.Join(rotateSeq);
             }
@@ -122,32 +128,53 @@ public class NormalClickAnim : BlockAnimationAsset
         return seq;
     }
 
-    private bool TryGetMouseDirectionMomentum(Transform targetTransform, out Vector2 direction, out float momentum)
+    private bool TryGetPointerDrivenSpin(
+        Transform targetTransform,
+        out Vector3 spinAxis,
+        out float momentum)
     {
-        direction = Vector2.zero;
+        spinAxis = Vector3.zero;
         momentum = 1f;
 
-        Camera cam = Camera.main;
-        if (cam == null)
-            return false;
+        if (targetTransform != null && targetTransform.TryGetComponent<ClickableObject>(out var clickable))
+        {
+            if (clickable.TryGetPointerTorqueWorldAxis(out spinAxis, maxAgeFrames: 1))
+            {
+                if (clickable.TryGetPointerScreenDirectionFromCenter(out _, out float pointerDistance, maxAgeFrames: 1))
+                    momentum = ResolveMomentumFromDistance(pointerDistance);
+                else
+                    momentum = Mathf.Max(0f, minMomentum);
 
-        Vector3 centerScreen = cam.WorldToScreenPoint(targetTransform.position);
-        if (centerScreen.z <= 0f)
-            return false;
+                return spinAxis.sqrMagnitude > 0.000001f;
+            }
+        }
 
-        Vector2 center = new Vector2(centerScreen.x, centerScreen.y);
-        Vector2 mouse = Input.mousePosition;
-        Vector2 delta = mouse - center;
-        float distance = delta.magnitude;
-        if (distance <= centerDeadZonePx)
-            return false;
-
-        direction = delta / Mathf.Max(0.0001f, distance);
-
-        float maxDistance = Mathf.Max(1f, momentumMaxDistancePx);
-        float normalized = Mathf.Clamp01(distance / maxDistance);
-        float curved = Mathf.Pow(normalized, Mathf.Max(0.5f, momentumCurvePower));
-        momentum = Mathf.Lerp(minMomentum, maxMomentum, curved);
-        return true;
+        return false;
     }
+
+    private static Tween CreateWorldAxisRotateTween(Transform target, Vector3 worldAxis, float angleDegrees, float duration, Ease ease)
+    {
+        if (target == null || worldAxis.sqrMagnitude <= 0.000001f || Mathf.Abs(angleDegrees) <= 0.00001f)
+            return DOVirtual.DelayedCall(0f, () => { });
+
+        Vector3 axis = worldAxis.normalized;
+        float prev = 0f;
+        return DOTween.To(() => 0f, value =>
+        {
+            float delta = value - prev;
+            prev = value;
+            target.Rotate(axis, delta, Space.World);
+        }, angleDegrees, Mathf.Max(0.01f, duration)).SetEase(ease);
+    }
+
+    private float ResolveMomentumFromDistance(float distancePx)
+    {
+        float sensitivity = pointerSensitivity > 0f ? pointerSensitivity : 1.25f;
+        float maxDistance = Mathf.Max(1f, momentumMaxDistancePx);
+        float normalized = Mathf.Clamp01((distancePx * sensitivity) / maxDistance);
+        float curved = Mathf.Pow(normalized, Mathf.Max(0.5f, momentumCurvePower));
+        float safeMaxMomentum = Mathf.Max(minMomentum + 0.0001f, maxMomentum);
+        return Mathf.Lerp(minMomentum, safeMaxMomentum, curved);
+    }
+
 }

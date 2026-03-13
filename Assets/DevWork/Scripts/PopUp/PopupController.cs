@@ -20,6 +20,8 @@ public class PopupController : MonoBehaviour
     readonly Stack<PopupView> stack = new Stack<PopupView>();
     Tween backdropTween;
     bool isClosingTop;
+    bool hasLoggedMissingBackdropCanvasGroup;
+    bool hasLoggedMissingBackdropButton;
 
     void Awake()
     {
@@ -35,16 +37,25 @@ public class PopupController : MonoBehaviour
         // Backdrop setup
         if (backdrop)
         {
-            var cg = GetOrAddCanvasGroup(backdrop.gameObject);
-            cg.alpha = 0f;
-            cg.blocksRaycasts = false;
-            backdrop.gameObject.SetActive(true);
+            if (TryGetBackdropCanvasGroup(out var cg))
+            {
+                cg.alpha = 0f;
+                cg.blocksRaycasts = false;
+                cg.interactable = false;
+            }
+            backdrop.gameObject.SetActive(false);
 
             if (closeOnBackdropClick)
             {
                 var btn = backdrop.GetComponent<Button>();
-                if (!btn) btn = backdrop.gameObject.AddComponent<Button>();
-                btn.onClick.AddListener(() => CloseTop());
+                if (btn == null)
+                {
+                    LogMissingBackdropButton();
+                }
+                else
+                {
+                    btn.onClick.AddListener(() => CloseTop());
+                }
             }
         }
     }
@@ -137,25 +148,67 @@ public class PopupController : MonoBehaviour
     async Task FadeBackdropTo(float targetAlpha, bool enableRaycast)
     {
         if (!backdrop) return;
+        if (!TryGetBackdropCanvasGroup(out var cg))
+            return;
 
-        var cg = GetOrAddCanvasGroup(backdrop.gameObject);
+        if (targetAlpha > 0f && !backdrop.gameObject.activeSelf)
+            backdrop.gameObject.SetActive(true);
+
         cg.blocksRaycasts = enableRaycast;
+        cg.interactable = enableRaycast;
 
         backdropTween?.Kill(false);
-        backdropTween = cg.DOFade(targetAlpha, backdropFade).SetUpdate(true);
-        await backdropTween.AsyncWaitForCompletion();
-        backdropTween = null;
+
+        if (backdropFade <= 0f)
+        {
+            cg.alpha = targetAlpha;
+        }
+        else
+        {
+            backdropTween = cg.DOFade(targetAlpha, backdropFade).SetUpdate(true);
+            await backdropTween.AsyncWaitForCompletion();
+            backdropTween = null;
+        }
+
+        if (!enableRaycast && targetAlpha <= 0f && backdrop.gameObject.activeSelf)
+            backdrop.gameObject.SetActive(false);
     }
 
-    static CanvasGroup GetOrAddCanvasGroup(GameObject go)
+    bool TryGetBackdropCanvasGroup(out CanvasGroup canvasGroup)
     {
-        var cg = go.GetComponent<CanvasGroup>();
-        if (!cg) cg = go.AddComponent<CanvasGroup>();
-        return cg;
+        canvasGroup = null;
+        if (!backdrop)
+            return false;
+
+        canvasGroup = backdrop.GetComponent<CanvasGroup>();
+        if (canvasGroup != null)
+            return true;
+
+        if (!hasLoggedMissingBackdropCanvasGroup)
+        {
+            hasLoggedMissingBackdropCanvasGroup = true;
+            Debug.LogError("[PopupController] Backdrop requires a CanvasGroup component.", backdrop);
+        }
+
+        return false;
     }
+
+    void LogMissingBackdropButton()
+    {
+        if (hasLoggedMissingBackdropButton)
+            return;
+
+        hasLoggedMissingBackdropButton = true;
+        Debug.LogError("[PopupController] closeOnBackdropClick is enabled, but backdrop has no Button component.", backdrop);
+    }
+
     public bool IsAnyPopupOpen()
     {
         PruneStack();
+
+        if (stack.Count == 0 && !isClosingTop)
+            HideBackdropImmediate();
+
         return stack.Count > 0;
     }
 
@@ -171,5 +224,24 @@ public class PopupController : MonoBehaviour
             else
                 break;
         }
+    }
+
+    void HideBackdropImmediate()
+    {
+        if (!backdrop)
+            return;
+
+        backdropTween?.Kill(false);
+        backdropTween = null;
+
+        if (TryGetBackdropCanvasGroup(out var cg))
+        {
+            cg.alpha = 0f;
+            cg.blocksRaycasts = false;
+            cg.interactable = false;
+        }
+
+        if (backdrop.gameObject.activeSelf)
+            backdrop.gameObject.SetActive(false);
     }
 }

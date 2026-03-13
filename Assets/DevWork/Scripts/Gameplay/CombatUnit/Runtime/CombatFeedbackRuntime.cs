@@ -9,42 +9,9 @@ public interface ICombatFeedbackSink
 
 public static class CombatFeedbackRuntime
 {
-    private static ICombatFeedbackSink sink;
-    private static bool hasLoggedMissingBinding;
-
-    public static void Bind(ICombatFeedbackSink feedbackSink)
-    {
-        if (feedbackSink == null)
-        {
-            Debug.LogError("[CombatFeedbackRuntime] Cannot bind null feedback sink.");
-            return;
-        }
-
-        sink = feedbackSink;
-        hasLoggedMissingBinding = false;
-    }
-
-    public static void Unbind(ICombatFeedbackSink feedbackSink)
-    {
-        if (!ReferenceEquals(sink, feedbackSink))
-            return;
-
-        sink = null;
-    }
-
     public static bool TryGet(out ICombatFeedbackSink feedbackSink)
     {
-        feedbackSink = sink;
-        if (feedbackSink != null)
-            return true;
-
-        if (!hasLoggedMissingBinding)
-        {
-            hasLoggedMissingBinding = true;
-            Debug.LogError("[CombatFeedbackRuntime] No feedback sink bound. Ensure PlayerController binds at runtime.");
-        }
-
-        return false;
+        return CombatRuntimeBootstrap.TryGetFeedbackSink(out feedbackSink, logIfMissing: true);
     }
 
     public static void NotifyDamageHit()

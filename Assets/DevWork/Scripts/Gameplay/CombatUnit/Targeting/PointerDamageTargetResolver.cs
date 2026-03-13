@@ -12,9 +12,19 @@ public sealed class PhysicsPointerDamageTargetResolver : IPointerDamageTargetRes
 
     private static Camera cachedMainCamera;
     private static int cachedMainCameraFrame = -1;
+    private int raycastLayerMask = Physics.DefaultRaycastLayers;
+    private float raycastDistance = Mathf.Infinity;
+    private QueryTriggerInteraction raycastTriggerInteraction = QueryTriggerInteraction.Ignore;
 
     private PhysicsPointerDamageTargetResolver()
     {
+    }
+
+    public void ConfigureRaycast(int layerMask, float maxDistance = Mathf.Infinity, QueryTriggerInteraction triggerInteraction = QueryTriggerInteraction.Ignore)
+    {
+        raycastLayerMask = layerMask == 0 ? Physics.DefaultRaycastLayers : layerMask;
+        raycastDistance = maxDistance > 0f ? maxDistance : Mathf.Infinity;
+        raycastTriggerInteraction = triggerInteraction;
     }
 
     public bool TryResolvePointerTarget(out IDamageReceiver target, out Vector3 hitPoint)
@@ -27,7 +37,12 @@ public sealed class PhysicsPointerDamageTargetResolver : IPointerDamageTargetRes
             return false;
 
         Ray ray = cam.ScreenPointToRay(Input.mousePosition);
-        if (!Physics.Raycast(ray, out RaycastHit hit))
+        if (!Physics.Raycast(
+                ray,
+                out RaycastHit hit,
+                raycastDistance,
+                raycastLayerMask,
+                raycastTriggerInteraction))
             return false;
 
         hitPoint = hit.point;

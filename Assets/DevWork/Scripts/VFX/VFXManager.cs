@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
 using UniRx;
@@ -30,7 +30,7 @@ public class VFXManager : MonoBehaviour
     private Quaternion blockClickVfxCachedRotation = Quaternion.identity;
     private readonly List<GameObject> pooledBlockClickVfxBuffer = new List<GameObject>(16);
 
-    // 🎧 user volume (0–1)
+    // đŸ§ user volume (0â€“1)
     private float _musicVolume = 1f;
     private const string MusicVolumeKey = "MusicVolume";
 
@@ -82,7 +82,7 @@ public class VFXManager : MonoBehaviour
 
     private void PlayAchivementVFX(VFXTrigger trigger)
     {
-        Debug.Log($"Achivement VFX played: {trigger.name}");
+        DevLog.Log($"Achivement VFX played: {trigger.name}");
         if (trigger.vfxPrefab)
         {
             LeanPool.Spawn(trigger.vfxPrefab, transform.position, Quaternion.identity);
@@ -103,13 +103,13 @@ public class VFXManager : MonoBehaviour
                 Quaternion.identity,
                 transform
             );
-            Debug.Log($"Started in-game VFX: {trigger.name}");
+            DevLog.Log($"Started in-game VFX: {trigger.name}");
         }
         else if (!shouldPlay && trigger.spawnedVFX != null)
         {
             LeanPool.Despawn(trigger.spawnedVFX);
             trigger.spawnedVFX = null;
-            Debug.Log($"Stopped in-game VFX: {trigger.name}");
+            DevLog.Log($"Stopped in-game VFX: {trigger.name}");
         }
     }
 
@@ -211,7 +211,7 @@ public class VFXManager : MonoBehaviour
 
     private void SetupBiomeMusic()
     {
-        // Load saved volume first (0–1, default 1)
+        // Load saved volume first (0â€“1, default 1)
         _musicVolume = PlayerPrefs.GetFloat(MusicVolumeKey, 1f);
         if (musicSource != null)
             musicSource.volume = _musicVolume;
@@ -251,7 +251,7 @@ public class VFXManager : MonoBehaviour
 
         float fade = entry.fadeTime > 0f ? entry.fadeTime : defaultFadeTime;
         PlayBiomeMusic(entry.clip, fade);
-        Debug.Log($"[VFXManager] Switched biome music to {biome}");
+        DevLog.Log($"[VFXManager] Switched biome music to {biome}");
     }
 
     private void PlayBiomeMusic(AudioClip newClip, float fadeTime)
@@ -279,7 +279,7 @@ public class VFXManager : MonoBehaviour
         if (musicSource == null)
             yield break;
 
-        float targetVolume = _musicVolume;   // user volume 0–1
+        float targetVolume = _musicVolume;   // user volume 0â€“1
         float startVolume = musicSource.volume;
 
         // Fade out
@@ -373,7 +373,7 @@ public class VFXManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Called from SettingsUI. volume01 is 0–1.
+    /// Called from SettingsUI. volume01 is 0â€“1.
     /// </summary>
     public void SetMusicVolume(float volume01)
     {
@@ -393,3 +393,4 @@ public class BiomeMusicEntry
     public AudioClip clip;
     public float fadeTime = 1.5f;
 }
+

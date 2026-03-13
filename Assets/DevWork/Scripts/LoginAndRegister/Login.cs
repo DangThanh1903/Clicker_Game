@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using Firebase.Firestore;
 using UnityEngine;
@@ -79,7 +79,7 @@ public class Login : MonoBehaviour
 
     void Start()
     {
-        Debug.Log("Login.Start");
+        DevLog.Log("Login.Start");
         totalSteps = 5 +
                      (requireInternetToPlay ? 1 : 0) +
                      (requireVersionGate ? 1 : 0) +
@@ -98,7 +98,7 @@ public class Login : MonoBehaviour
         }
 
         // 1) Wait FirebaseBootstrap instance
-        Debug.Log("Waiting FirebaseBootstrap...");
+        DevLog.Log("Waiting FirebaseBootstrap...");
         yield return WaitUntilOrTimeout(
             () => FirebaseBootstrap.Ins != null,
             waitBootstrapTimeout,
@@ -123,7 +123,7 @@ public class Login : MonoBehaviour
         MarkStep(ref stepFirebase, "Firebase ready");
 
         string uid = FirebaseBootstrap.Ins.Auth.CurrentUser.UserId;
-        Debug.Log($"Firebase ready. uid={uid}");
+        DevLog.Log($"Firebase ready. uid={uid}");
 
         if (requireVersionGate)
         {
@@ -139,7 +139,7 @@ public class Login : MonoBehaviour
         }
 
         // 2) Wait DataSaver
-        Debug.Log("Waiting DataSaver...");
+        DevLog.Log("Waiting DataSaver...");
         yield return WaitUntilOrTimeout(
             () => DataSaver.Ins != null,
             5f,
@@ -157,14 +157,14 @@ public class Login : MonoBehaviour
         int attempts = Mathf.Max(1, maxCloudLoadAttempts);
         for (int i = 1; i <= attempts; i++)
         {
-            Debug.Log("Loading gameplay...");
+            DevLog.Log("Loading gameplay...");
             bool gameplayOk = false;
             yield return RunCoroutineWithTimeout(
                 DataSaver.Ins.LoadGameplay(uid, ok => gameplayOk = ok),
                 loadDataTimeout,
                 "LoadGameplay timeout");
 
-            Debug.Log("Loading inventories...");
+            DevLog.Log("Loading inventories...");
             bool inventoryOk = false;
             yield return RunCoroutineWithTimeout(
                 DataSaver.Ins.LoadAllInventories(uid, ok => inventoryOk = ok),
@@ -336,7 +336,7 @@ public class Login : MonoBehaviour
             return;
         }
 
-        Debug.Log($"Loading scene: {gameSceneName}");
+        DevLog.Log($"Loading scene: {gameSceneName}");
         SceneManager.LoadScene(gameSceneName);
     }
 
@@ -546,7 +546,7 @@ public class Login : MonoBehaviour
             }
         }
 
-        Debug.Log("Load flow done -> Load scene");
+        DevLog.Log("Load flow done -> Load scene");
         UpdateProgress(1f, "Done");
         LoadGameScene();
     }
@@ -630,3 +630,4 @@ public class Login : MonoBehaviour
         return 0;
     }
 }
+

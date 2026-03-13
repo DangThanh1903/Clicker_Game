@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
@@ -125,7 +125,7 @@ public class UIMaterialAudit : MonoBehaviour
             if (g.GetComponentInParent<RectMask2D>() != null)
                 sb.Append(" | parentMask=RectMask2D");
 
-            Debug.Log(sb.ToString(), g);
+            DevLog.Log(sb.ToString(), g);
             logged++;
             if (logged >= maxLogs) break;
         }
@@ -133,12 +133,12 @@ public class UIMaterialAudit : MonoBehaviour
         if (logSummary)
         {
             string scope = scanAllCanvases ? "ALL" : GetPath(root);
-            Debug.Log($"[UIMaterialAudit] scope={scope} totalGraphics={total} diffCount={diffCount} logged={logged} onlyIfDifferent={onlyIfDifferent} logEvenIfSameMaterial={logEvenIfSameMaterial} onlyImages={onlyImages} onlyTMP={onlyTMP} pathContains={pathContains}");
+            DevLog.Log($"[UIMaterialAudit] scope={scope} totalGraphics={total} diffCount={diffCount} logged={logged} onlyIfDifferent={onlyIfDifferent} logEvenIfSameMaterial={logEvenIfSameMaterial} onlyImages={onlyImages} onlyTMP={onlyTMP} pathContains={pathContains}");
         }
 
         if (logUniqueMaterialSummary)
         {
-            Debug.Log($"[UIMaterialAudit] unique renderMat count={uniqueRenderMats.Count}, actualMat count={uniqueActualMats.Count}, defaultMat count={uniqueDefaultMats.Count}");
+            DevLog.Log($"[UIMaterialAudit] unique renderMat count={uniqueRenderMats.Count}, actualMat count={uniqueActualMats.Count}, defaultMat count={uniqueDefaultMats.Count}");
         }
 
         if (logUniqueRenderMaterials)
@@ -156,7 +156,7 @@ public class UIMaterialAudit : MonoBehaviour
             var mat = kvp.Value;
             var name = mat != null ? mat.name : "null";
             paths.TryGetValue(kvp.Key, out var path);
-            Debug.Log($"[UIMaterialAudit] unique {label} id={kvp.Key} name={name} firstSeen={path}");
+            DevLog.Log($"[UIMaterialAudit] unique {label} id={kvp.Key} name={name} firstSeen={path}");
         }
     }
 
@@ -172,3 +172,4 @@ public class UIMaterialAudit : MonoBehaviour
         return path;
     }
 }
+

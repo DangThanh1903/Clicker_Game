@@ -1,4 +1,4 @@
-#if UNITY_EDITOR
+﻿#if UNITY_EDITOR
 using UnityEditor;
 using UnityEngine;
 using UnityEditor.AddressableAssets;
@@ -36,7 +36,7 @@ public class ItemRenamerEditor : Editor
         // Rename the .asset file
         AssetDatabase.RenameAsset(path, newName);
         AssetDatabase.SaveAssets();
-        Debug.Log($"Renamed asset to: {newName}");
+        DevLog.Log($"Renamed asset to: {newName}");
 
         // Get Addressable settings
         var settings = AddressableAssetSettingsDefaultObject.Settings;
@@ -68,7 +68,7 @@ public class ItemRenamerEditor : Editor
         settings.SetDirty(AddressableAssetSettings.ModificationEvent.EntryMoved, entry, true);
         AssetDatabase.SaveAssets();
 
-        Debug.Log($"Set Addressable ID to: {newName} in group: {itemsGroup.Name}");
+        DevLog.Log($"Set Addressable ID to: {newName} in group: {itemsGroup.Name}");
 
         string pngName = item.itemName;
         string[] pngGuids = AssetDatabase.FindAssets($"t:Texture2D", new[] { "Assets/DevWork/Graphics/UI-UX/Items/Materials" });
@@ -85,13 +85,13 @@ public class ItemRenamerEditor : Editor
                 Sprite foundSprite = AssetDatabase.LoadAssetAtPath<Sprite>(pngPath);
                 if (foundSprite != null)
                 {
-                    Debug.Log($"✅ Found exact match PNG at: {pngPath}");
+                    DevLog.Log($"âœ… Found exact match PNG at: {pngPath}");
                     item.icon = foundSprite;
                     EditorUtility.SetDirty(item);
                 }
                 else
                 {
-                    Debug.LogWarning("❌ PNG file was found but could not be loaded.");
+                    Debug.LogWarning("âŒ PNG file was found but could not be loaded.");
                 }
 
                 found = true;
@@ -101,10 +101,11 @@ public class ItemRenamerEditor : Editor
 
         if (!found)
         {
-            Debug.LogWarning($"❌ No exact PNG match found for '{pngName}' in UI-UX/Items folder.");
+            Debug.LogWarning($"âŒ No exact PNG match found for '{pngName}' in UI-UX/Items folder.");
         }
 
 
     }
 }
 #endif
+
