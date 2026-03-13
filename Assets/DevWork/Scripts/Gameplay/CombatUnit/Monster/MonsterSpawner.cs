@@ -98,7 +98,12 @@ public class MonsterSpawner : MonoBehaviour
         var go = Lean.Pool.LeanPool.Spawn(def.prefab, pos, Quaternion.identity, spawnRoot);
 
         var clickable = go.GetComponent<MonsterClickable>();
-        if (clickable == null) clickable = go.AddComponent<MonsterClickable>();
+        if (clickable == null)
+        {
+            Debug.LogError($"[MonsterSpawner] Spawned prefab '{def.prefab.name}' is missing MonsterClickable. Despawning instance.", go);
+            Lean.Pool.LeanPool.Despawn(go);
+            return;
+        }
 
         clickable.Init(def, this);
         currentAlive = clickable;
@@ -131,8 +136,4 @@ public class MonsterSpawner : MonoBehaviour
         return string.IsNullOrEmpty(def.id) ? def.name : def.id;
     }
 
-    void OnEncounterResolved(MonsterClickable who)
-    {
-        if (currentAlive == who) currentAlive = null;
-    }
 }

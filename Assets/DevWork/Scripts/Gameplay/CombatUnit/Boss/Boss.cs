@@ -4,7 +4,8 @@ using UnityEngine;
 using System.Collections.Generic;
 using System;
 
-public class Boss : MonoBehaviour, IDamagable
+[RequireComponent(typeof(DamageTargetRegistrant))]
+public class Boss : MonoBehaviour, IDamageReceiver
 {
     [SerializeField] EnemyStatsManager enemyStatsManager;
     [SerializeField] Image HpUI;
@@ -16,9 +17,6 @@ public class Boss : MonoBehaviour, IDamagable
     public bool CanReceiveDamage => isActiveAndEnabled;
 
     [SerializeField] private BossAnimManager bossAnimManager;
-
-    private readonly Subject<long> clickStream = new Subject<long>();
-    private readonly List<long> clickBuffer = new List<long>();
 
     [Header("Tick Settings")]
     [SerializeField] float tickSeconds = 1f;
@@ -40,6 +38,7 @@ public class Boss : MonoBehaviour, IDamagable
     private float _nextSpecialTime;
     private float spawnTime;
     private string bossId;
+    private BossEntry rewardEntry;
     private bool hasDied;
     private float BossNow => useUnscaledTime ? Time.unscaledTime : Time.time;
     private float BossDelta => useUnscaledTime ? Time.unscaledDeltaTime : Time.deltaTime;
@@ -94,7 +93,6 @@ public class Boss : MonoBehaviour, IDamagable
     }
     void OnEnable()
     {
-        DamageTargetRegistry.Register(this);
         hasDied = false;
         if (spawnTime <= 0f)
             spawnTime = BossNow;
@@ -123,36 +121,18 @@ public class Boss : MonoBehaviour, IDamagable
 
     void OnDisable()
     {
-        DamageTargetRegistry.Unregister(this);
         sub?.Dispose();
         sub = null;
         runtimeSubs?.Dispose();
         runtimeSubs = null;
-        clickBuffer.Clear();
         hasDied = false;
+        rewardEntry = null;
     }
 
     void SetUp()
     {
         runtimeSubs?.Dispose();
         runtimeSubs = new CompositeDisposable();
-
-        var scheduler = useUnscaledTime ? Scheduler.MainThreadIgnoreTimeScale : Scheduler.MainThread;
-        Observable.Interval(TimeSpan.FromSeconds(1), scheduler)
-            .Subscribe(_ =>
-            {
-                long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-
-                clickBuffer.RemoveAll(timestamp => now - timestamp > 1000);
-
-                StatsManager.Ins.Set(StatType.ClickPerTick, clickBuffer.Count);
-            })
-            .AddTo(runtimeSubs);
-
-        clickStream.Subscribe(time =>
-        {
-            clickBuffer.Add(time);
-        }).AddTo(runtimeSubs);
 
         if (enemyStatsManager != null)
         {
@@ -171,7 +151,7 @@ public class Boss : MonoBehaviour, IDamagable
     public void HandleClick()
     {
         float power = DamageInputPowerResolver.GetClickPower();
-        TakeDamage(power);
+        TakeDamage(power, countAsHit: true);
     }
 
     public void ApplyDamageInput(DamageInputKind inputKind)
@@ -200,25 +180,25 @@ public class Boss : MonoBehaviour, IDamagable
         if (DamageTickAccumulator.TryConsumeTick(ref accumulatedHoldTime, BossDelta, timeHoldReset))
         {
             float power = DamageInputPowerResolver.GetHoldTickPower(timeHoldReset);
-            TakeDamage(power);
+            TakeDamage(power, countAsHit: true);
         }
     }
 
     public void HandleIdle()
     {
         float power = DamageInputPowerResolver.GetIdleTickPower(timeIdleReset);
-        TakeDamage(power);
-        PlayerController.Instance?.NotifyIdleDamageDealt(power, transform.position);
+        TakeDamage(power, countAsHit: false);
+        CombatFeedbackRuntime.NotifyIdleDamageDealt(power, transform.position);
     }
-    void TakeDamage(float power)
+    void TakeDamage(float power, bool countAsHit = true)
     {
         if (power <= 0f)
             return;
 
         enemyStatsManager.Set(StatType.CurrentHP, Mathf.Max(0, enemyStatsManager.Get(StatType.CurrentHP) - power));
         DamageStatsRecorder.RecordDamage(power, 1f);
-        long time = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        clickStream.OnNext(time);
+        if (countAsHit)
+            CombatFeedbackRuntime.NotifyDamageHit();
     }
     void OnBossSkillFired(string skillId)
     {
@@ -242,17 +222,32 @@ public class Boss : MonoBehaviour, IDamagable
         StatsManager.Ins.Add(StatType.TotalBlockBreaked, 1);
         string id = string.IsNullOrEmpty(bossId) ? gameObject.name : bossId;
         AnalyticsManager.Ins?.TrackBossKill(id, Mathf.Max(0f, BossNow - spawnTime));
+        HandleItemDrop();
         Died?.Invoke(this); 
     }
 
-    public void SetAnalyticsContext(string id)
+    void HandleItemDrop()
     {
-        bossId = string.IsNullOrEmpty(id) ? gameObject.name : id;
-        spawnTime = BossNow;
+        if (rewardEntry == null || rewardEntry.drops == null || rewardEntry.drops.Count == 0)
+            return;
+
+        float luck = StatsManager.Ins != null ? StatsManager.Ins.Get(StatType.Lucky) : 0f;
+        var drops = rewardEntry.GetDroppedItems(luck);
+        if (drops == null || drops.Count == 0)
+            return;
+
+        var grantEntries = new List<DropGrantEntry>(drops.Count);
+        foreach (var result in drops)
+            grantEntries.Add(new DropGrantEntry(result.item, result.amount));
+
+        DropGrantService.TryGrantDrops(grantEntries, out _, logContext: "[BossDrop]");
     }
 
-    public void SetPointerHit(Vector3 worldPoint)
+    public void SetSpawnContext(BossEntry entry)
     {
-        // Boss currently does not use pointer-hit context.
+        rewardEntry = entry;
+        string id = entry != null ? entry.bossName : null;
+        bossId = string.IsNullOrEmpty(id) ? gameObject.name : id;
+        spawnTime = BossNow;
     }
 }

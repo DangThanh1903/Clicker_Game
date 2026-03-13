@@ -25,6 +25,12 @@ public class BossEntry
     [VerticalGroup("Row/Right"), LabelWidth(60)]
     public BossType type = BossType.Normal;
 
+    [VerticalGroup("Row/Right"), LabelWidth(60), Min(1f)]
+    public float timeLimitSeconds = 60f;
+
+    [FoldoutGroup("Rewards"), LabelWidth(100)]
+    public List<ItemDrop> drops = new();
+
     // ---- Spawn Conditions ----
     [FoldoutGroup("Conditions"), EnumToggleButtons, LabelWidth(100)]
     public TimeState timeRequired = TimeState.Any;
@@ -55,6 +61,11 @@ public class BossEntry
         }
 
         return true;
+    }
+
+    public List<(Item item, int amount)> GetDroppedItems(float luck)
+    {
+        return DropRollService.RollResolvedItemDrops(drops, luck);
     }
 }
 

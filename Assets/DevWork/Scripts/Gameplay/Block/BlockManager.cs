@@ -16,7 +16,13 @@ public class BlockManager : MonoBehaviour
     private GameObject activeBoss;
     private BossEntry activeBossInfo;
     Boss activeBossComp;
-    private Action onPlayerDiedHandler;
+    private Coroutine bossTimerCoroutine;
+    private float bossRemainingTime;
+    private float bossTotalTime;
+    public bool IsBossTimerRunning => bossTimerCoroutine != null;
+    public float BossRemainingTime => bossRemainingTime;
+    public float BossTotalTime => bossTotalTime;
+    public event Action<float, float> OnBossTimerUpdated;
     void Awake()
     {
         if (Ins && Ins != this) { Destroy(gameObject); return; }
@@ -27,6 +33,11 @@ public class BlockManager : MonoBehaviour
     void Start()
     {
         StartCoroutine(InitWhenReady());
+    }
+
+    void OnDisable()
+    {
+        StopBossTimer();
     }
 
     private IEnumerator InitWhenReady()
@@ -83,38 +94,23 @@ public class BlockManager : MonoBehaviour
         var bossPrefab = activeBossInfo.bossPrefab;
         var go = LeanPool.Spawn(bossPrefab, pos, rot);
         activeBoss = go;
-        var stats = go.GetComponent<EnemyStatsManager>();
-
-        UIManager.Ins.SetNavigationLocked(true, forceToMain: true);
 
         activeBossComp = go.GetComponent<Boss>();
-        if (activeBossComp != null)
-            activeBossComp.Died += OnBossDied;
+        if (activeBossComp == null)
+        {
+            Debug.LogError($"[BossSpawner] Spawned boss prefab '{bossPrefab.name}' is missing Boss component. Despawning instance.", go);
+            LeanPool.Despawn(go);
+            activeBoss = null;
+            activeBossInfo = null;
+            return null;
+        }
+
+        activeBossComp.Died += OnBossDied;
+        UIManager.Ins.SetNavigationLocked(true, forceToMain: true);
 
         AnalyticsManager.Ins?.TrackBossSpawn(activeBossInfo.bossName, bossLocation.ToString());
-        activeBossComp?.SetAnalyticsContext(activeBossInfo.bossName);
-
-        var player = PlayerController.Instance;
-        if (player != null)
-        {
-            if (onPlayerDiedHandler != null)
-                player.OnDied -= onPlayerDiedHandler;
-
-            onPlayerDiedHandler = () =>
-            {
-                player.OnDied -= onPlayerDiedHandler;
-                onPlayerDiedHandler = null;
-
-                if (go != null)
-                    LeanPool.Despawn(go);
-                activeBoss = null;
-                activeBossComp = null;
-                if (currentBlock) currentBlock.gameObject.SetActive(true);
-                UIManager.Ins.SetNavigationLocked(false);
-            };
-
-            player.OnDied += onPlayerDiedHandler;
-        }
+        activeBossComp.SetSpawnContext(activeBossInfo);
+        StartBossTimer(Mathf.Max(1f, activeBossInfo.timeLimitSeconds));
         if (currentBlock) currentBlock.gameObject.SetActive(false);
         return go;
     }
@@ -128,18 +124,14 @@ public class BlockManager : MonoBehaviour
             locationLoader.TryUnlockNextLocationFromBoss(clearedLocation);
 
         if (activeBossComp != null) activeBossComp.Died -= OnBossDied;
-        var player = PlayerController.Instance;
-        if (player != null && onPlayerDiedHandler != null)
-        {
-            player.OnDied -= onPlayerDiedHandler;
-            onPlayerDiedHandler = null;
-        }
+        StopBossTimer();
 
         if (boss && boss.gameObject && boss.gameObject.activeInHierarchy)
             LeanPool.Despawn(boss.gameObject);
 
         activeBoss = null;
         activeBossComp = null;
+        activeBossInfo = null;
 
         if (currentBlock) currentBlock.gameObject.SetActive(true);
         UIManager.Ins.SetNavigationLocked(false);
@@ -197,6 +189,70 @@ public class BlockManager : MonoBehaviour
     public bool IsBossOutOfCondition()
     {
         return activeBossInfo.Matches(TimeSystem.Instance.CurrentTimeState.Value, WeatherManager.Instance.CurrentNormalWeather.Value, WeatherManager.Instance.CurrentSpecialWeather.Value) == false;
+    }
+
+    private void StartBossTimer(float durationSeconds)
+    {
+        StopBossTimer();
+
+        bossTotalTime = Mathf.Max(1f, durationSeconds);
+        bossRemainingTime = bossTotalTime;
+        OnBossTimerUpdated?.Invoke(bossRemainingTime, bossTotalTime);
+        bossTimerCoroutine = StartCoroutine(BossTimer_Co());
+    }
+
+    private void StopBossTimer()
+    {
+        if (bossTimerCoroutine != null)
+        {
+            StopCoroutine(bossTimerCoroutine);
+            bossTimerCoroutine = null;
+        }
+
+        bossRemainingTime = 0f;
+        bossTotalTime = 0f;
+        OnBossTimerUpdated?.Invoke(0f, 0f);
+    }
+
+    private IEnumerator BossTimer_Co()
+    {
+        while (activeBoss != null && activeBossComp != null && bossRemainingTime > 0f)
+        {
+            bossRemainingTime -= Time.unscaledDeltaTime;
+            float safeRemaining = Mathf.Max(0f, bossRemainingTime);
+            OnBossTimerUpdated?.Invoke(safeRemaining, bossTotalTime);
+
+            if (safeRemaining <= 0f)
+            {
+                HandleBossTimeoutFail();
+                yield break;
+            }
+
+            yield return null;
+        }
+
+        bossTimerCoroutine = null;
+    }
+
+    private void HandleBossTimeoutFail()
+    {
+        StopBossTimer();
+        RunFailNotifierRuntime.NotifyRunFailed(PlayerRunFailReason.BossTimeout);
+
+        if (activeBossComp != null)
+            activeBossComp.Died -= OnBossDied;
+
+        if (activeBoss != null && activeBoss.activeInHierarchy)
+            LeanPool.Despawn(activeBoss);
+
+        activeBoss = null;
+        activeBossComp = null;
+        activeBossInfo = null;
+
+        if (currentBlock)
+            currentBlock.gameObject.SetActive(true);
+
+        UIManager.Ins?.SetNavigationLocked(false);
     }
 
     private void NotifyCurrentBlockChanged()

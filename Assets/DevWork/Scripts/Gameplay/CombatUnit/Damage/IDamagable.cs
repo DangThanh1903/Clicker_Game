@@ -5,10 +5,14 @@ public enum DamageInputKind
     Idle = 2
 }
 
-public interface IDamagable
+public interface IDamageReceiver
 {
     public void ApplyDamageInput(DamageInputKind inputKind);
     int InputPriority { get; }
     bool CanReceiveDamage { get; }
+}
+
+public interface IPointerHitContext
+{
     void SetPointerHit(UnityEngine.Vector3 worldPoint);
 }

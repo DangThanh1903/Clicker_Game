@@ -5,10 +5,9 @@ using System;
 using System.Collections.Generic;
 using System.Collections;
 using DG.Tweening;
-using UnityEngine.AddressableAssets;
-using UnityEngine.ResourceManagement.AsyncOperations;
 
-public class ClickableObject : MonoBehaviour, IDamagable
+[RequireComponent(typeof(DamageTargetRegistrant))]
+public class ClickableObject : MonoBehaviour, IDamageReceiver, IPointerHitContext
 {
     private static readonly Vector3[][] CubeFaces =
     {
@@ -120,10 +119,6 @@ public class ClickableObject : MonoBehaviour, IDamagable
     private readonly Vector2[] cubeUvBuffer = new Vector2[24];
     private Tween deathFlowTween;
 
-    // Internal click buffer and stream
-    private readonly Subject<long> clickStream = new Subject<long>();
-    private readonly List<long> clickBuffer = new List<long>();
-    private const long ClickWindowMs = 1000;
     private CompositeDisposable runtimeSubs;
     void Awake()
     {
@@ -139,18 +134,15 @@ public class ClickableObject : MonoBehaviour, IDamagable
 
     void OnEnable()
     {
-        DamageTargetRegistry.Register(this);
         if (isReady)
             ListenRuntime();
     }
 
     void OnDisable()
     {
-        DamageTargetRegistry.Unregister(this);
         KillDeathFlowTween();
         runtimeSubs?.Dispose();
         runtimeSubs = null;
-        clickBuffer.Clear();
 
         // If pooled/disabled during death, finalize once so discovery + drops still fire.
         if (isDyingEffect && !breakFinalized)
@@ -171,20 +163,6 @@ public class ClickableObject : MonoBehaviour, IDamagable
     {
         runtimeSubs?.Dispose();
         runtimeSubs = new CompositeDisposable();
-
-        // ⏲️ Reactive CPS update every second
-        Observable.Interval(TimeSpan.FromSeconds(1))
-            .Subscribe(_ =>
-            {
-                StatsManager.Ins.Set(StatType.ClickPerTick, GetRecentHitCount());
-            })
-            .AddTo(runtimeSubs);
-
-        // Push click timestamp into buffer
-        clickStream.Subscribe(time =>
-        {
-            RecordClickTimestamp(time);
-        }).AddTo(runtimeSubs);
 
         // Cracking listen
         CurrentHealth
@@ -260,7 +238,7 @@ public class ClickableObject : MonoBehaviour, IDamagable
     public void HandleClick()
     {
         float power = DamageInputPowerResolver.GetClickPower();
-        TakeDamage(power, "click");
+        TakeDamage(power, "click", countAsHit: true);
     }
 
     public void ApplyDamageInput(DamageInputKind inputKind)
@@ -291,24 +269,24 @@ public class ClickableObject : MonoBehaviour, IDamagable
         if (DamageTickAccumulator.TryConsumeTick(ref accumulatedHoldTime, dt, timeHoldReset))
         {
             float power = DamageInputPowerResolver.GetHoldTickPower(timeHoldReset);
-            TakeDamage(power, "hold", timeHoldReset);
+            TakeDamage(power, "hold", timeHoldReset, countAsHit: true);
         }
     }
 
     public void HandleIdle()
     {
         float power = DamageInputPowerResolver.GetIdleTickPower(timeIdleReset);
-        TakeDamage(power, "idle", timeIdleReset);
-        PlayerController.Instance?.NotifyIdleDamageDealt(power, transform.position);
+        TakeDamage(power, "idle", timeIdleReset, countAsHit: false);
+        CombatFeedbackRuntime.NotifyIdleDamageDealt(power, transform.position);
     }
 
-    void TakeDamage(float power, string source, float timeReset = 1)
+    void TakeDamage(float power, string source, float timeReset = 1f, bool countAsHit = true)
     {
         if (power <= 0f)
             return;
 
-        long time = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        clickStream.OnNext(time);
+        if (countAsHit)
+            CombatFeedbackRuntime.NotifyDamageHit();
 
         CurrentHealth.Value = Mathf.Max(0, CurrentHealth.Value - power);
 
@@ -326,36 +304,7 @@ public class ClickableObject : MonoBehaviour, IDamagable
 
     public int GetRecentHitCount(float windowSeconds = 1f)
     {
-        if (clickBuffer.Count == 0)
-            return 0;
-
-        long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        long windowMs = Math.Max(50L, (long)Mathf.RoundToInt(Mathf.Max(0.05f, windowSeconds) * 1000f));
-        TrimClickBuffer(now, windowMs);
-        return clickBuffer.Count;
-    }
-
-    void RecordClickTimestamp(long timeMs)
-    {
-        clickBuffer.Add(timeMs);
-        TrimClickBuffer(timeMs, ClickWindowMs);
-    }
-
-    void TrimClickBuffer(long nowMs, long windowMs)
-    {
-        if (windowMs <= 0)
-            windowMs = ClickWindowMs;
-
-        int removeCount = 0;
-        for (int i = 0; i < clickBuffer.Count; i++)
-        {
-            if (nowMs - clickBuffer[i] <= windowMs)
-                break;
-            removeCount++;
-        }
-
-        if (removeCount > 0)
-            clickBuffer.RemoveRange(0, removeCount);
+        return CombatFeedbackRuntime.GetRecentHitCount(windowSeconds);
     }
     void HandleItemDrop()
     {
@@ -367,7 +316,7 @@ public class ClickableObject : MonoBehaviour, IDamagable
 
     IEnumerator HandleItemDrop_Co(string dropBlockName, List<ItemDropResult> drops)
     {
-        if (drops.Count == 0)
+        if (drops == null || drops.Count == 0)
         {
             Debug.Log("There is no item drop");
             GameDebugHandler.LogStaticKey(
@@ -378,23 +327,19 @@ public class ClickableObject : MonoBehaviour, IDamagable
             yield break;
         }
 
-        if (InventoryController.Instance == null)
-        {
-            Debug.LogWarning("InventoryController.Instance is null, cannot add drop.");
-            yield break;
-        }
-
-        string dropName = "";
-        int countTemp = 0;
+        var resolvedDrops = new List<DropGrantEntry>(drops.Count);
 
         foreach (var result in drops)
         {
             Item item = null;
-            yield return ResolveDropItem_Co(result.drop, resolved => item = resolved);
+            yield return DropGrantService.ResolveItemFromDrop_Co(
+                result.drop,
+                $"block '{dropBlockName}'",
+                resolved => item = resolved);
 
             if (item == null)
             {
-                Debug.LogWarning($"⚠️ Null item in drop list for block: {blockName}");
+                Debug.LogWarning($"[Drop] Null item in drop list for block: {dropBlockName}");
                 continue;
             }
 
@@ -402,31 +347,25 @@ public class ClickableObject : MonoBehaviour, IDamagable
             if (requested <= 0)
                 continue;
 
-            var toAdd = new InventoryItem(item, requested);
-            _ = InventoryController.Instance.TryAddItemToInventory(toAdd);
-            int remaining = toAdd.quantity != null ? Mathf.Max(0, toAdd.quantity.Value) : 0;
-            int added = Mathf.Max(0, requested - remaining);
-            if (added <= 0)
-                continue;
-
-            QuestSignals.CollectItem(item.itemName, added);
-            var pos = Toaster.GetRandomAnchoredPosition();
-            bool rainbow = item.rarity == Rarity.Exclusive;
-            Toaster.Show($"x{added}", item.icon, 1.6f, pos, rainbow);
-
-            var itemId = Game.Discovery.BlockDiscoveryService.GetItemId(item);
-            Game.Discovery.BlockDiscoveryService.Ins?.DiscoverDrop(dropBlockName, itemId);
-
-            dropName += (countTemp == 0) ? added + " " + item.GetColoredName() : ", " + added + " " + item.itemName;
-            countTemp++;
+            resolvedDrops.Add(new DropGrantEntry(item, requested));
         }
 
-        if (countTemp == 0)
+        bool addedAny = DropGrantService.TryGrantDrops(
+            resolvedDrops,
+            out string dropSummary,
+            (grantedItem, added) =>
+            {
+                string itemId = Game.Discovery.BlockDiscoveryService.GetItemId(grantedItem);
+                Game.Discovery.BlockDiscoveryService.Ins?.DiscoverDrop(dropBlockName, itemId);
+            },
+            "[BlockDrop]");
+
+        if (!addedAny)
         {
             GameDebugHandler.LogStaticKey(
                 "UI_Debug",
                 "block_drops_none",
-                new { block = blockName }
+                new { block = dropBlockName }
             );
             yield break;
         }
@@ -434,45 +373,8 @@ public class ClickableObject : MonoBehaviour, IDamagable
         GameDebugHandler.LogStaticKey(
             "UI_Debug",
             "block_drops",
-            new { block = dropBlockName, items = dropName }
+            new { block = dropBlockName, items = dropSummary }
         );
-    }
-
-    IEnumerator ResolveDropItem_Co(ItemDrop drop, Action<Item> onResolved)
-    {
-        if (drop == null)
-        {
-            onResolved?.Invoke(null);
-            yield break;
-        }
-
-        if (drop.item != null)
-        {
-            onResolved?.Invoke(drop.item);
-            yield break;
-        }
-
-        string address = drop.GetItemAddress();
-        if (string.IsNullOrEmpty(address))
-        {
-            Debug.LogWarning($"[Drop] Missing address for block '{blockName}'.");
-            onResolved?.Invoke(null);
-            yield break;
-        }
-
-        AsyncOperationHandle<Item> handle = Addressables.LoadAssetAsync<Item>(address);
-        yield return handle;
-
-        Item item = null;
-        if (handle.Status == AsyncOperationStatus.Succeeded)
-            item = handle.Result;
-        else
-        {
-            Debug.LogWarning($"[Drop] Failed to load Addressable Item '{address}' for block '{blockName}'. Status={handle.Status}");
-        }
-
-        Addressables.Release(handle);
-        onResolved?.Invoke(item);
     }
 
     #endregion
@@ -910,6 +812,7 @@ public class ClickableObject : MonoBehaviour, IDamagable
     }
     #endregion
 }
+
 
 
 

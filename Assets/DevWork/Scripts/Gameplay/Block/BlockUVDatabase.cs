@@ -161,15 +161,6 @@ public class BlockUVDatabase : ScriptableObject
     // LUCK-AWARE DROPS
     // =========================
 
-    public List<(Item item, int amount)> GetDroppedItemsByName(string name, float luck)
-    {
-        var block = GetByName(name);
-        if (block == null)
-            return new List<(Item item, int amount)>();
-
-        return block.GetDroppedItems(luck);
-    }
-
     public List<ItemDropResult> GetDropResultsByName(string name, float luck)
     {
         var block = GetByName(name);
@@ -246,48 +237,9 @@ public class BlockUVEntry
     [Header("Drop Settings")]
     public List<ItemDrop> drops = new();
 
-    public List<(Item item, int amount)> GetDroppedItems(float luck)
-    {
-        List<(Item item, int amount)> droppedItems = new();
-
-        foreach (var drop in drops)
-        {
-            float chance = drop.dropChance;
-
-            if (luck > 0f && chance < 1f)
-                chance = LuckMath.BoostChance(chance, luck);
-
-            if (UnityEngine.Random.value <= chance)
-            {
-                int amount = UnityEngine.Random.Range(drop.minAmount, drop.maxAmount + 1);
-                droppedItems.Add((drop.item, amount));
-            }
-        }
-
-        return droppedItems;
-    }
-
     public List<ItemDropResult> GetDropResults(float luck)
     {
-        List<ItemDropResult> droppedItems = new();
-
-        foreach (var drop in drops)
-        {
-            if (drop == null) continue;
-
-            float chance = drop.dropChance;
-
-            if (luck > 0f && chance < 1f)
-                chance = LuckMath.BoostChance(chance, luck);
-
-            if (UnityEngine.Random.value <= chance)
-            {
-                int amount = UnityEngine.Random.Range(drop.minAmount, drop.maxAmount + 1);
-                droppedItems.Add(new ItemDropResult(drop, amount));
-            }
-        }
-
-        return droppedItems;
+        return DropRollService.RollDropResults(drops, luck);
     }
 }
 

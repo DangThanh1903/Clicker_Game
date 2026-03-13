@@ -4,7 +4,8 @@ using System;
 using DG.Tweening;
 using Lean.Pool;
 
-public class MonsterClickable : MonoBehaviour, IDamagable
+[RequireComponent(typeof(DamageTargetRegistrant))]
+public class MonsterClickable : MonoBehaviour, IDamageReceiver, IPointerHitContext
 {
     public event Action<MonsterClickable, bool> Resolved;
 
@@ -86,11 +87,7 @@ public class MonsterClickable : MonoBehaviour, IDamagable
         lifeTimer?.Dispose();
         lifeTimer = Observable.Timer(TimeSpan.FromSeconds(def.lifetime))
             .Subscribe(_ => OnMiss());
-    }
 
-    void OnEnable()
-    {
-        DamageTargetRegistry.Register(this);
     }
 
     void Update()
@@ -98,12 +95,12 @@ public class MonsterClickable : MonoBehaviour, IDamagable
         UpdateMovement();
     }
 
-    // ===== IDamagable =====
+    // ===== IDamageReceiver =====
 
     public void HandleClick()
     {
         float power = DamageInputPowerResolver.GetClickPower();
-        TakeDamage(power);
+        TakeDamage(power, countAsHit: true);
     }
 
     public void ApplyDamageInput(DamageInputKind inputKind)
@@ -135,7 +132,7 @@ public class MonsterClickable : MonoBehaviour, IDamagable
         if (DamageTickAccumulator.TryConsumeTick(ref accumulatedHoldTime, dt, timeHoldReset))
         {
             float power = DamageInputPowerResolver.GetHoldTickPower(timeHoldReset);
-            TakeDamage(power);
+            TakeDamage(power, countAsHit: true);
         }
     }
 
@@ -144,17 +141,19 @@ public class MonsterClickable : MonoBehaviour, IDamagable
         float power = DamageInputPowerResolver.GetIdleTickPower(timeIdleReset);
         Vector3 aimPoint = GetAimWorldPosition();
         onClickPos = GetUIPosition(aimPoint);
-        TakeDamage(power);
-        PlayerController.Instance?.NotifyIdleDamageDealt(power, aimPoint);
+        TakeDamage(power, countAsHit: false);
+        CombatFeedbackRuntime.NotifyIdleDamageDealt(power, aimPoint);
     }
 
     // ===== Combat =====
 
-    void TakeDamage(float power)
+    void TakeDamage(float power, bool countAsHit = true)
     {
         if (resolved) return;
         if (power <= 0f) return;
 
+        if (countAsHit)
+            CombatFeedbackRuntime.NotifyDamageHit();
         CurrentHealth.Value = Mathf.Max(0f, CurrentHealth.Value - power);
 
         // Optional: stats tracking
@@ -200,35 +199,17 @@ public class MonsterClickable : MonoBehaviour, IDamagable
     {
         if (def == null || def.drops == null || def.drops.Count == 0) return;
 
-        if (InventoryController.Instance == null)
-        {
-            Debug.LogWarning("[MonsterDrop] InventoryController.Instance is null, cannot add drop.");
-            return;
-        }
-
         float luck = StatsManager.Ins != null ? StatsManager.Ins.Get(StatType.Lucky) : 0f;
         var drops = def.GetDroppedItems(luck);
         if (drops == null || drops.Count == 0) return;
 
+        var grantEntries = new System.Collections.Generic.List<DropGrantEntry>(drops.Count);
         foreach (var result in drops)
         {
-            if (result.item == null || result.item.Type == ItemType.None) continue;
-            int requested = Mathf.Max(0, result.amount);
-            if (requested <= 0)
-                continue;
-
-            var toAdd = new InventoryItem(result.item, requested);
-            _ = InventoryController.Instance.TryAddItemToInventory(toAdd);
-            int remaining = toAdd.quantity != null ? Mathf.Max(0, toAdd.quantity.Value) : 0;
-            int added = Mathf.Max(0, requested - remaining);
-            if (added <= 0)
-                continue;
-
-            QuestSignals.CollectItem(result.item.itemName, added);
-            var pos = Toaster.GetRandomAnchoredPosition();
-            bool rainbow = result.item.rarity == Rarity.Exclusive;
-            Toaster.Show($"x{added}", result.item.icon, 1.6f, pos, rainbow);
+            grantEntries.Add(new DropGrantEntry(result.item, result.amount));
         }
+
+        DropGrantService.TryGrantDrops(grantEntries, out _, logContext: "[MonsterDrop]");
     }
 
     void ResolveAndDespawn()
@@ -243,7 +224,6 @@ public class MonsterClickable : MonoBehaviour, IDamagable
 
     void OnDisable()
     {
-        DamageTargetRegistry.Unregister(this);
         lifeTimer?.Dispose();
         lifeTimer = null;
         healthSub?.Dispose();
@@ -465,5 +445,6 @@ public class MonsterClickable : MonoBehaviour, IDamagable
     {
         onClickPos = GetUIPosition(worldPoint);
     }
+
 }
 

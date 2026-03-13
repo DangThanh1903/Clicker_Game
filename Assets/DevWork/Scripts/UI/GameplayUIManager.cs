@@ -10,12 +10,14 @@ public class GameplayUIManager : MonoBehaviour
     [SerializeField] private TMP_Text clickPerTickUI;
     [SerializeField] private TMP_Text diamondUI;
     [SerializeField] private TMP_Text blockNameUI;
+    [SerializeField] private TMP_Text runTimerUI;
     [SerializeField] private Image HpUI;
     [SerializeField] private Image ManaUI;
     [SerializeField] private Sprite manaSprite;
     [SerializeField] private Sprite staminaSprite;
     [SerializeField] private Sprite idleSprite;
     private float displayedManaFill = 0f;
+    private int lastShownRunSecond = int.MinValue;
     private ResourceDisplayMode currentResourceMode = ResourceDisplayMode.Mana;
 
     private enum ResourceDisplayMode
@@ -90,7 +92,11 @@ public class GameplayUIManager : MonoBehaviour
 
     void UpdateResourceUI()
     {
-        if (ManaUI == null) return;
+        if (ManaUI == null)
+        {
+            UpdateRunTimerUI();
+            return;
+        }
 
         ResourceDisplayMode mode = ResolveResourceMode();
         if (mode != currentResourceMode)
@@ -99,6 +105,7 @@ public class GameplayUIManager : MonoBehaviour
         float targetFill = GetTargetResourceFill(mode);
         displayedManaFill = Mathf.Lerp(displayedManaFill, targetFill, Time.deltaTime * 10f);
         ManaUI.fillAmount = displayedManaFill;
+        UpdateRunTimerUI();
     }
 
     private ResourceDisplayMode ResolveResourceMode()
@@ -193,6 +200,38 @@ public class GameplayUIManager : MonoBehaviour
     private void RefreshBlockName()
     {
         SetBlockName(ResolveCurrentBlockName());
+    }
+
+    private void UpdateRunTimerUI()
+    {
+        if (runTimerUI == null)
+            return;
+
+        float remainingSeconds = -1f;
+        if (DungeonRunManager.Ins != null && DungeonRunManager.Ins.IsRunning)
+            remainingSeconds = DungeonRunManager.Ins.RemainingRunTime;
+        else if (BlockManager.Ins != null && BlockManager.Ins.IsBossTimerRunning)
+            remainingSeconds = BlockManager.Ins.BossRemainingTime;
+
+        if (remainingSeconds < 0f)
+        {
+            if (runTimerUI.gameObject.activeSelf)
+                runTimerUI.gameObject.SetActive(false);
+            lastShownRunSecond = int.MinValue;
+            return;
+        }
+
+        if (!runTimerUI.gameObject.activeSelf)
+            runTimerUI.gameObject.SetActive(true);
+
+        int secondInt = Mathf.Max(0, Mathf.CeilToInt(remainingSeconds));
+        if (secondInt == lastShownRunSecond)
+            return;
+
+        lastShownRunSecond = secondInt;
+        int minutes = secondInt / 60;
+        int seconds = secondInt % 60;
+        runTimerUI.SetText("{0:00}:{1:00}", minutes, seconds);
     }
 
     private void BindBlockNameObserver()

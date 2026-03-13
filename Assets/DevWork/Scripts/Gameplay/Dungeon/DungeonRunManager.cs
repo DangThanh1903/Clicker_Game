@@ -18,7 +18,6 @@ public class DungeonRunManager : MonoBehaviour
 
     [Header("Run Setup")]
     [SerializeField] private BlockSpawnLocation dungeonLocation = BlockSpawnLocation.Dungeon;
-    [SerializeField] private bool useUnscaledTime = true;
     [SerializeField] private bool allowEnterWhenDungeonLocked = true;
 
     [Header("Legacy Fallback (when no profile/stage)")]
@@ -82,6 +81,7 @@ public class DungeonRunManager : MonoBehaviour
     private bool waitingMiniGameResult;
     private bool miniGameResolved;
     private bool miniGameSuccess;
+    private PlayerRunFailReason pendingFailReason = PlayerRunFailReason.Unknown;
 
     private int requiredMonsterKills;
     private int currentMonsterKills;
@@ -112,7 +112,10 @@ public class DungeonRunManager : MonoBehaviour
     void OnDisable()
     {
         if (isRunning)
+        {
+            pendingFailReason = PlayerRunFailReason.ManualAbort;
             FinishRun(success: false);
+        }
     }
 
     public bool TryEnterRun()
@@ -163,6 +166,7 @@ public class DungeonRunManager : MonoBehaviour
         if (!isRunning)
             return;
 
+        pendingFailReason = PlayerRunFailReason.ManualAbort;
         FinishRun(success: false);
     }
 
@@ -299,6 +303,7 @@ public class DungeonRunManager : MonoBehaviour
     void StartRun()
     {
         isRunning = true;
+        pendingFailReason = PlayerRunFailReason.Unknown;
         currentStage = 0;
         currentWave = 0;
         activeStageData = null;
@@ -333,7 +338,8 @@ public class DungeonRunManager : MonoBehaviour
 
             while (isRunning)
             {
-                float dt = useUnscaledTime ? Time.unscaledDeltaTime : Time.deltaTime;
+                // Dungeon run timer is always real-time (unscaled).
+                float dt = Time.unscaledDeltaTime;
                 if (dt < 0f) dt = 0f;
 
                 remainingRunTime -= dt;
@@ -347,6 +353,8 @@ public class DungeonRunManager : MonoBehaviour
 
                 if (remainingRunTime <= 0f)
                 {
+                    // Keep already-collected monster drops on fail (no rollback flow yet).
+                    pendingFailReason = PlayerRunFailReason.DungeonTimeout;
                     FinishRun(success: false);
                     yield break;
                 }
@@ -408,6 +416,7 @@ public class DungeonRunManager : MonoBehaviour
                     ClearStageMonsters(despawnAlive: true);
                     if (!stageSuccess)
                     {
+                        pendingFailReason = PlayerRunFailReason.DungeonStageFailed;
                         FinishRun(success: false);
                         yield break;
                     }
@@ -462,23 +471,29 @@ public class DungeonRunManager : MonoBehaviour
                 continue;
 
             int count = Mathf.Max(0, entry.count);
-            requiredMonsterKills += count;
             for (int j = 0; j < count; j++)
-                SpawnSingleMonster(entry.monster);
+            {
+                if (SpawnSingleMonster(entry.monster))
+                    requiredMonsterKills++;
+            }
         }
     }
 
-    void SpawnSingleMonster(MonsterDef def)
+    bool SpawnSingleMonster(MonsterDef def)
     {
         Vector3 pos = ResolveSpawnPosition();
         Transform parent = monsterSpawnRoot != null ? monsterSpawnRoot : null;
         var go = LeanPool.Spawn(def.prefab, pos, Quaternion.identity, parent);
         if (go == null)
-            return;
+            return false;
 
         var clickable = go.GetComponent<MonsterClickable>();
         if (clickable == null)
-            clickable = go.AddComponent<MonsterClickable>();
+        {
+            Debug.LogError($"[DungeonRun] Spawned monster prefab '{def.prefab.name}' is missing MonsterClickable. Despawning instance.", go);
+            LeanPool.Despawn(go);
+            return false;
+        }
 
         clickable.Resolved -= OnStageMonsterResolved;
         clickable.Resolved += OnStageMonsterResolved;
@@ -487,6 +502,8 @@ public class DungeonRunManager : MonoBehaviour
 
         if (def.appearSfx != null)
             SoundEffectController.Ins?.PlaySFX(def.appearSfx);
+
+        return true;
     }
 
     Vector3 ResolveSpawnPosition()
@@ -608,7 +625,11 @@ public class DungeonRunManager : MonoBehaviour
         if (saveOnRunEnd)
             DataSaver.Ins?.SaveDataFn(force: true, forceLocalWrite: true);
 
+        if (!success)
+            RunFailNotifierRuntime.NotifyRunFailed(pendingFailReason);
+
         OnRunEnded?.Invoke(success);
+        pendingFailReason = PlayerRunFailReason.Unknown;
     }
 
     void ReturnToPreviousLocation()
