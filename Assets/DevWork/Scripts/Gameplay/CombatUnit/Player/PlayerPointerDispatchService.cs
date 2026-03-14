@@ -15,6 +15,8 @@ public sealed class PlayerPointerDispatchService
         bool gameplayInputAllowed,
         IPointerDamageTargetResolver pointerTargetResolver,
         IDamageTargetSelectionService targetSelectionService,
+        bool allowClickDispatch,
+        bool allowHoldDispatch,
         Action<IDamageReceiver> clickDispatch,
         Action<IDamageReceiver, Vector3> holdDispatch)
     {
@@ -36,9 +38,9 @@ public sealed class PlayerPointerDispatchService
         if (pointerTargetResolver == null || targetSelectionService == null)
             return;
 
-        bool mouseDown = Input.GetMouseButtonDown(0);
-        bool mouseHeld = Input.GetMouseButton(0);
-        if (!mouseDown && !mouseHeld)
+        bool shouldClickDispatch = allowClickDispatch && Input.GetMouseButtonDown(0);
+        bool shouldHoldDispatch = allowHoldDispatch && Input.GetMouseButton(0);
+        if (!shouldClickDispatch && !shouldHoldDispatch)
             return;
 
         if (!pointerTargetResolver.TryResolvePointerTarget(out IDamageReceiver target, out Vector3 hitPoint))
@@ -46,20 +48,18 @@ public sealed class PlayerPointerDispatchService
         if (!targetSelectionService.CanReceiveDamage(target))
             return;
 
-        if (mouseDown)
+        pointerTargetResolver.ApplyPointerHitContext(target, hitPoint);
+
+        if (shouldClickDispatch)
         {
-            pointerTargetResolver.ApplyPointerHitContext(target, hitPoint);
             clickDispatch?.Invoke(target);
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             RegisterPointerClickDispatch();
 #endif
         }
 
-        if (mouseHeld)
+        if (shouldHoldDispatch)
         {
-            if (!mouseDown)
-                pointerTargetResolver.ApplyPointerHitContext(target, hitPoint);
-
             holdDispatch?.Invoke(target, hitPoint);
             pointerHoldActive = true;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD

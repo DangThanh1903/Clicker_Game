@@ -9,19 +9,33 @@ public class BlockAnimationController : MonoBehaviour
     public List<BlockAnimationAsset> spawnOptions = new();
     public List<BlockAnimationAsset> idleOptions  = new();
     public List<BlockAnimationAsset> clickOptions = new();
+    public List<BlockAnimationAsset> holdOptions  = new();
     public List<BlockAnimationAsset> deathOptions = new();
 
     [Header("Selected Indices")]
-    public int spawnIndex = 0, idleIndex = 0, clickIndex = 0, deathIndex = 0;
+    public int spawnIndex = 0, idleIndex = 0, clickIndex = 0, holdIndex = 0, deathIndex = 0;
 
     private bool isDeathPlaying;
-    private const string RESUME_IDLE_ID = "ANIM_RESUME_IDLE";
+    private bool waitForMomentumBeforeIdle;
+    private BlockMomentumSpinDriver waitingSpinDriver;
+    private BlockMomentumSpinDriver cachedSpinDriver;
 
-    void OnDisable() => StopAll();
+    private void Awake()
+    {
+        TryGetComponent(out cachedSpinDriver);
+    }
+
+    void OnDisable()
+    {
+        waitForMomentumBeforeIdle = false;
+        waitingSpinDriver = null;
+        StopAll();
+    }
 
     public void SetSpawnIndex(int idx)   { spawnIndex = Clamp(idx, spawnOptions.Count); }
     public void SetIdleIndex(int idx) { idleIndex = Clamp(idx, idleOptions.Count); TryPlayIdle(); }
     public void SetClickIndex(int idx)   { clickIndex = Clamp(idx, clickOptions.Count); }
+    public void SetHoldIndex(int idx) { holdIndex = Clamp(idx, holdOptions.Count); }
     public void SetDeathIndex(int idx)   { deathIndex = Clamp(idx, deathOptions.Count); }
 
     public void TryPlayIdle()
@@ -30,7 +44,6 @@ public class BlockAnimationController : MonoBehaviour
         var s = Get(idleOptions, idleIndex);
         if (!s) { Debug.LogWarning("[Anim] No idle option selected"); return; }
 
-        DOTween.Kill(RESUME_IDLE_ID);
         s.Stop(gameObject);
         s.PlayTween(gameObject);
     }
@@ -38,6 +51,8 @@ public class BlockAnimationController : MonoBehaviour
     public void PlaySpawn(Action onDone = null, bool playAnimation = false)
     {
         isDeathPlaying = false;
+        waitForMomentumBeforeIdle = false;
+        waitingSpinDriver = null;
         if (!playAnimation)
         {
             onDone?.Invoke();
@@ -63,21 +78,49 @@ public class BlockAnimationController : MonoBehaviour
         var idle  = Get(idleOptions,  idleIndex);
         var click = Get(clickOptions, clickIndex);
 
-        DOTween.Kill(RESUME_IDLE_ID);
+        waitForMomentumBeforeIdle = false;
+        waitingSpinDriver = null;
         idle?.Stop(gameObject);
 
-        if (!click) { TryPlayIdle(); return; }
+        if (!click)
+        {
+            ResumeIdleWhenReady();
+            return;
+        }
 
         click.Stop(gameObject);
         var tw = click.PlayTween(gameObject);
-        if (tw != null) tw.OnComplete(() => { if (!isDeathPlaying) TryPlayIdle(); });
-        else if (!isDeathPlaying) TryPlayIdle();
+        if (tw != null) tw.OnComplete(ResumeIdleWhenReady);
+        else ResumeIdleWhenReady();
+    }
+
+    public void PlayHold()
+    {
+        if (isDeathPlaying) return;
+        var idle = Get(idleOptions, idleIndex);
+        var hold = GetHoldSelected();
+
+        waitForMomentumBeforeIdle = false;
+        waitingSpinDriver = null;
+        idle?.Stop(gameObject);
+
+        if (!hold)
+        {
+            ResumeIdleWhenReady();
+            return;
+        }
+
+        hold.Stop(gameObject);
+        var tw = hold.PlayTween(gameObject);
+        if (tw != null) tw.OnComplete(ResumeIdleWhenReady);
+        else ResumeIdleWhenReady();
     }
 
     public void PlayDeath(Action onDone = null)
     {
         isDeathPlaying = true;                 // block Idle/Click until next spawn
-        DOTween.Kill(RESUME_IDLE_ID);
+        waitForMomentumBeforeIdle = false;
+        waitingSpinDriver = null;
         StopAll();
 
         var death = Get(deathOptions, deathIndex);
@@ -95,10 +138,53 @@ public class BlockAnimationController : MonoBehaviour
         Get(spawnOptions, spawnIndex)?.Stop(gameObject);
         Get(idleOptions, idleIndex)?.Stop(gameObject);
         Get(clickOptions, clickIndex)?.Stop(gameObject);
+        GetHoldSelected()?.Stop(gameObject);
         Get(deathOptions, deathIndex)?.Stop(gameObject);
     }
 
+    private void LateUpdate()
+    {
+        if (!waitForMomentumBeforeIdle)
+            return;
+
+        if (isDeathPlaying)
+        {
+            waitForMomentumBeforeIdle = false;
+            waitingSpinDriver = null;
+            return;
+        }
+
+        if (waitingSpinDriver != null && waitingSpinDriver.HasMomentum)
+            return;
+
+        waitForMomentumBeforeIdle = false;
+        waitingSpinDriver = null;
+        TryPlayIdle();
+    }
+
+    private void ResumeIdleWhenReady()
+    {
+        if (isDeathPlaying)
+            return;
+
+        var spinDriver = cachedSpinDriver;
+        if (spinDriver != null && spinDriver.HasMomentum)
+        {
+            waitingSpinDriver = spinDriver;
+            waitForMomentumBeforeIdle = true;
+            return;
+        }
+
+        TryPlayIdle();
+    }
+
     private static int Clamp(int i, int n) => (n <= 0) ? 0 : Mathf.Clamp(i, 0, n - 1);
+    private BlockAnimationAsset GetHoldSelected()
+    {
+        var hold = Get(holdOptions, holdIndex);
+        return hold ? hold : Get(clickOptions, clickIndex);
+    }
+
     private static BlockAnimationAsset Get(List<BlockAnimationAsset> list, int idx)
         => (list != null && list.Count > 0 && idx >= 0 && idx < list.Count) ? list[idx] : null;
 }

@@ -7,6 +7,7 @@ using System.Collections;
 using DG.Tweening;
 
 [RequireComponent(typeof(DamageTargetRegistrant))]
+[RequireComponent(typeof(BlockMomentumSpinDriver))]
 public class ClickableObject : MonoBehaviour, IDamageReceiver, IPointerHitContext
 {
     private static readonly Vector3[][] CubeFaces =
@@ -36,6 +37,7 @@ public class ClickableObject : MonoBehaviour, IDamageReceiver, IPointerHitContex
     public string BlockName => blockName;
     public float MaxHealth { get; private set; }
     public ReactiveProperty<float> CurrentHealth { get; private set; } = new ReactiveProperty<float>();
+    public BlockMomentumSpinDriver MomentumSpinDriver => momentumSpinDriver;
     public int InputPriority => 0;
     public bool CanReceiveDamage =>
         isActiveAndEnabled &&
@@ -117,10 +119,13 @@ public class ClickableObject : MonoBehaviour, IDamageReceiver, IPointerHitContex
     private Vector3 lastPointerRayDirection;
     private bool hasLastPointerRayDirection;
     private int lastPointerHitFrame = -1;
+    private float lastDamageRatioNormalized;
+    private int lastDamageFrame = -1;
     private Mesh generatedCubeMesh;
     private MeshFilter meshFilter;
     private readonly Vector2[] cubeUvBuffer = new Vector2[24];
     private Tween deathFlowTween;
+    private BlockMomentumSpinDriver momentumSpinDriver;
 
     private CompositeDisposable runtimeSubs;
     void Awake()
@@ -130,6 +135,11 @@ public class ClickableObject : MonoBehaviour, IDamageReceiver, IPointerHitContex
         baseGlowPropertyBlock = new MaterialPropertyBlock();
         cubeRenderer = GetComponent<MeshRenderer>();
         meshFilter = GetComponent<MeshFilter>();
+        momentumSpinDriver = GetComponent<BlockMomentumSpinDriver>();
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        if (momentumSpinDriver == null)
+            Debug.LogError("[ClickableObject] Missing BlockMomentumSpinDriver. Add it on prefab/scene.", this);
+#endif
         if (animCtrl == null) animCtrl = GetComponent<BlockAnimationController>();
         authoredBaseScale = transform.localScale;
         baseAliveScale = Vector3.one * baseBlockScale;
@@ -235,8 +245,14 @@ public class ClickableObject : MonoBehaviour, IDamageReceiver, IPointerHitContex
         onClickPos = GetUIPosition(cam, worldPoint);
         lastClickWorldPoint = worldPoint;
         hasLastClickWorldPoint = true;
-        Ray ray = cam.ScreenPointToRay(Input.mousePosition);
-        lastPointerRayDirection = ray.direction.normalized;
+        Vector3 rayLikeDirection = worldPoint - cam.transform.position;
+        if (rayLikeDirection.sqrMagnitude <= 0.000001f)
+        {
+            hasLastPointerRayDirection = false;
+            return;
+        }
+
+        lastPointerRayDirection = rayLikeDirection.normalized;
         hasLastPointerRayDirection = true;
         lastPointerHitFrame = Time.frameCount;
     }
@@ -303,6 +319,20 @@ public class ClickableObject : MonoBehaviour, IDamageReceiver, IPointerHitContex
         return Time.frameCount - lastPointerHitFrame <= maxAgeFrames;
     }
 
+    public bool TryGetRecentDamageRatioNormalized(out float ratio01, int maxAgeFrames = 2)
+    {
+        ratio01 = 0f;
+
+        if (lastDamageFrame < 0)
+            return false;
+
+        if (maxAgeFrames >= 0 && Time.frameCount - lastDamageFrame > maxAgeFrames)
+            return false;
+
+        ratio01 = Mathf.Clamp01(lastDamageRatioNormalized);
+        return true;
+    }
+
 
     public void HandleClick()
     {
@@ -354,6 +384,12 @@ public class ClickableObject : MonoBehaviour, IDamageReceiver, IPointerHitContex
         if (power <= 0f)
             return;
 
+        if (MaxHealth > 0f)
+            lastDamageRatioNormalized = Mathf.Clamp01(power / MaxHealth);
+        else
+            lastDamageRatioNormalized = 0f;
+        lastDamageFrame = Time.frameCount;
+
         if (countAsHit)
             CombatFeedbackRuntime.NotifyDamageHit();
 
@@ -370,7 +406,10 @@ public class ClickableObject : MonoBehaviour, IDamageReceiver, IPointerHitContex
             hasLastClickWorldPoint)
             VFXManager.Ins?.PlayBlockClickVfx(lastClickWorldPoint);
 
-        animCtrl?.PlayClick();
+        if (string.Equals(source, "hold", StringComparison.Ordinal))
+            animCtrl?.PlayHold();
+        else
+            animCtrl?.PlayClick();
     }
 
     public int GetRecentHitCount(float windowSeconds = 1f)

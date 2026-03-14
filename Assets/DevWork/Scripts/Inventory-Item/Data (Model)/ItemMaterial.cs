@@ -6,5 +6,5 @@ using UnityEngine;
 public class ItemMaterial : Item
 {
     public override ItemType Type => ItemType.ItemMaterial;
-    public override int MaxStack => 64;
+    public override int MaxStack => 3600;
 }

@@ -79,6 +79,8 @@ public class PlayerController : MonoBehaviour, ICombatResourceReadModel, ICombat
             IsGameplayInputAllowed(),
             pointerTargetResolver,
             targetSelectionService,
+            currentState is not HoldState,
+            currentState is HoldState,
             OnClick,
             OnHold);
 

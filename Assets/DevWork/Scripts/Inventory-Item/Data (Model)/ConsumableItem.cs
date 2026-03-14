@@ -6,7 +6,7 @@ using UnityEngine;
 public class ConsumableItem : Item
 {
     public override ItemType Type => ItemType.Consumable;
-    public override int MaxStack => 16;
+    public override int MaxStack => 360;
 
     public BuffSO buffToApply;
 }

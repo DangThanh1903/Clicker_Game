@@ -10,10 +10,10 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 180b3ad101f83854ba87f221805a1321, type: 3}
-  m_Name: NormalClickAnim
+  m_Name: HoldClickAnim
   m_EditorClassIdentifier: 
   channel: 2
-  squashScale: 0.85
+  squashScale: 0.86
   duration: 0.24
   useFixedBaseScale: 0
   baseScale: {x: 2.5, y: 2.5, z: 2.5}
@@ -21,7 +21,7 @@ MonoBehaviour:
   randomRotationDegrees: {x: 8, y: 12, z: 12}
   rotateOutEase: 6
   rotateBackEase: 27
-  rotateByMouseDirection: 0
+  rotateByMouseDirection: 1
   directionalRotationDegrees: {x: 10, y: 6, z: 14}
   momentumMaxDistancePx: 190
   minMomentum: 0.24
@@ -32,7 +32,7 @@ MonoBehaviour:
   centerDeadZonePx: 6
   addRandomJitter: 0
   randomJitterDegrees: {x: 1.5, y: 2, z: 2}
-  scaleImpulseByDamageRatio: 0
+  scaleImpulseByDamageRatio: 1
   damageRatioBlend: 0.6
   damageRatioScale: 0.8
   damageRatioCurvePower: 0.85
