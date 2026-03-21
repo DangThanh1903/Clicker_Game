@@ -13,7 +13,7 @@ public class CaseRollController : MonoBehaviour
         rng = new System.Random(Environment.TickCount);
     }
 
-    // Call this from your â€œUseâ€ button with the selected Lootbox asset
+    // Call this from your "Use" button with the selected Lootbox asset
     public void UseLootbox(Lootbox box)
     {
         // 1) Real roll (this should be server-authoritative in production)
@@ -41,7 +41,7 @@ public class CaseRollController : MonoBehaviour
     {
         InventoryController.Instance.AddItemToInventory(new InventoryItem(item, amount));
 
-        DevLog.Log($"đŸ‰ Landed: {item.GetColoredName()} x{amount}");
+        DevLog.Log($"[Lootbox] Landed: {item.GetColoredName()} x{amount}");
         // TODO: Play rarity sting VFX/SFX here based on item.rarity
     }
 

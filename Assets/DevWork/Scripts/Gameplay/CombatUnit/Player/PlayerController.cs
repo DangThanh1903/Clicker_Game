@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.EventSystems;
 
 public class PlayerController : MonoBehaviour, ICombatResourceReadModel, ICombatFeedbackSink, IRunFailNotifier
 {
@@ -8,6 +9,7 @@ public class PlayerController : MonoBehaviour, ICombatResourceReadModel, ICombat
     private readonly PlayerCombatResourceService combatResourceService = new PlayerCombatResourceService();
     private readonly PlayerRunLifecycleService runLifecycleService = new PlayerRunLifecycleService();
     private readonly PlayerPointerDispatchService pointerDispatchService = new PlayerPointerDispatchService();
+    private readonly PlayerDragRotateService dragRotateService = new PlayerDragRotateService();
     private readonly PlayerIdleAttackTickService idleAttackTickService = new PlayerIdleAttackTickService();
     private readonly ClickPerTickService clickPerTickService = new ClickPerTickService();
     private PlayerCombatVfxService combatVfxService;
@@ -27,6 +29,15 @@ public class PlayerController : MonoBehaviour, ICombatResourceReadModel, ICombat
     [SerializeField] private LayerMask pointerRaycastLayers = Physics.DefaultRaycastLayers;
     [SerializeField, Min(0.1f)] private float pointerRaycastDistance = 200f;
     [SerializeField] private QueryTriggerInteraction pointerRaycastTriggerInteraction = QueryTriggerInteraction.Ignore;
+    [Header("Screen Drag Rotate")]
+    [SerializeField] private bool enableScreenDragRotate = true;
+    [SerializeField, Min(0f)] private float dragRotateImpulsePerPixel = 2.8f;
+    [SerializeField, Min(0f)] private float dragRotateMinDeltaPixels = 0.5f;
+    [SerializeField, Range(0.05f, 2f)] private float dragRotateInputScale = 0.5f;
+    [SerializeField, Min(1f)] private float dragRotateMaxImpulsePerFrame = 60f;
+    [SerializeField, Min(0.1f)] private float dragRotateSpinDamping = 2.05f;
+    [SerializeField, Min(0f)] private float dragRotateSpinMaxAngularSpeed = 0f;
+    [SerializeField, Min(0.001f)] private float dragRotateSpinStopSpeedThreshold = 0.11f;
 
     [Header("Pickaxe")]
     [SerializeField] InventoryData pickaxeData;
@@ -75,14 +86,31 @@ public class PlayerController : MonoBehaviour, ICombatResourceReadModel, ICombat
     }
     void Update()
     {
+        bool gameplayInputAllowed = IsGameplayInputAllowed();
+
         pointerDispatchService.Tick(
-            IsGameplayInputAllowed(),
+            gameplayInputAllowed,
             pointerTargetResolver,
             targetSelectionService,
             currentState is not HoldState,
             currentState is HoldState,
             OnClick,
             OnHold);
+
+        dragRotateService.Tick(
+            gameplayInputAllowed,
+            enableScreenDragRotate,
+            pointerTargetResolver,
+            ResolveCurrentBlockForDragRotate,
+            IsPointerOverUiForDragRotate,
+            dragRotateImpulsePerPixel,
+            dragRotateMinDeltaPixels,
+            dragRotateInputScale,
+            dragRotateMaxImpulsePerFrame,
+            dragRotateSpinDamping,
+            dragRotateSpinMaxAngularSpeed,
+            useUnscaledTime,
+            dragRotateSpinStopSpeedThreshold);
 
         clickPerTickService.Tick(CombatNow);
         combatResourceService.Tick(
@@ -122,6 +150,7 @@ public class PlayerController : MonoBehaviour, ICombatResourceReadModel, ICombat
         runLifecycleService.ResetRuntime();
         clickPerTickService.ResetRuntime();
         pointerDispatchService.ResetRuntime();
+        dragRotateService.ResetRuntime();
         idleAttackTickService.ResetRuntime();
         CombatRuntimeBootstrap.UnbindOwner(this);
         IsDead = false;
@@ -141,6 +170,7 @@ public class PlayerController : MonoBehaviour, ICombatResourceReadModel, ICombat
         runLifecycleService.RunFailed += HandleRunFailed;
         clickPerTickService.ResetRuntime();
         pointerDispatchService.ResetRuntime();
+        dragRotateService.ResetRuntime();
         IsDead = false;
     }
 
@@ -335,6 +365,22 @@ public class PlayerController : MonoBehaviour, ICombatResourceReadModel, ICombat
     private bool IsGameplayInputAllowed()
     {
         return inputGatePolicyService.IsCombatInputAllowed();
+    }
+
+    private ClickableObject ResolveCurrentBlockForDragRotate()
+    {
+        if (BlockManager.Ins == null)
+            return null;
+
+        return BlockManager.Ins.CurrentBlock;
+    }
+
+    private static bool IsPointerOverUiForDragRotate()
+    {
+        if (EventSystem.current == null)
+            return false;
+
+        return EventSystem.current.IsPointerOverGameObject();
     }
 
     #region COMBAT_LOGIC -----------------------------------------------------------------------------------

@@ -51,6 +51,10 @@ public class QuestManager : MonoBehaviour
     private readonly Subject<Unit> _onListChanged = new();
     public IObservable<string> OnQuestUpdated => _onQuestUpdated;
     private readonly Subject<string> _onQuestUpdated = new();
+    public IObservable<QuestDef> OnQuestCompleted => _onQuestCompleted;
+    private readonly Subject<QuestDef> _onQuestCompleted = new();
+    public IObservable<QuestDef> OnAchievementCompleted => _onAchievementCompleted;
+    private readonly Subject<QuestDef> _onAchievementCompleted = new();
 
     void Awake()
     {
@@ -187,15 +191,16 @@ public class QuestManager : MonoBehaviour
             var saved = states.FirstOrDefault(s => s.questId == def.id) ?? NewQuestStateFromDef(def);
             var tracker = new QuestTracker(def, saved);
             dict[def.id] = tracker;
+            bool completionPopupDispatched = tracker.Completed.Value;
 
-            // Auto-save khi cĂ³ tiáº¿n Ä‘á»™ Ä‘á»•i (throttle nháº¹ Ä‘á»ƒ giáº£m I/O)
+            // Auto-save when progress changes (light throttle to reduce I/O)
             tracker.OnStepProgressChanged += t =>
             {
                 RequestSave(def.type);
                 _onQuestUpdated.OnNext(t.QuestId);
             };
 
-            // Auto-complete â†’ save
+            // Auto-complete -> save
             tracker.Completed
                 .DistinctUntilChanged()
                 .Where(done => done)
@@ -203,6 +208,15 @@ public class QuestManager : MonoBehaviour
                 {
                     RequestSave(def.type);
                     _onQuestUpdated.OnNext(def.id);
+
+                    if (!completionPopupDispatched)
+                    {
+                        _onQuestCompleted.OnNext(def);
+                        if (def.isAchievement)
+                            _onAchievementCompleted.OnNext(def);
+                    }
+
+                    completionPopupDispatched = true;
                 })
                 .AddTo(trackerCd);
         }

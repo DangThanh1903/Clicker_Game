@@ -57,7 +57,7 @@ public class CraftRecipePanel : MonoBehaviour
             return;
         }
 
-        // láº¥y recipe Ä‘áº§u tiĂªn (náº¿u cĂ³ nhiá»u báº¡n cĂ³ thá»ƒ lĂ m UI Ä‘á»ƒ chuyá»ƒn tab)
+        // Use the first recipe (if there are multiple, you can add a tab UI later).
         ShowRecipe(list[0]);
     }
 
@@ -71,7 +71,7 @@ public class CraftRecipePanel : MonoBehaviour
 
         currentRecipe = recipe;
 
-        // Fill ingredients (Ä‘Ă£ normalize 4 slot trong DB; náº¿u khĂ´ng, tá»± báº£o vá»‡ null)
+        // Fill ingredients (DB is normalized to 4 slots; still guard null safely).
         for (int i = 0; i < 4; i++)
         {
             var it = (i < recipe.ingredients.Count) ? recipe.ingredients[i] : null;
@@ -81,7 +81,7 @@ public class CraftRecipePanel : MonoBehaviour
             if (ingIcons != null && i < ingIcons.Length && ingIcons[i])
             {
                 ingIcons[i].sprite = data != null && data.Type != ItemType.None ? data.icon : null;
-                ingIcons[i].color = data != null && data.Type != ItemType.None ? Color.white : new Color(1,1,1,0); // áº©n náº¿u null
+                ingIcons[i].color = data != null && data.Type != ItemType.None ? Color.white : new Color(1,1,1,0); // Hide if null
             }
 
             if (ingQtyTexts != null && i < ingQtyTexts.Length && ingQtyTexts[i])
@@ -150,7 +150,7 @@ public class CraftRecipePanel : MonoBehaviour
     public void ShowEmpty(string reason = "")
     {
         currentRecipe = null;
-        // XoĂ¡/áº©n sáº¡ch slot
+        // Clear all slots
         for (int i = 0; i < 4; i++)
         {
             if (ingIcons != null && i < ingIcons.Length && ingIcons[i])
@@ -173,7 +173,7 @@ public class CraftRecipePanel : MonoBehaviour
         if (root) root.SetActive(true);
         else gameObject.SetActive(true);
 
-        // (tuá»³ chá»n) cĂ³ thá»ƒ hiá»ƒn thá»‹ má»™t label â€œNo recipeâ€
+        // Optional: show a "No recipe" label
         DevLog.Log($"RecipePanel: {reason}");
     }
 

@@ -104,8 +104,14 @@ public class PlayerNameUI : MonoBehaviour
 
     private void UpdateInteractable()
     {
-        if (saveButton == null || nameInput == null)
+        if (saveButton == null)
             return;
+
+        if (nameInput == null)
+        {
+            saveButton.interactable = false;
+            return;
+        }
 
         bool hasName = !string.IsNullOrWhiteSpace(nameInput.text);
         saveButton.interactable = hasName;

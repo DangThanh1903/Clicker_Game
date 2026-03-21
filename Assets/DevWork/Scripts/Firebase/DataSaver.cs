@@ -29,6 +29,7 @@ public class DataSaver : MonoBehaviour
 
     [Header("Profile")]
     public string DisplayName;
+    public string AvatarId;
 
     [Header("Autosave")]
     private IntReactiveProperty blockBreakCounter = new IntReactiveProperty(0);
@@ -45,7 +46,7 @@ public class DataSaver : MonoBehaviour
     // Firestore
     private FirebaseFirestore db;
 
-    // Throttle chá»‘ng spam write (clicker)
+    // Throttle to avoid save spam (clicker)
     [Header("Cloud Sync Policy")]
     [SerializeField] private CloudSyncMode cloudSyncMode = CloudSyncMode.PeriodicAndLifecycle;
     [SerializeField] private bool forceCloudSyncOnLifecycle = true;
@@ -82,6 +83,7 @@ public class DataSaver : MonoBehaviour
     private long lastLocalUpdatedUtcTicks;
     private const string LocalCacheFileName = "local_save.json";
     private const int MaxDisplayNameLength = 16;
+    private const int MaxAvatarIdLength = 32;
     private const string DefaultCraftScope = "Default";
 
     void Awake()
@@ -97,7 +99,7 @@ public class DataSaver : MonoBehaviour
 
     private void Start()
     {
-        // âœ… Delay init until FirebaseBootstrap is ready
+        // Delay init until FirebaseBootstrap is ready
         StartCoroutine(InitWhenReady());
     }
 
@@ -110,7 +112,7 @@ public class DataSaver : MonoBehaviour
         yield return new WaitUntil(() => FirebaseBootstrap.Ins.IsReady || FirebaseBootstrap.Ins.IsFailed);
         if (FirebaseBootstrap.Ins.IsFailed)
         {
-            Debug.LogError($"âŒ DataSaver init aborted: {FirebaseBootstrap.Ins.InitError}");
+            Debug.LogError($"[Error] DataSaver init aborted: {FirebaseBootstrap.Ins.InitError}");
             yield break;
         }
 
@@ -123,7 +125,7 @@ public class DataSaver : MonoBehaviour
             .AddTo(this);
 
         isReady = true;
-        DevLog.Log($"âœ… DataSaver ready. uid={GetUid()}");
+        DevLog.Log($"[OK] DataSaver ready. uid={GetUid()}");
         AnalyticsManager.Ins?.UpdateUserProperties(this);
     }
 
@@ -164,7 +166,7 @@ public class DataSaver : MonoBehaviour
             return false;
         }
 
-        // cooldown Ä‘á»ƒ khĂ´ng spam write
+        // Cooldown to avoid write spam
         if (!force)
         {
             if (Time.unscaledTime < nextCloudSaveTime)
@@ -178,7 +180,7 @@ public class DataSaver : MonoBehaviour
         return true;
     }
 
-    // Báº¡n gá»i cĂ¡i nĂ y má»—i khi break block/click... tuá»³ logic
+    // Call this on break block/click depending on your game flow.
     public void IncreaseBreakCounter(int amount = 1)
     {
         blockBreakCounter.Value += amount;
@@ -216,7 +218,7 @@ public class DataSaver : MonoBehaviour
         TryApplyCachedGameplayStatsToRuntime();
         QueueLocalSave(forceLocalWrite || force);
 
-        // reset counter (nhÆ°ng chá»‰ reset khi tháº­t sá»± save)
+        // Reset counter only when we actually save.
         if (!CanCloudSaveNow(out var uid, force, out var reason))
         {
             if (verboseSaveLogs)
@@ -346,7 +348,7 @@ public class DataSaver : MonoBehaviour
             {
                 if (i >= attempts)
                 {
-                    Debug.LogError($"âŒ {opName} failed after {attempts} attempts: {ex}");
+                    Debug.LogError($"[Error] {opName} failed after {attempts} attempts: {ex}");
                     return false;
                 }
 
@@ -433,7 +435,8 @@ public class DataSaver : MonoBehaviour
     {
         return new UserProfileData
         {
-            displayName = SanitizeDisplayName(DisplayName)
+            displayName = SanitizeDisplayName(DisplayName),
+            avatarId = SanitizeAvatarId(AvatarId)
         };
     }
 
@@ -442,6 +445,7 @@ public class DataSaver : MonoBehaviour
         return new LeaderboardPublicData
         {
             displayName = SanitizeDisplayName(profile?.displayName),
+            avatarId = SanitizeAvatarId(profile?.avatarId),
             clicks = gameplay != null ? gameplay.clicks : 0f,
             totalPlaytime = gameplay != null ? gameplay.totalPlaytime : 0f,
             updatedAt = updatedAt
@@ -489,7 +493,7 @@ public class DataSaver : MonoBehaviour
         }
         catch (Exception ex)
         {
-            Debug.LogWarning($"â ï¸ Failed to write local cache: {ex}");
+            Debug.LogWarning($"[Warn] Failed to write local cache: {ex}");
         }
     }
 
@@ -512,7 +516,7 @@ public class DataSaver : MonoBehaviour
         }
         catch (Exception ex)
         {
-            Debug.LogWarning($"â ï¸ Failed to read local cache: {ex}");
+            Debug.LogWarning($"[Warn] Failed to read local cache: {ex}");
             return false;
         }
     }
@@ -521,7 +525,7 @@ public class DataSaver : MonoBehaviour
     {
         if (!TryLoadLocalCache(out var local) || local.gameplay == null)
         {
-            Debug.LogWarning("â ï¸ Local cache missing or invalid.");
+            Debug.LogWarning("[Warn] Local cache missing or invalid.");
             onComplete?.Invoke(false);
             yield break;
         }
@@ -543,7 +547,7 @@ public class DataSaver : MonoBehaviour
             }
         }
 
-        DevLog.Log("âœ… Loaded from local cache.");
+        DevLog.Log("[OK] Loaded from local cache.");
         MarkDataLoaded();
         onComplete?.Invoke(true);
     }
@@ -607,7 +611,7 @@ public class DataSaver : MonoBehaviour
         if (ok)
             MarkDataLoaded();
         if (ok) SaveLocalCache();
-        DevLog.Log("âœ… All inventories loaded (Firestore)");
+        DevLog.Log("[OK] All inventories loaded (Firestore)");
         onComplete?.Invoke(ok);
     }
 
@@ -628,7 +632,7 @@ public class DataSaver : MonoBehaviour
 
         if (task.Exception != null)
         {
-            Debug.LogError($"âŒ Failed to load {inv.inventoryType}: {task.Exception}");
+            Debug.LogError($"[Error] Failed to load {inv.inventoryType}: {task.Exception}");
             onComplete?.Invoke(false);
             yield break;
         }
@@ -638,7 +642,7 @@ public class DataSaver : MonoBehaviour
         // No data -> default size
         if (!snap.Exists)
         {
-            Debug.LogWarning($"â ï¸ No data for {inv.inventoryType}, create default size = {inv.GetSize()}");
+            Debug.LogWarning($"[Warn] No data for {inv.inventoryType}, create default size = {inv.GetSize()}");
             inv.Items.Clear();
             EnsureInventorySize(inv);
             onComplete?.Invoke(true);
@@ -664,7 +668,7 @@ public class DataSaver : MonoBehaviour
 
         if (task.Exception != null)
         {
-            Debug.LogError($"âŒ Failed to load gameplay doc: {task.Exception}");
+            Debug.LogError($"[Error] Failed to load gameplay doc: {task.Exception}");
             onComplete?.Invoke(false);
             yield break;
         }
@@ -672,7 +676,7 @@ public class DataSaver : MonoBehaviour
         var snap = task.Result;
         if (!snap.Exists)
         {
-            Debug.LogWarning("â ï¸ No user doc, keep defaults.");
+            Debug.LogWarning("[Warn] No user doc, keep defaults.");
             MarkDataLoaded();
             onComplete?.Invoke(true);
             yield break;
@@ -686,7 +690,7 @@ public class DataSaver : MonoBehaviour
 
         if (!snap.TryGetValue("gameplay", out GameplaySaveData gameplay) || gameplay == null)
         {
-            Debug.LogWarning("â ï¸ No gameplay field.");
+            Debug.LogWarning("[Warn] No gameplay field.");
             onComplete?.Invoke(false);
             yield break;
         }
@@ -694,7 +698,7 @@ public class DataSaver : MonoBehaviour
         ApplyGameplayData(gameplay);
         if (snap.TryGetValue("profile", out UserProfileData profile) && profile != null)
             ApplyProfileData(profile);
-        DevLog.Log("âœ… Loaded gameplay (Firestore)");
+        DevLog.Log("[OK] Loaded gameplay (Firestore)");
         MarkDataLoaded();
         onComplete?.Invoke(true);
     }
@@ -750,6 +754,7 @@ public class DataSaver : MonoBehaviour
     {
         if (profile == null) return;
         DisplayName = SanitizeDisplayName(profile.displayName);
+        AvatarId = SanitizeAvatarId(profile.avatarId);
     }
 
     public void RegisterCraftNodeManager(CraftNodeManager manager)
@@ -869,6 +874,16 @@ public class DataSaver : MonoBehaviour
         SaveDataFn(forceSave);
     }
 
+    public void SetAvatarId(string avatarId, bool forceSave = true)
+    {
+        string cleaned = SanitizeAvatarId(avatarId);
+        if (string.Equals(AvatarId, cleaned, StringComparison.Ordinal))
+            return;
+
+        AvatarId = cleaned;
+        SaveDataFn(forceSave);
+    }
+
     public void MarkInitialLoadComplete(bool hasData)
     {
         allowSaves = true;
@@ -944,7 +959,7 @@ public class DataSaver : MonoBehaviour
         bool migrated = EnsureInventorySize(inv);
         if (migrated)
         {
-            DevLog.Log($"âœ… Migrated {inv.inventoryType} to size {inv.GetSize()}");
+            DevLog.Log($"[OK] Migrated {inv.inventoryType} to size {inv.GetSize()}");
             SaveLocalCache();
             if (isReady)
                 SaveDataFn(true);
@@ -1021,6 +1036,25 @@ public class DataSaver : MonoBehaviour
         string trimmed = raw.Trim();
         if (trimmed.Length > MaxDisplayNameLength)
             trimmed = trimmed.Substring(0, MaxDisplayNameLength);
+
+        var sb = new StringBuilder(trimmed.Length);
+        foreach (char c in trimmed)
+        {
+            if (!char.IsControl(c))
+                sb.Append(c);
+        }
+
+        return sb.ToString();
+    }
+
+    private string SanitizeAvatarId(string raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+            return string.Empty;
+
+        string trimmed = raw.Trim();
+        if (trimmed.Length > MaxAvatarIdLength)
+            trimmed = trimmed.Substring(0, MaxAvatarIdLength);
 
         var sb = new StringBuilder(trimmed.Length);
         foreach (char c in trimmed)

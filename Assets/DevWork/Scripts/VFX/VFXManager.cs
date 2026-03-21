@@ -27,10 +27,11 @@ public class VFXManager : MonoBehaviour
     private Coroutine _preloadRoutine;
     private bool blockClickVfxPrewarmed;
     private bool blockClickVfxRotationCached;
+    private bool warnedMissingBlockClickVfxColorReceiver;
     private Quaternion blockClickVfxCachedRotation = Quaternion.identity;
     private readonly List<GameObject> pooledBlockClickVfxBuffer = new List<GameObject>(16);
 
-    // đŸ§ user volume (0â€“1)
+    // User music volume (0-1)
     private float _musicVolume = 1f;
     private const string MusicVolumeKey = "MusicVolume";
 
@@ -122,7 +123,7 @@ public class VFXManager : MonoBehaviour
         PrewarmBlockClickVfxIfNeeded();
     }
 
-    public void PlayBlockClickVfx(Vector3 worldPosition)
+    public void PlayBlockClickVfx(Vector3 worldPosition, Color? tintColor = null)
     {
         if (blockClickVfxPrefab == null)
             return;
@@ -134,8 +135,30 @@ public class VFXManager : MonoBehaviour
             : Quaternion.identity;
 
         var fx = LeanPool.Spawn(blockClickVfxPrefab, worldPosition, rotation);
+        if (fx != null && tintColor.HasValue)
+            ApplyBlockClickVfxTint(fx, tintColor.Value);
         if (fx != null && blockClickVfxDespawnDelay > 0f)
             LeanPool.Despawn(fx, blockClickVfxDespawnDelay);
+    }
+
+    private void ApplyBlockClickVfxTint(GameObject fx, Color color)
+    {
+        if (fx == null)
+            return;
+
+        color.a = 1f;
+        var receiver = fx.GetComponent<BlockClickVfxColorReceiver>();
+        if (receiver != null)
+        {
+            receiver.ApplyColor(color);
+            return;
+        }
+
+        if (!warnedMissingBlockClickVfxColorReceiver)
+        {
+            warnedMissingBlockClickVfxColorReceiver = true;
+            DevLog.Log("[VFXManager] Block click VFX prefab has no BlockClickVfxColorReceiver. Add it to enable outline color tint.");
+        }
     }
 
     private void PrewarmBlockClickVfxIfNeeded()
@@ -211,7 +234,7 @@ public class VFXManager : MonoBehaviour
 
     private void SetupBiomeMusic()
     {
-        // Load saved volume first (0â€“1, default 1)
+        // Load saved volume first (0-1, default 1)
         _musicVolume = PlayerPrefs.GetFloat(MusicVolumeKey, 1f);
         if (musicSource != null)
             musicSource.volume = _musicVolume;
@@ -279,7 +302,7 @@ public class VFXManager : MonoBehaviour
         if (musicSource == null)
             yield break;
 
-        float targetVolume = _musicVolume;   // user volume 0â€“1
+        float targetVolume = _musicVolume;   // user volume 0-1
         float startVolume = musicSource.volume;
 
         // Fade out
@@ -373,7 +396,7 @@ public class VFXManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Called from SettingsUI. volume01 is 0â€“1.
+    /// Called from SettingsUI. volume01 is 0-1.
     /// </summary>
     public void SetMusicVolume(float volume01)
     {

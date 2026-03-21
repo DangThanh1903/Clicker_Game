@@ -22,7 +22,7 @@ public static class ItemLocalizationQuickMigrator
         var locales = new List<Locale>(LocalizationEditorSettings.GetLocales());
         if (locales.Count == 0)
         {
-            // Táº¡o vĂ  thĂªm Locale asset
+            // Create and add a Locale asset
             var newLocale = Locale.CreateLocale(SOURCE_LOCALE);
             AssetDatabase.CreateAsset(newLocale, $"Assets/{SOURCE_LOCALE}.asset");
             LocalizationEditorSettings.AddLocale(newLocale);
@@ -77,7 +77,7 @@ public static class ItemLocalizationQuickMigrator
             AssetDatabase.SaveAssets();
         }
 
-        DevLog.Log($"Migrated {count} items. Export CSV (EN) vĂ  dá»‹ch VI sau Ä‘Ă³ Build Addressables.");
+        DevLog.Log($"Migrated {count} items. Export CSV (EN), translate to VI, then build Addressables.");
     }
 
     static StringTableCollection GetOrCreateCollection(string tableName, string assetDir, IList<Locale> locales)

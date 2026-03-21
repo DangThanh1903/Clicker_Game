@@ -17,6 +17,7 @@ public class BlockAnimationController : MonoBehaviour
 
     private bool isDeathPlaying;
     private bool waitForMomentumBeforeIdle;
+    private bool idleSuppressedByExternalMotion;
     private BlockMomentumSpinDriver waitingSpinDriver;
     private BlockMomentumSpinDriver cachedSpinDriver;
 
@@ -28,6 +29,7 @@ public class BlockAnimationController : MonoBehaviour
     void OnDisable()
     {
         waitForMomentumBeforeIdle = false;
+        idleSuppressedByExternalMotion = false;
         waitingSpinDriver = null;
         StopAll();
     }
@@ -40,7 +42,7 @@ public class BlockAnimationController : MonoBehaviour
 
     public void TryPlayIdle()
     {
-        if (isDeathPlaying) return;
+        if (isDeathPlaying || idleSuppressedByExternalMotion) return;
         var s = Get(idleOptions, idleIndex);
         if (!s) { Debug.LogWarning("[Anim] No idle option selected"); return; }
 
@@ -52,6 +54,7 @@ public class BlockAnimationController : MonoBehaviour
     {
         isDeathPlaying = false;
         waitForMomentumBeforeIdle = false;
+        idleSuppressedByExternalMotion = false;
         waitingSpinDriver = null;
         if (!playAnimation)
         {
@@ -120,6 +123,7 @@ public class BlockAnimationController : MonoBehaviour
     {
         isDeathPlaying = true;                 // block Idle/Click until next spawn
         waitForMomentumBeforeIdle = false;
+        idleSuppressedByExternalMotion = false;
         waitingSpinDriver = null;
         StopAll();
 
@@ -144,6 +148,13 @@ public class BlockAnimationController : MonoBehaviour
 
     private void LateUpdate()
     {
+        if (idleSuppressedByExternalMotion)
+        {
+            waitForMomentumBeforeIdle = false;
+            waitingSpinDriver = null;
+            return;
+        }
+
         if (!waitForMomentumBeforeIdle)
             return;
 
@@ -164,7 +175,7 @@ public class BlockAnimationController : MonoBehaviour
 
     private void ResumeIdleWhenReady()
     {
-        if (isDeathPlaying)
+        if (isDeathPlaying || idleSuppressedByExternalMotion)
             return;
 
         var spinDriver = cachedSpinDriver;
@@ -176,6 +187,23 @@ public class BlockAnimationController : MonoBehaviour
         }
 
         TryPlayIdle();
+    }
+
+    public void SetIdleSuppressed(bool suppressed)
+    {
+        if (idleSuppressedByExternalMotion == suppressed)
+            return;
+
+        idleSuppressedByExternalMotion = suppressed;
+        if (suppressed)
+        {
+            waitForMomentumBeforeIdle = false;
+            waitingSpinDriver = null;
+            Get(idleOptions, idleIndex)?.Stop(gameObject);
+            return;
+        }
+
+        ResumeIdleWhenReady();
     }
 
     private static int Clamp(int i, int n) => (n <= 0) ? 0 : Mathf.Clamp(i, 0, n - 1);

@@ -143,7 +143,7 @@ public class FirebaseBootstrap : MonoBehaviour
 
         State = FirebaseInitState.Ready;
         readyTcs.TrySetResult(true);
-        DevLog.Log($"âœ… Firebase ready. uid={Uid}");
+        DevLog.Log($"[OK] Firebase ready. uid={Uid}");
 
         if (runDiagnosticsOnReady)
             StartCoroutine(CoRunDiagnostics());
@@ -154,7 +154,7 @@ public class FirebaseBootstrap : MonoBehaviour
         InitError = ex;
         State = FirebaseInitState.Failed;
         readyTcs.TrySetException(ex);
-        Debug.LogError($"âŒ Firebase init failed: {ex}");
+        Debug.LogError($"[Error] Firebase init failed: {ex}");
     }
 
     IEnumerator CoRunDiagnostics()
@@ -177,7 +177,7 @@ public class FirebaseBootstrap : MonoBehaviour
         }
         catch (Exception ex)
         {
-            Debug.LogWarning($"â ï¸ Firebase config log failed: {ex}");
+            Debug.LogWarning($"[Warn] Firebase config log failed: {ex}");
         }
     }
 
@@ -185,14 +185,14 @@ public class FirebaseBootstrap : MonoBehaviour
     {
         if (Db == null)
         {
-            Debug.LogWarning("â ï¸ Firestore ping skipped: Db not ready.");
+            Debug.LogWarning("[Warn] Firestore ping skipped: Db not ready.");
             yield break;
         }
 
         string uid = Auth?.CurrentUser?.UserId;
         if (string.IsNullOrEmpty(uid))
         {
-            Debug.LogWarning("â ï¸ Firestore ping skipped: uid missing.");
+            Debug.LogWarning("[Warn] Firestore ping skipped: uid missing.");
             yield break;
         }
 
@@ -220,15 +220,15 @@ public class FirebaseBootstrap : MonoBehaviour
             }
             if (!task.IsCompleted)
             {
-                Debug.LogWarning($"â ï¸ Firestore ping timed out after {timeout:F1}s.");
+                Debug.LogWarning($"[Warn] Firestore ping timed out after {timeout:F1}s.");
                 yield break;
             }
         }
 
         if (task.Exception != null)
-            Debug.LogError($"âŒ Firestore ping failed: {task.Exception}");
+            Debug.LogError($"[Error] Firestore ping failed: {task.Exception}");
         else
-            DevLog.Log("âœ… Firestore ping write OK.");
+            DevLog.Log("[OK] Firestore ping write OK.");
     }
 }
 

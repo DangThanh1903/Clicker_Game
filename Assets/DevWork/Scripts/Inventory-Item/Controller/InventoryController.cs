@@ -301,7 +301,7 @@ public class InventoryController : MonoBehaviour
             }
         }
 
-        // Same item type and stackable â†’ Proper stacking logic
+        // Same item type and stackable -> proper stacking logic
         if (itemA.itemData == itemB.itemData && itemA.itemData.MaxStack > 1)
         {
             DevLog.Log("Stacking items");
@@ -451,8 +451,8 @@ public class InventoryController : MonoBehaviour
     void UpdateStat()
     {
         StatsManager.Ins.RecalculateAllStats();
-        UpdateStatTextsImmediate();     // âœ… update list text ngay láº­p tá»©c
-        UpdateStatDescription();        // âœ… update description (buffs)
+        UpdateStatTextsImmediate();     // Update stat list text immediately
+        UpdateStatDescription();        // Update buff description
     }
 
 
@@ -461,10 +461,10 @@ public class InventoryController : MonoBehaviour
         var activeBuffs    = StatsManager.Ins.ActiveBuffs?.ToList()    ?? new List<BuffInstance>();
         var conditionBuffs = StatsManager.Ins.ConditionBuffs?.ToList() ?? new List<BuffInstance>();
 
-        // âœ… Update stat list (Ä‘á» phĂ²ng thay Ä‘á»•i state/buff)
+        // Update stat list (state/buff may have changed)
         UpdateStatTextsImmediate();
 
-        // âœ… Chá»‰ show buff vĂ o description
+        // Only show buff text in description
         if (!isItemDescriptionLocked)
         {
             string buffText = GetBuffOnlyDescription(activeBuffs, conditionBuffs);
@@ -476,7 +476,7 @@ public class InventoryController : MonoBehaviour
     {
         if (statTexts == null || statTexts.Count == 0) return;
 
-        // Order: HP, Mana, Damage, Crit, Def (giá»‘ng báº¡n Ä‘ang build)
+        // Order: HP, Mana, Damage, Crit, Def (matching current UI)
         var hp   = StatsManager.Ins.Get(StatType.HP);
         var mana = StatsManager.Ins.Get(StatType.Mana);
         var dmg  = GetDamageByState();
@@ -484,7 +484,7 @@ public class InventoryController : MonoBehaviour
         var def  = StatsManager.Ins.Get(StatType.Def);
         var luck = StatsManager.Ins.Get(StatType.Lucky);
 
-        // Ä‘áº£m báº£o list Ä‘á»§ pháº§n tá»­
+        // Ensure text list has enough entries
         void Set(int idx, string value)
         {
             if (idx >= 0 && idx < statTexts.Count && statTexts[idx] != null)

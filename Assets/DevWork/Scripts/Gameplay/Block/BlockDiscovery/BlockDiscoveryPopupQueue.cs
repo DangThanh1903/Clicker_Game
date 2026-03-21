@@ -1,46 +1,51 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
-using UnityEngine;
 using Game.Discovery;
+using UnityEngine;
+using UnityEngine.Serialization;
 
 public class BlockDiscoveryPopupQueue : MonoBehaviour
 {
     [Header("Data")]
     [SerializeField] private BlockUVDatabase blockDb;
 
-    [Header("Popup")]
-    [SerializeField] private BlockDiscoveryPopupView popupPrefab;
+    [Header("Banner")]
+    [SerializeField] private TopNotificationType notificationType = TopNotificationType.Generic;
+    [SerializeField] private string discoveredPrefix = "Discovered block";
+    [SerializeField, Min(0.2f)] private float bannerDuration = 1.4f;
+    [SerializeField, FormerlySerializedAs("popupPrefab")] private BlockDiscoveryPopupView legacyPopupPrefab;
 
-    private readonly Queue<string> _queue = new Queue<string>();
-    private Coroutine _runRoutine;
-    private Coroutine _subscribeRoutine;
-    private bool _running;
-    private bool _subscribed;
+    private readonly Queue<string> queue = new Queue<string>();
+    private Coroutine runRoutine;
+    private Coroutine subscribeRoutine;
+    private bool running;
+    private bool subscribed;
+    private bool warnedMissingBannerManager;
 
     private void OnEnable()
     {
-        if (_subscribeRoutine == null)
-            _subscribeRoutine = StartCoroutine(WaitAndSubscribe());
+        if (subscribeRoutine == null)
+            subscribeRoutine = StartCoroutine(WaitAndSubscribe());
     }
 
     private void OnDisable()
     {
-        if (_subscribeRoutine != null)
+        if (subscribeRoutine != null)
         {
-            StopCoroutine(_subscribeRoutine);
-            _subscribeRoutine = null;
+            StopCoroutine(subscribeRoutine);
+            subscribeRoutine = null;
         }
 
-        if (_runRoutine != null)
+        if (runRoutine != null)
         {
-            StopCoroutine(_runRoutine);
-            _runRoutine = null;
-            _running = false;
+            StopCoroutine(runRoutine);
+            runRoutine = null;
+            running = false;
         }
 
-        if (_subscribed && BlockDiscoveryService.Ins != null)
+        if (subscribed && BlockDiscoveryService.Ins != null)
             BlockDiscoveryService.Ins.OnBlockDiscovered -= Enqueue;
-        _subscribed = false;
+        subscribed = false;
     }
 
     private IEnumerator WaitAndSubscribe()
@@ -48,16 +53,16 @@ public class BlockDiscoveryPopupQueue : MonoBehaviour
         while (BlockDiscoveryService.Ins == null)
             yield return null;
 
-        if (!_subscribed)
+        if (!subscribed)
         {
             BlockDiscoveryService.Ins.OnBlockDiscovered += Enqueue;
-            _subscribed = true;
+            subscribed = true;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             DevLog.Log("[DiscoveryPopupQueue] Subscribed to OnBlockDiscovered");
 #endif
         }
 
-        _subscribeRoutine = null;
+        subscribeRoutine = null;
     }
 
     private void Enqueue(string blockName)
@@ -65,19 +70,21 @@ public class BlockDiscoveryPopupQueue : MonoBehaviour
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
         DevLog.Log($"[DiscoveryPopupQueue] Enqueue {blockName}");
 #endif
-        _queue.Enqueue(blockName);
-        if (_runRoutine == null)
-            _runRoutine = StartCoroutine(RunQueue());
+        queue.Enqueue(blockName);
+        if (runRoutine == null)
+            runRoutine = StartCoroutine(RunQueue());
     }
 
     private IEnumerator RunQueue()
     {
-        if (_running) yield break;
-        _running = true;
+        if (running)
+            yield break;
 
-        while (_queue.Count > 0)
+        running = true;
+
+        while (queue.Count > 0)
         {
-            string blockName = _queue.Dequeue();
+            string blockName = queue.Dequeue();
             var entry = blockDb != null ? blockDb.GetByName(blockName) : null;
 
             if (entry == null)
@@ -86,35 +93,24 @@ public class BlockDiscoveryPopupQueue : MonoBehaviour
                 continue;
             }
 
-            var popupController = PopupController.Instance;
-            if (popupController == null)
+            if (TopNotificationManager.Ins == null)
             {
-                Debug.LogWarning("[DiscoveryPopupQueue] PopupController is missing.");
+                if (!warnedMissingBannerManager)
+                {
+                    warnedMissingBannerManager = true;
+                    Debug.LogWarning("[DiscoveryPopupQueue] TopNotificationManager is missing. Discovery banner will be skipped.");
+                }
+
                 yield return null;
                 continue;
             }
 
-            var showTask = popupController.Show(popupPrefab, popup =>
-            {
-                if (popup is BlockDiscoveryPopupView view)
-                    view.Bind(entry);
-            });
-            while (!showTask.IsCompleted)
-                yield return null;
-
-            if (showTask.IsFaulted)
-            {
-                Debug.LogWarning("[DiscoveryPopupQueue] Failed to show popup.");
-                continue;
-            }
-
-            // Wait until the popup stack is empty again
-            while (popupController != null && popupController.IsAnyPopupOpen())
-                yield return null;
+            string displayName = string.IsNullOrWhiteSpace(entry.blockName) ? blockName : entry.blockName;
+            TopNotificationManager.Notify(notificationType, $"{discoveredPrefix}: {displayName}", bannerDuration);
+            yield return null;
         }
 
-        _running = false;
-        _runRoutine = null;
+        running = false;
+        runRoutine = null;
     }
 }
-

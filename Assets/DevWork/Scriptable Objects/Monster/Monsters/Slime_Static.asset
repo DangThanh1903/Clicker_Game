@@ -10,13 +10,13 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b0f4fe280f3e12e48abd840f6580de92, type: 3}
-  m_Name: Slime
+  m_Name: Slime_Static
   m_EditorClassIdentifier: 
   id: Slime
-  MaxHP: 10
-  prefab: {fileID: 677700372070301784, guid: 161429469f605ab4b8292003419bd30e, type: 3}
-  lifetime: 6.2
-  buffReward: {fileID: 11400000, guid: a4c467b908e7f2542a89f8a7f3f5a9ca, type: 2}
+  MaxHP: 60
+  prefab: {fileID: 677700372070301784, guid: 71239801f5304de41890721dff36cb4a, type: 3}
+  lifetime: 10
+  buffReward: {fileID: 0}
   drops: []
   appearSfx: {fileID: 0}
   successSfx: {fileID: 0}

@@ -14,6 +14,7 @@ public class LocalSaveData
 public class LocalProfileData
 {
     public string displayName;
+    public string avatarId;
 
     public LocalProfileData() { }
 
@@ -21,13 +22,15 @@ public class LocalProfileData
     {
         if (src == null) return;
         displayName = src.displayName;
+        avatarId = src.avatarId;
     }
 
     public UserProfileData ToProfileSaveData()
     {
         return new UserProfileData
         {
-            displayName = displayName
+            displayName = displayName,
+            avatarId = avatarId
         };
     }
 }

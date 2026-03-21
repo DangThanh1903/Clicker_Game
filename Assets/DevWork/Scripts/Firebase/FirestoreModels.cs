@@ -18,12 +18,14 @@ public class InventorySaveData
 public class UserProfileData
 {
     [FirestoreProperty] public string displayName { get; set; }
+    [FirestoreProperty] public string avatarId { get; set; }
 }
 
 [FirestoreData]
 public class LeaderboardPublicData
 {
     [FirestoreProperty] public string displayName { get; set; }
+    [FirestoreProperty] public string avatarId { get; set; }
     [FirestoreProperty] public float clicks { get; set; }
     [FirestoreProperty] public float totalPlaytime { get; set; }
     [FirestoreProperty] public Timestamp updatedAt { get; set; }

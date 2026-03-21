@@ -7,6 +7,7 @@ using UnityEngine;
 public class RecipeDatabase : ScriptableObject
 {
     [SerializeField] private List<Recipe> recipes = new();
+    public IReadOnlyList<Recipe> Recipes => recipes;
 
     // Lookup dictionary for quick recipe search by item layout key (ignores quantities)
     private Dictionary<string, List<Recipe>> recipeLookupByItems;
@@ -106,6 +107,9 @@ public class RecipeDatabase : ScriptableObject
     // Normalize ingredients list to exactly 4 slots (2x2)
     public static List<InventoryItem> NormalizeIngredients(List<InventoryItem> originalIngredients)
     {
+        if (originalIngredients == null)
+            originalIngredients = new List<InventoryItem>();
+
         var normalized = new List<InventoryItem>(4);
 
         for (int i = 0; i < 4; i++)

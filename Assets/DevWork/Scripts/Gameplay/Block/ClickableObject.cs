@@ -8,7 +8,7 @@ using DG.Tweening;
 
 [RequireComponent(typeof(DamageTargetRegistrant))]
 [RequireComponent(typeof(BlockMomentumSpinDriver))]
-public class ClickableObject : MonoBehaviour, IDamageReceiver, IPointerHitContext
+public class ClickableObject : MonoBehaviour, IDamageReceiver, IPointerHitContext, ISpinHitContext
 {
     private static readonly Vector3[][] CubeFaces =
     {
@@ -97,9 +97,17 @@ public class ClickableObject : MonoBehaviour, IDamageReceiver, IPointerHitContex
     private int outlineMaterialIndex = 2;
     [Header("Base Glow (Material Slot 0)")]
     [SerializeField] private bool applyBaseGlowFromOutline = true;
+    [Header("Point Light (Optional)")]
+    [SerializeField] private bool applyPointLightFromGlow = true;
+    [SerializeField] private Light blockPointLight;
+    [SerializeField] private bool pointLightUseOutlineColor = true;
+    [SerializeField, Min(0f)] private float pointLightMinIntensity = 4f;
+    [SerializeField, Min(0f)] private float pointLightMaxIntensity = 15f;
+    [SerializeField, Min(0.0001f)] private float pointLightGlowAtMaxIntensity = 1f;
+    [SerializeField, Min(0f)] private float pointLightRange = 7f;
     [Header("Animation")]
     [SerializeField] private BlockAnimationController animCtrl;
-    [SerializeField, Min(1f)] private float baseBlockScale = 2.5f;
+    [SerializeField, Min(1f)] private float baseBlockScale = 2f;
 
     [Header("Death Flow - Grow Then Explode")]
     [SerializeField, Range(0.2f, 1f)] private float fullHealthScaleMultiplier = 0.82f;
@@ -108,6 +116,11 @@ public class ClickableObject : MonoBehaviour, IDamageReceiver, IPointerHitContex
     [SerializeField, Min(1f)] private float growThenExplodeBurstScale = 1.32f;
     [SerializeField, Min(0.01f)] private float growThenExplodeBurstDuration = 0.1f;
     [SerializeField] private Ease growThenExplodeBurstEase = Ease.OutBack;
+    [Header("Hit SFX Pitch by Health")]
+    [SerializeField] private bool scaleHitPitchByRemainingHealth = true;
+    [SerializeField, Range(0.1f, 3f)] private float hitPitchAtFullHealth = 1f;
+    [SerializeField, Range(0.1f, 3f)] private float hitPitchAtZeroHealth = 1.35f;
+    [SerializeField, Min(0.1f)] private float hitPitchCurvePower = 1.35f;
 
     private Vector2 onClickPos;
     private float blockSpawnTime;
@@ -126,6 +139,8 @@ public class ClickableObject : MonoBehaviour, IDamageReceiver, IPointerHitContex
     private readonly Vector2[] cubeUvBuffer = new Vector2[24];
     private Tween deathFlowTween;
     private BlockMomentumSpinDriver momentumSpinDriver;
+    private bool warnedMissingPointLight;
+    private Color currentOutlineColor = Color.black;
 
     private CompositeDisposable runtimeSubs;
     void Awake()
@@ -136,6 +151,8 @@ public class ClickableObject : MonoBehaviour, IDamageReceiver, IPointerHitContex
         cubeRenderer = GetComponent<MeshRenderer>();
         meshFilter = GetComponent<MeshFilter>();
         momentumSpinDriver = GetComponent<BlockMomentumSpinDriver>();
+        if (blockPointLight == null)
+            blockPointLight = GetComponentInChildren<Light>(true);
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
         if (momentumSpinDriver == null)
             Debug.LogError("[ClickableObject] Missing BlockMomentumSpinDriver. Add it on prefab/scene.", this);
@@ -195,6 +212,7 @@ public class ClickableObject : MonoBehaviour, IDamageReceiver, IPointerHitContex
     {
         blockName = name;
         DataSaver.Ins.currentBlock = name;
+        CacheClickVfxOutlineColor();
         MaxHealth = blockUVDatabase.GetHealth(name);
         CurrentHealth.Value = blockUVDatabase.GetHealth(name);
         BlockWeight = blockUVDatabase.GetWeight(name);
@@ -206,6 +224,7 @@ public class ClickableObject : MonoBehaviour, IDamageReceiver, IPointerHitContex
         GenerateCube();
         ApplyOutlineColorFromDatabase();
         ApplyBaseGlowFromDatabase();
+        ApplyPointLightFromDatabase();
         OnAppear();
     }
     public void SetClickableBlockByCondition(BlockSpawnLocation blockSpawnLocation, TimeState timeState, NormalWeatherName normalWeatherName, SpecialWeatherName specialWeatherName)
@@ -340,6 +359,11 @@ public class ClickableObject : MonoBehaviour, IDamageReceiver, IPointerHitContex
         TakeDamage(power, "click", countAsHit: true);
     }
 
+    public void SetIdleAnimationSuppressed(bool suppressed)
+    {
+        animCtrl?.SetIdleSuppressed(suppressed);
+    }
+
     public void ApplyDamageInput(DamageInputKind inputKind)
     {
         switch (inputKind)
@@ -404,7 +428,7 @@ public class ClickableObject : MonoBehaviour, IDamageReceiver, IPointerHitContex
         if ((string.Equals(source, "click", StringComparison.Ordinal) ||
              string.Equals(source, "hold", StringComparison.Ordinal)) &&
             hasLastClickWorldPoint)
-            VFXManager.Ins?.PlayBlockClickVfx(lastClickWorldPoint);
+            VFXManager.Ins?.PlayBlockClickVfx(lastClickWorldPoint, currentOutlineColor);
 
         if (string.Equals(source, "hold", StringComparison.Ordinal))
             animCtrl?.PlayHold();
@@ -559,8 +583,9 @@ public class ClickableObject : MonoBehaviour, IDamageReceiver, IPointerHitContex
     #region SOUND -----------------------------------------------------------------------------------------
     void PlayHittingSound()
     {
-        if (!SoundEffectController.Ins.PlaySFX(blockName + "Breaking"))
-            SoundEffectController.Ins.PlaySFX("Hit");
+        float hitPitch = ResolveHitPitch();
+        if (!SoundEffectController.Ins.PlaySFX(blockName + "Breaking", hitPitch, applyRandomPitchOffset: false))
+            SoundEffectController.Ins.PlaySFX("Hit", hitPitch, applyRandomPitchOffset: false);
     }
     void PlayBreakedSound()
     {
@@ -624,7 +649,7 @@ public class ClickableObject : MonoBehaviour, IDamageReceiver, IPointerHitContex
         if (!TryGetOutlineSlot(out int slotIndex, out var outlineMat))
             return;
 
-        Color outlineColor = blockUVDatabase.GetOutlineColor(blockName);
+        Color outlineColor = currentOutlineColor;
         float glowIntensity = Mathf.Max(1f, blockUVDatabase.GetGlowIntensity(blockName));
         cubeRenderer.GetPropertyBlock(outlinePropertyBlock, slotIndex);
         if (TryGetColorPropertyId(outlineMat, out int colorPropertyId))
@@ -638,6 +663,13 @@ public class ClickableObject : MonoBehaviour, IDamageReceiver, IPointerHitContex
         if (TryGetGlowPropertyId(outlineMat, out int glowPropertyId))
             outlinePropertyBlock.SetFloat(glowPropertyId, glowIntensity);
         cubeRenderer.SetPropertyBlock(outlinePropertyBlock, slotIndex);
+    }
+
+    void CacheClickVfxOutlineColor()
+    {
+        currentOutlineColor = blockUVDatabase != null
+            ? blockUVDatabase.GetOutlineColor(blockName)
+            : Color.black;
     }
 
     void ApplyBaseGlowFromDatabase()
@@ -658,7 +690,10 @@ public class ClickableObject : MonoBehaviour, IDamageReceiver, IPointerHitContex
         {
             Color tint = blockUVDatabase.GetOutlineColor(blockName);
             float dbIntensity = blockUVDatabase.GetGlowIntensity(blockName);
-            float strength = Mathf.Clamp(dbIntensity, 0f, 0.2f);
+            if (Mathf.Approximately(dbIntensity, 1f))
+                dbIntensity = 0f;
+
+            float strength = Mathf.Clamp(dbIntensity, 0f, 0.35f);
             emission = new Color(tint.r * strength, tint.g * strength, tint.b * strength, 1f);
 
             if (strength > 0.0001f)
@@ -672,6 +707,44 @@ public class ClickableObject : MonoBehaviour, IDamageReceiver, IPointerHitContex
         cubeRenderer.GetPropertyBlock(baseGlowPropertyBlock, 0);
         baseGlowPropertyBlock.SetColor(EmissionColorID, emission);
         cubeRenderer.SetPropertyBlock(baseGlowPropertyBlock, 0);
+    }
+
+    void ApplyPointLightFromDatabase()
+    {
+        if (blockPointLight == null)
+        {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (applyPointLightFromGlow && !warnedMissingPointLight)
+            {
+                warnedMissingPointLight = true;
+                Debug.LogWarning("[ClickableObject] Point Light is not assigned. Assign one (or child Light) to use per-block glow lighting.", this);
+            }
+#endif
+            return;
+        }
+
+        if (!applyPointLightFromGlow || blockUVDatabase == null)
+        {
+            blockPointLight.intensity = 0f;
+            return;
+        }
+
+        float glow = Mathf.Max(0f, blockUVDatabase.GetGlowIntensity(blockName));
+        float maxGlow = Mathf.Max(0.0001f, pointLightGlowAtMaxIntensity);
+        float t = Mathf.Clamp01(glow / maxGlow);
+
+        blockPointLight.intensity = glow <= 0f
+            ? 0f
+            : Mathf.Lerp(pointLightMinIntensity, pointLightMaxIntensity, t);
+
+        blockPointLight.range = Mathf.Max(0f, pointLightRange);
+
+        if (pointLightUseOutlineColor)
+        {
+            Color c = blockUVDatabase.GetOutlineColor(blockName);
+            c.a = 1f;
+            blockPointLight.color = c;
+        }
     }
 
     bool TryGetOutlineSlot(out int slotIndex, out Material outlineMaterial)
@@ -919,6 +992,17 @@ public class ClickableObject : MonoBehaviour, IDamageReceiver, IPointerHitContex
                 animCtrl?.PlayDeath();
                 FinalizeBreak();
             });
+    }
+
+    float ResolveHitPitch()
+    {
+        if (!scaleHitPitchByRemainingHealth || MaxHealth <= 0f || CurrentHealth == null)
+            return 1f;
+
+        float hp01 = Mathf.Clamp01(CurrentHealth.Value / MaxHealth);
+        float nearDeath01 = 1f - hp01;
+        float curved = Mathf.Pow(nearDeath01, Mathf.Max(0.1f, hitPitchCurvePower));
+        return Mathf.Lerp(hitPitchAtFullHealth, hitPitchAtZeroHealth, curved);
     }
     #endregion
 }

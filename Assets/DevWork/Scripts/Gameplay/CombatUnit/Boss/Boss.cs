@@ -16,26 +16,11 @@ public class Boss : MonoBehaviour, IDamageReceiver
     public int InputPriority => 2;
     public bool CanReceiveDamage => isActiveAndEnabled;
 
-    [SerializeField] private BossAnimManager bossAnimManager;
-
     [Header("Tick Settings")]
     [SerializeField] float tickSeconds = 1f;
-    [SerializeField] bool useUnscaledTime = true; 
+    [SerializeField] bool useUnscaledTime = true;
     IDisposable sub;
     private CompositeDisposable runtimeSubs;
-    [Header("Boss Attack Settings")]
-    [SerializeField] private float normalAttackInterval  = 2.0f;
-    [SerializeField] private float specialAttackInterval = 8.0f;
-
-    [Tooltip("Minimum time gap between two attacks to avoid same-frame double fire.")]
-    [SerializeField] private float minSeparation = 0.3f;
-
-    [Tooltip("Small random offset to avoid repeated re-alignment.")]
-    [SerializeField] private float normalJitterRange  = 0.15f;
-    [SerializeField] private float specialJitterRange = 0.15f;
-
-    private float _nextNormalTime;
-    private float _nextSpecialTime;
     private float spawnTime;
     private string bossId;
     private BossEntry rewardEntry;
@@ -43,54 +28,6 @@ public class Boss : MonoBehaviour, IDamageReceiver
     private float BossNow => useUnscaledTime ? Time.unscaledTime : Time.time;
     private float BossDelta => useUnscaledTime ? Time.unscaledDeltaTime : Time.deltaTime;
 
-    void Start()
-    {
-        if (bossAnimManager != null)
-            bossAnimManager.OnSkillFired += OnBossSkillFired;
-
-        // Initialize next-fire times with jitter so they don't sync on start
-        float now = BossNow;
-        _nextNormalTime  = now + normalAttackInterval  + UnityEngine.Random.Range(0f, normalJitterRange);
-        _nextSpecialTime = now + specialAttackInterval + UnityEngine.Random.Range(0f, specialJitterRange);
-    }
-
-    void Update()
-    {
-        float now = BossNow;
-        bool normalReady  = now >= _nextNormalTime;
-        bool specialReady = now >= _nextSpecialTime;
-
-        // If both ready, SPECIAL has priority
-        if (specialReady)
-        {
-            // Try play special; if it plays, schedule next times
-            if (bossAnimManager != null && bossAnimManager.TryPlaySpecial())
-            {
-                // schedule next SPECIAL with jitter
-                _nextSpecialTime = now + specialAttackInterval + UnityEngine.Random.Range(0f, specialJitterRange);
-
-                // if normal was also ready, push it a bit forward to avoid overlap
-                if (normalReady)
-                    _nextNormalTime = Mathf.Max(_nextNormalTime, now + minSeparation);
-            }
-            // If anim couldn't play (rare), lightly defer and retry soon
-            else
-            {
-                _nextSpecialTime = now + 0.1f;
-            }
-        }
-        else if (normalReady)
-        {
-            if (bossAnimManager != null && bossAnimManager.TryPlayNormal())
-            {
-                _nextNormalTime = now + normalAttackInterval + UnityEngine.Random.Range(0f, normalJitterRange);
-            }
-            else
-            {
-                _nextNormalTime = now + 0.1f;
-            }
-        }
-    }
     void OnEnable()
     {
         hasDied = false;
@@ -200,21 +137,6 @@ public class Boss : MonoBehaviour, IDamageReceiver
         if (countAsHit)
             CombatFeedbackRuntime.NotifyDamageHit();
     }
-    void OnBossSkillFired(string skillId)
-    {
-        if (skillId == "Special")
-        {
-            // Example: double damage (or apply debuff/heal/etc.)
-            StatsManager.Ins.Add(StatType.CurrentHP,
-                -enemyStatsManager.Get(StatType.NormalPower) * 2f);
-        }
-        else // "Normal"
-        {
-            StatsManager.Ins.Add(StatType.CurrentHP,
-                -enemyStatsManager.Get(StatType.NormalPower));
-        }
-    }
-
     void OnDying()
     {
         if (hasDied) return;

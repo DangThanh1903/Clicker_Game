@@ -35,6 +35,8 @@ public class QuestDef
     public string title;
     [TextArea] public string description;
     public Sprite icon;
+    [Header("Achievement")]
+    public bool isAchievement;
 
     public List<QuestStepDef> steps = new();
     public List<RewardDef> rewards = new();

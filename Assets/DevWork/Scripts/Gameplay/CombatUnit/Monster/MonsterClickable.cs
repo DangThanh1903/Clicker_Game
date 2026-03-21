@@ -5,7 +5,7 @@ using DG.Tweening;
 using Lean.Pool;
 
 [RequireComponent(typeof(DamageTargetRegistrant))]
-public class MonsterClickable : MonoBehaviour, IDamageReceiver, IPointerHitContext
+public class MonsterClickable : MonoBehaviour, IDamageReceiver, IPointerHitContext, ISpinHitContext
 {
     private static Camera cachedMainCamera;
     private static int cachedMainCameraFrame = -1;
@@ -35,8 +35,18 @@ public class MonsterClickable : MonoBehaviour, IDamageReceiver, IPointerHitConte
     private readonly float timeHoldReset = 0.1f;
     private readonly float timeIdleReset = 1f;
     private Vector2 onClickPos;
+    public BlockMomentumSpinDriver MomentumSpinDriver => momentumSpinDriver;
+    private Vector3 lastClickWorldPoint;
+    private bool hasLastClickWorldPoint;
+    private Vector3 lastPointerRayDirection;
+    private bool hasLastPointerRayDirection;
+    private int lastPointerHitFrame = -1;
+    private float lastDamageRatioNormalized;
+    private int lastDamageFrame = -1;
     [Header("Visual (child)")]
     [SerializeField] private Transform visual;
+    [SerializeField] private BlockAnimationController animCtrl;
+    [SerializeField] private BlockMomentumSpinDriver momentumSpinDriver;
     [SerializeField] private float hitPunchScale = 0.12f;
     [SerializeField] private float hitPunchDuration = 0.12f;
     [SerializeField] private int hitPunchVibrato = 8;
@@ -61,7 +71,15 @@ public class MonsterClickable : MonoBehaviour, IDamageReceiver, IPointerHitConte
 
     private bool resolved;
 
-    // gá»i tá»« spawner
+    void Awake()
+    {
+        if (animCtrl == null)
+            animCtrl = GetComponent<BlockAnimationController>();
+        if (momentumSpinDriver == null)
+            momentumSpinDriver = GetComponent<BlockMomentumSpinDriver>();
+    }
+
+    // Called by spawner
     public void Init(MonsterDef d, MonsterSpawner spawner)
     {
         def = d;
@@ -75,6 +93,12 @@ public class MonsterClickable : MonoBehaviour, IDamageReceiver, IPointerHitConte
 
         MaxHealth = Mathf.Max(1f, def.MaxHP);
         CurrentHealth.Value = MaxHealth;
+        hasLastClickWorldPoint = false;
+        hasLastPointerRayDirection = false;
+        lastPointerHitFrame = -1;
+        lastDamageFrame = -1;
+        lastDamageRatioNormalized = 0f;
+        animCtrl?.TryPlayIdle();
 
         // listen HP
         healthSub?.Dispose();
@@ -103,7 +127,7 @@ public class MonsterClickable : MonoBehaviour, IDamageReceiver, IPointerHitConte
     public void HandleClick()
     {
         float power = DamageInputPowerResolver.GetClickPower();
-        TakeDamage(power, countAsHit: true);
+        TakeDamage(power, "click", countAsHit: true);
     }
 
     public void ApplyDamageInput(DamageInputKind inputKind)
@@ -135,7 +159,7 @@ public class MonsterClickable : MonoBehaviour, IDamageReceiver, IPointerHitConte
         if (DamageTickAccumulator.TryConsumeTick(ref accumulatedHoldTime, dt, timeHoldReset))
         {
             float power = DamageInputPowerResolver.GetHoldTickPower(timeHoldReset);
-            TakeDamage(power, countAsHit: true);
+            TakeDamage(power, "hold", countAsHit: true);
         }
     }
 
@@ -144,16 +168,21 @@ public class MonsterClickable : MonoBehaviour, IDamageReceiver, IPointerHitConte
         float power = DamageInputPowerResolver.GetIdleTickPower(timeIdleReset);
         Vector3 aimPoint = GetAimWorldPosition();
         onClickPos = GetUIPosition(aimPoint);
-        TakeDamage(power, countAsHit: false);
+        TakeDamage(power, "idle", countAsHit: false);
         CombatFeedbackRuntime.NotifyIdleDamageDealt(power, aimPoint);
     }
 
     // ===== Combat =====
 
-    void TakeDamage(float power, bool countAsHit = true)
+    void TakeDamage(float power, string source, bool countAsHit = true)
     {
         if (resolved) return;
         if (power <= 0f) return;
+        if (MaxHealth > 0f)
+            lastDamageRatioNormalized = Mathf.Clamp01(power / MaxHealth);
+        else
+            lastDamageRatioNormalized = 0f;
+        lastDamageFrame = Time.frameCount;
 
         if (countAsHit)
             CombatFeedbackRuntime.NotifyDamageHit();
@@ -164,7 +193,20 @@ public class MonsterClickable : MonoBehaviour, IDamageReceiver, IPointerHitConte
 
         // Optional: hit feedback (toast / anim)
         Toaster.Show($"-{power:F1}", null, 0.2f, onClickPos);
-        PlayHitFeedback();
+        bool usedSharedBlockAnim = false;
+        if (string.Equals(source, "hold", StringComparison.Ordinal))
+        {
+            animCtrl?.PlayHold();
+            usedSharedBlockAnim = animCtrl != null;
+        }
+        else if (string.Equals(source, "click", StringComparison.Ordinal))
+        {
+            animCtrl?.PlayClick();
+            usedSharedBlockAnim = animCtrl != null;
+        }
+
+        if (!usedSharedBlockAnim)
+            PlayHitFeedback();
     }
 
     void OnKilled()
@@ -235,6 +277,12 @@ public class MonsterClickable : MonoBehaviour, IDamageReceiver, IPointerHitConte
         accumulatedHoldTime = 0f;
         spawnTime = 0f;
         monsterId = null;
+        hasLastClickWorldPoint = false;
+        hasLastPointerRayDirection = false;
+        lastPointerHitFrame = -1;
+        lastDamageFrame = -1;
+        lastDamageRatioNormalized = 0f;
+        momentumSpinDriver?.ResetMomentum();
         Resolved = null;
         if (hitTween != null)
         {
@@ -458,9 +506,102 @@ public class MonsterClickable : MonoBehaviour, IDamageReceiver, IPointerHitConte
         return cachedMainCamera;
     }
 
+    public bool TryGetPointerScreenDirectionFromCenter(out Vector2 direction, out float distancePx, int maxAgeFrames = -1)
+    {
+        direction = Vector2.zero;
+        distancePx = 0f;
+
+        if (!HasPointerHitWithinFrames(maxAgeFrames))
+            return false;
+
+        var cam = ResolveMainCamera();
+        if (cam == null)
+            return false;
+
+        Vector3 centerScreen = cam.WorldToScreenPoint(transform.position);
+        Vector3 hitScreen = cam.WorldToScreenPoint(lastClickWorldPoint);
+        if (centerScreen.z <= 0f || hitScreen.z <= 0f)
+            return false;
+
+        Vector2 delta = new Vector2(hitScreen.x - centerScreen.x, hitScreen.y - centerScreen.y);
+        distancePx = delta.magnitude;
+        if (distancePx <= 0.0001f)
+            return false;
+
+        direction = delta / distancePx;
+        return true;
+    }
+
+    public bool TryGetPointerTorqueWorldAxis(out Vector3 worldAxis, int maxAgeFrames = -1)
+    {
+        worldAxis = Vector3.zero;
+        if (!HasPointerHitWithinFrames(maxAgeFrames))
+            return false;
+
+        if (!hasLastPointerRayDirection || lastPointerRayDirection.sqrMagnitude <= 0.000001f)
+            return false;
+
+        Vector3 forceDir = lastPointerRayDirection;
+        Vector3 r = lastClickWorldPoint - transform.position;
+        if (r.sqrMagnitude <= 0.000001f)
+            return false;
+
+        Vector3 torqueWorld = Vector3.Cross(r, forceDir);
+        if (torqueWorld.sqrMagnitude <= 0.000001f)
+            return false;
+
+        worldAxis = torqueWorld.normalized;
+        return true;
+    }
+
+    public bool TryGetRecentDamageRatioNormalized(out float ratio01, int maxAgeFrames = 2)
+    {
+        ratio01 = 0f;
+
+        if (lastDamageFrame < 0)
+            return false;
+
+        if (maxAgeFrames >= 0 && Time.frameCount - lastDamageFrame > maxAgeFrames)
+            return false;
+
+        ratio01 = Mathf.Clamp01(lastDamageRatioNormalized);
+        return true;
+    }
+
+    private bool HasPointerHitWithinFrames(int maxAgeFrames)
+    {
+        if (!hasLastClickWorldPoint || lastPointerHitFrame < 0)
+            return false;
+
+        if (maxAgeFrames < 0)
+            return true;
+
+        return Time.frameCount - lastPointerHitFrame <= maxAgeFrames;
+    }
+
     public void SetPointerHit(Vector3 worldPoint)
     {
         onClickPos = GetUIPosition(worldPoint);
+        lastClickWorldPoint = worldPoint;
+        hasLastClickWorldPoint = true;
+
+        var cam = ResolveMainCamera();
+        if (cam == null)
+        {
+            hasLastPointerRayDirection = false;
+            return;
+        }
+
+        Vector3 rayLikeDirection = worldPoint - cam.transform.position;
+        if (rayLikeDirection.sqrMagnitude <= 0.000001f)
+        {
+            hasLastPointerRayDirection = false;
+            return;
+        }
+
+        lastPointerRayDirection = rayLikeDirection.normalized;
+        hasLastPointerRayDirection = true;
+        lastPointerHitFrame = Time.frameCount;
     }
 
 }

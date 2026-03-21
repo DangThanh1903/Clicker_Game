@@ -17,6 +17,9 @@ public class CraftNodeManager : MonoBehaviour
 
     [Header("Unlock Popup")]
     [SerializeField] private bool showRecipeUnlockPopup = true;
+    [SerializeField] private bool useTopNotificationForUnlock = true;
+    [SerializeField] private string unlockNotificationPrefix = "Unlocked recipe";
+    [SerializeField, Min(0.2f)] private float unlockNotificationDuration = 1.6f;
     [SerializeField] private bool autoFindRecipeUnlockPopUp = true;
     [SerializeField] private PopupView recipeUnlockPopUp;
 
@@ -25,6 +28,7 @@ public class CraftNodeManager : MonoBehaviour
     private bool suppressCloudSave;
     private bool hasWarnedMissingUnlockPopup;
     private bool hasWarnedMissingUnlockPopupView;
+    private bool hasWarnedMissingTopNotificationManager;
     private Coroutine unlockPopupRoutine;
     private readonly Queue<CraftNode> unlockPopupQueue = new Queue<CraftNode>();
     public string CurrentSaveScope => string.IsNullOrWhiteSpace(saveScope) ? "Default" : saveScope.Trim();
@@ -41,7 +45,8 @@ public class CraftNodeManager : MonoBehaviour
 
     private void Start()
     {
-        TryResolveRecipeUnlockPopup();
+        if (!useTopNotificationForUnlock)
+            TryResolveRecipeUnlockPopup();
         LoadNodeStates();
 
         if (DataSaver.Ins != null)
@@ -79,12 +84,14 @@ public class CraftNodeManager : MonoBehaviour
             node?.UpdateVisual();
         }
 
-        TryStartUnlockPopupQueue();
+        if (!useTopNotificationForUnlock)
+            TryStartUnlockPopupQueue();
     }
 
     private void OnEnable()
     {
-        TryStartUnlockPopupQueue();
+        if (!useTopNotificationForUnlock)
+            TryStartUnlockPopupQueue();
     }
 
     public void ConfigureSaveScope(string scope, bool reload = true)
@@ -118,6 +125,26 @@ public class CraftNodeManager : MonoBehaviour
     {
         if (!showRecipeUnlockPopup || node == null)
             return;
+
+        if (useTopNotificationForUnlock)
+        {
+            if (TopNotificationManager.Ins == null)
+            {
+                if (!hasWarnedMissingTopNotificationManager)
+                {
+                    hasWarnedMissingTopNotificationManager = true;
+                    Debug.LogWarning("CraftNodeManager: TopNotificationManager is missing, unlock notification will be skipped.");
+                }
+                return;
+            }
+
+            Item recipeItem = node.GetPrimaryRecipeItem();
+            string recipeName = recipeItem != null && !string.IsNullOrWhiteSpace(recipeItem.itemName)
+                ? recipeItem.itemName
+                : (!string.IsNullOrWhiteSpace(node.nodeName) ? node.nodeName : "New Recipe");
+            TopNotificationManager.NotifyQuest($"{unlockNotificationPrefix}: {recipeName}", unlockNotificationDuration);
+            return;
+        }
 
         if (recipeUnlockPopUp == null)
             TryResolveRecipeUnlockPopup();

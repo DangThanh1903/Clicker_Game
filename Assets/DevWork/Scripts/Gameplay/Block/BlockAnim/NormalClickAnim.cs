@@ -41,10 +41,6 @@ public class NormalClickAnim : BlockAnimationAsset
     [Min(0.1f)] public float damageRatioCurvePower = 0.85f;
 
     [Header("Momentum Spin")]
-    [Tooltip("Legacy fallback duration (used only when spin driver is missing).")]
-    [Min(0.05f)] public float spinDuration = 0.28f;
-    [Min(0f)] public float minSpinDegrees = 28f;
-    [Min(0f)] public float maxSpinDegrees = 200f;
     [Tooltip("Angular velocity injected per click at minimum momentum (deg/sec).")]
     [Min(0f)] public float minSpinImpulseSpeed = 140f;
     [Tooltip("Angular velocity injected per click at maximum momentum (deg/sec).")]
@@ -64,8 +60,7 @@ public class NormalClickAnim : BlockAnimationAsset
     {
         Stop(target);
         var t = target.transform;
-        ClickableObject clickable = null;
-        target.TryGetComponent(out clickable);
+        ISpinHitContext spinContext = target.GetComponent(typeof(ISpinHitContext)) as ISpinHitContext;
         Vector3 baseline = useFixedBaseScale ? baseScale : t.localScale;
 
         t.localScale = baseline;
@@ -92,7 +87,7 @@ public class NormalClickAnim : BlockAnimationAsset
             bool hasPointerDirection = false;
 
             if (rotateByMouseDirection &&
-                TryGetPointerDrivenSpin(clickable, out Vector3 pointerSpinAxis, out momentum))
+                TryGetPointerDrivenSpin(spinContext, out Vector3 pointerSpinAxis, out momentum))
             {
                 hasPointerDirection = true;
                 spinDirection += pointerSpinAxis;
@@ -129,10 +124,10 @@ public class NormalClickAnim : BlockAnimationAsset
 
                 float safeMaxMomentum = Mathf.Max(minMomentum + 0.0001f, maxMomentum);
                 float momentum01 = Mathf.InverseLerp(minMomentum, safeMaxMomentum, momentum);
-                float impulseLerp01 = ResolveImpulseLerp01(momentum01, clickable);
+                float impulseLerp01 = ResolveImpulseLerp01(momentum01, spinContext);
                 float impulseSpeed = Mathf.Lerp(minSpinImpulseSpeed, maxSpinImpulseSpeed, impulseLerp01);
 
-                var spinDriver = ResolveSpinDriver(t, clickable);
+                var spinDriver = ResolveSpinDriver(spinContext);
                 if (spinDriver != null)
                 {
                     spinDriver.Configure(spinAngularDamping, spinMaxAngularSpeed, true, spinStopSpeedThreshold);
@@ -144,17 +139,9 @@ public class NormalClickAnim : BlockAnimationAsset
                     if (!hasLoggedMissingSpinDriver)
                     {
                         hasLoggedMissingSpinDriver = true;
-                        Debug.LogError("[NormalClickAnim] Missing BlockMomentumSpinDriver on clickable block. Falling back to tween spin.", t);
+                        Debug.LogError("[NormalClickAnim] Missing BlockMomentumSpinDriver on clickable block. Spin animation is skipped.", t);
                     }
 #endif
-                    float spinTotal = Mathf.Lerp(minSpinDegrees, maxSpinDegrees, momentum01);
-                    float rotTotalDuration = Mathf.Max(0.05f, spinDuration);
-                    seq.Join(CreateMomentumRotateTween(
-                        t,
-                        spinDirection,
-                        spinTotal,
-                        rotTotalDuration,
-                        spinAngularDamping));
                 }
             }
         }
@@ -166,18 +153,18 @@ public class NormalClickAnim : BlockAnimationAsset
     }
 
     private bool TryGetPointerDrivenSpin(
-        ClickableObject clickable,
+        ISpinHitContext spinContext,
         out Vector3 spinAxis,
         out float momentum)
     {
         spinAxis = Vector3.zero;
         momentum = 1f;
 
-        if (clickable != null)
+        if (spinContext != null)
         {
-            if (clickable.TryGetPointerTorqueWorldAxis(out spinAxis, maxAgeFrames: 1))
+            if (spinContext.TryGetPointerTorqueWorldAxis(out spinAxis, maxAgeFrames: 1))
             {
-                if (clickable.TryGetPointerScreenDirectionFromCenter(out _, out float pointerDistance, maxAgeFrames: 1))
+                if (spinContext.TryGetPointerScreenDirectionFromCenter(out _, out float pointerDistance, maxAgeFrames: 1))
                     momentum = ResolveMomentumFromDistance(pointerDistance);
                 else
                     momentum = Mathf.Max(0f, minMomentum);
@@ -189,13 +176,13 @@ public class NormalClickAnim : BlockAnimationAsset
         return false;
     }
 
-    private float ResolveImpulseLerp01(float pointerMomentum01, ClickableObject clickable)
+    private float ResolveImpulseLerp01(float pointerMomentum01, ISpinHitContext spinContext)
     {
         float pointer01 = Mathf.Clamp01(pointerMomentum01);
-        if (!scaleImpulseByDamageRatio || clickable == null)
+        if (!scaleImpulseByDamageRatio || spinContext == null)
             return pointer01;
 
-        if (!clickable.TryGetRecentDamageRatioNormalized(out float damageRatio01, maxAgeFrames: 2))
+        if (!spinContext.TryGetRecentDamageRatioNormalized(out float damageRatio01, maxAgeFrames: 2))
             return pointer01;
 
         float scaledDamage = Mathf.Clamp01(Mathf.Max(0f, damageRatioScale) * damageRatio01);
@@ -203,53 +190,9 @@ public class NormalClickAnim : BlockAnimationAsset
         return Mathf.Lerp(pointer01, curvedDamage, Mathf.Clamp01(damageRatioBlend));
     }
 
-    private static BlockMomentumSpinDriver ResolveSpinDriver(Transform targetTransform, ClickableObject clickable)
+    private static BlockMomentumSpinDriver ResolveSpinDriver(ISpinHitContext spinContext)
     {
-        if (clickable != null)
-            return clickable.MomentumSpinDriver;
-
-        if (targetTransform == null)
-            return null;
-
-        return targetTransform.TryGetComponent<BlockMomentumSpinDriver>(out var driver)
-            ? driver
-            : null;
-    }
-
-    private static Tween CreateMomentumRotateTween(
-        Transform target,
-        Vector3 worldAxis,
-        float totalAngleDegrees,
-        float duration,
-        float angularDamping)
-    {
-        if (target == null || worldAxis.sqrMagnitude <= 0.000001f || Mathf.Abs(totalAngleDegrees) <= 0.00001f)
-            return DOVirtual.DelayedCall(0f, () => { });
-
-        Vector3 axis = worldAxis.normalized;
-        float safeDuration = Mathf.Max(0.01f, duration);
-        float damping = Mathf.Max(0.1f, angularDamping);
-
-        // Integral(omega0 * exp(-d * t), 0..T) = totalAngle
-        float decayTerm = Mathf.Exp(-damping * safeDuration);
-        float denom = 1f - decayTerm;
-        float initialAngularVelocity =
-            denom > 0.0001f
-                ? totalAngleDegrees * damping / denom
-                : totalAngleDegrees / safeDuration;
-
-        float elapsedPrev = 0f;
-        return DOVirtual.Float(0f, safeDuration, safeDuration, elapsed =>
-        {
-            float dt = elapsed - elapsedPrev;
-            elapsedPrev = elapsed;
-            if (dt <= 0f)
-                return;
-
-            float omega = initialAngularVelocity * Mathf.Exp(-damping * elapsed);
-            float deltaAngle = omega * dt;
-            target.Rotate(axis, deltaAngle, Space.World);
-        }).SetEase(Ease.Linear);
+        return spinContext != null ? spinContext.MomentumSpinDriver : null;
     }
 
     private float ResolveMomentumFromDistance(float distancePx)

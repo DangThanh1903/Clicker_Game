@@ -8,17 +8,22 @@ public class BlockManager : MonoBehaviour
     public static BlockManager Ins;
     [SerializeField] private ClickableObject currentBlock;
     [SerializeField] private LocationLoader locationLoader;
+    [SerializeField] private MonsterSpawner monsterSpawner;
     [SerializeField] BossSO bossSO;
     [SerializeField] Transform  spawnPos;
     public float rareWeightCap = 10;
     public ClickableObject CurrentBlock => currentBlock;
+    public MonsterSpawner MonsterSpawner => monsterSpawner;
     public event Action<string> CurrentBlockChanged;
+    public event Action<int, int> MonsterSpawnProgressChanged;
+    public event Action<bool> MonsterEncounterStateChanged;
     private GameObject activeBoss;
     private BossEntry activeBossInfo;
     Boss activeBossComp;
     private Coroutine bossTimerCoroutine;
     private float bossRemainingTime;
     private float bossTotalTime;
+    private bool warnedMissingMonsterSpawner;
     public bool IsBossTimerRunning => bossTimerCoroutine != null;
     public float BossRemainingTime => bossRemainingTime;
     public float BossTotalTime => bossTotalTime;
@@ -35,14 +40,23 @@ public class BlockManager : MonoBehaviour
         StartCoroutine(InitWhenReady());
     }
 
+    void OnEnable()
+    {
+        BindMonsterSpawner();
+    }
+
     void OnDisable()
     {
+        UnbindMonsterSpawner();
         StopBossTimer();
     }
 
     private IEnumerator InitWhenReady()
     {
         yield return new WaitUntil(() => DataSaver.Ins != null);
+
+        if (monsterSpawner != null && currentBlock != null)
+            monsterSpawner.SetBlockAnchor(currentBlock.transform);
 
         if (currentBlock != null)
         {
@@ -133,7 +147,8 @@ public class BlockManager : MonoBehaviour
         activeBossComp = null;
         activeBossInfo = null;
 
-        if (currentBlock) currentBlock.gameObject.SetActive(true);
+        if (currentBlock && !IsMonsterEncounterRunning())
+            currentBlock.gameObject.SetActive(true);
         UIManager.Ins.SetNavigationLocked(false);
     }
     public void OnBlockBroken()
@@ -163,6 +178,7 @@ public class BlockManager : MonoBehaviour
             specialName
         );
         NotifyCurrentBlockChanged();
+        NotifyMonsterSpawnerBlockBroken();
     }
 
     public void RefreshBlockForLocationChange()
@@ -250,7 +266,7 @@ public class BlockManager : MonoBehaviour
         activeBossInfo = null;
 
         if (currentBlock)
-            currentBlock.gameObject.SetActive(true);
+            currentBlock.gameObject.SetActive(!IsMonsterEncounterRunning());
 
         UIManager.Ins?.SetNavigationLocked(false);
     }
@@ -259,6 +275,92 @@ public class BlockManager : MonoBehaviour
     {
         string blockName = currentBlock != null ? currentBlock.BlockName : string.Empty;
         CurrentBlockChanged?.Invoke(blockName);
+    }
+
+    private void NotifyMonsterSpawnerBlockBroken()
+    {
+        if (!TryEnsureMonsterSpawner())
+        {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (!warnedMissingMonsterSpawner)
+            {
+                warnedMissingMonsterSpawner = true;
+                Debug.LogWarning("[BlockManager] MonsterSpawner is not assigned. Block-break spawn trigger is disabled.", this);
+            }
+#endif
+            return;
+        }
+
+        monsterSpawner.NotifyBlockBroken();
+    }
+
+    private bool TryEnsureMonsterSpawner()
+    {
+        if (monsterSpawner != null)
+            return true;
+
+        monsterSpawner = FindObjectOfType<MonsterSpawner>();
+        if (monsterSpawner == null)
+            return false;
+
+        warnedMissingMonsterSpawner = false;
+        if (currentBlock != null)
+            monsterSpawner.SetBlockAnchor(currentBlock.transform);
+        return true;
+    }
+
+    private void BindMonsterSpawner()
+    {
+        if (!TryEnsureMonsterSpawner())
+            return;
+
+        monsterSpawner.SpawnProgressChanged -= OnMonsterSpawnProgressChanged;
+        monsterSpawner.SpawnProgressChanged += OnMonsterSpawnProgressChanged;
+
+        monsterSpawner.EncounterStateChanged -= OnMonsterEncounterStateChanged;
+        monsterSpawner.EncounterStateChanged += OnMonsterEncounterStateChanged;
+
+        if (currentBlock != null)
+            monsterSpawner.SetBlockAnchor(currentBlock.transform);
+
+        MonsterSpawnProgressChanged?.Invoke(monsterSpawner.CurrentBreakProgress, monsterSpawner.BlocksPerSpawn);
+        MonsterEncounterStateChanged?.Invoke(monsterSpawner.HasActiveEncounter);
+    }
+
+    private void UnbindMonsterSpawner()
+    {
+        if (monsterSpawner == null)
+            return;
+
+        monsterSpawner.SpawnProgressChanged -= OnMonsterSpawnProgressChanged;
+        monsterSpawner.EncounterStateChanged -= OnMonsterEncounterStateChanged;
+    }
+
+    private void OnMonsterSpawnProgressChanged(int progress, int threshold)
+    {
+        MonsterSpawnProgressChanged?.Invoke(progress, threshold);
+    }
+
+    private void OnMonsterEncounterStateChanged(bool active)
+    {
+        MonsterEncounterStateChanged?.Invoke(active);
+
+        if (currentBlock == null)
+            return;
+
+        if (active)
+        {
+            currentBlock.gameObject.SetActive(false);
+            return;
+        }
+
+        if (activeBoss == null)
+            currentBlock.gameObject.SetActive(true);
+    }
+
+    private bool IsMonsterEncounterRunning()
+    {
+        return monsterSpawner != null && monsterSpawner.HasActiveEncounter;
     }
 }
 

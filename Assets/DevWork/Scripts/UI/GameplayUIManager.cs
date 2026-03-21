@@ -247,6 +247,15 @@ public class GameplayUIManager : MonoBehaviour
 
     private string ResolveCurrentBlockName()
     {
+        if (BlockManager.Ins != null && BlockManager.Ins.MonsterSpawner != null)
+        {
+            var spawner = BlockManager.Ins.MonsterSpawner;
+            if (spawner.HasActiveEncounter)
+                return "Monster!";
+
+            return $"Monster: {spawner.CurrentBreakProgress}/{spawner.BlocksPerSpawn}";
+        }
+
         if (BlockManager.Ins != null && BlockManager.Ins.CurrentBlock != null)
             return BlockManager.Ins.CurrentBlock.BlockName;
 

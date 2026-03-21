@@ -6,6 +6,8 @@ public class SoundEffectController : MonoBehaviour
     public static SoundEffectController Ins { get; private set; }
 
     private const string SFXVolumeKey = "SFXVolume";
+    private const float MinPitch = 0.1f;
+    private const float MaxPitch = 3f;
 
     [Header("Audio Source")]
     [SerializeField] private AudioSource sfxSource;
@@ -56,21 +58,18 @@ public class SoundEffectController : MonoBehaviour
 
     public bool PlaySFX(string key)
     {
+        return PlaySFX(key, 1f, applyRandomPitchOffset: true);
+    }
+
+    public bool PlaySFX(string key, float basePitch, bool applyRandomPitchOffset)
+    {
         if (!clipDict.TryGetValue(key, out var clip))
         {
             Debug.LogWarning($"SFX '{key}' not found!");
             return false;
         }
 
-        if (randomizePitch)
-        {
-            float pitch = 1f + Random.Range(-pitchRange, pitchRange);
-            sfxSource.pitch = pitch;
-        }
-        else
-        {
-            sfxSource.pitch = 1f;
-        }
+        sfxSource.pitch = ResolvePitch(basePitch, applyRandomPitchOffset);
 
         sfxSource.PlayOneShot(clip, sfxVolume);
         return true;
@@ -78,18 +77,23 @@ public class SoundEffectController : MonoBehaviour
 
     public void PlaySFX(AudioClip clip)
     {
+        PlaySFX(clip, 1f, applyRandomPitchOffset: true);
+    }
+
+    public void PlaySFX(AudioClip clip, float basePitch, bool applyRandomPitchOffset)
+    {
         if (clip == null) return;
 
-        if (randomizePitch)
-        {
-            float pitch = 1f + Random.Range(-pitchRange, pitchRange);
-            sfxSource.pitch = pitch;
-        }
-        else
-        {
-            sfxSource.pitch = 1f;
-        }
+        sfxSource.pitch = ResolvePitch(basePitch, applyRandomPitchOffset);
 
         sfxSource.PlayOneShot(clip, sfxVolume);
+    }
+
+    private float ResolvePitch(float basePitch, bool applyRandomPitchOffset)
+    {
+        float pitch = Mathf.Clamp(basePitch, MinPitch, MaxPitch);
+        if (applyRandomPitchOffset && randomizePitch)
+            pitch += Random.Range(-pitchRange, pitchRange);
+        return Mathf.Clamp(pitch, MinPitch, MaxPitch);
     }
 }

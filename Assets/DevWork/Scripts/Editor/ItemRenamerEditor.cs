@@ -85,13 +85,13 @@ public class ItemRenamerEditor : Editor
                 Sprite foundSprite = AssetDatabase.LoadAssetAtPath<Sprite>(pngPath);
                 if (foundSprite != null)
                 {
-                    DevLog.Log($"âœ… Found exact match PNG at: {pngPath}");
+                    DevLog.Log($"[OK] Found exact match PNG at: {pngPath}");
                     item.icon = foundSprite;
                     EditorUtility.SetDirty(item);
                 }
                 else
                 {
-                    Debug.LogWarning("âŒ PNG file was found but could not be loaded.");
+                    Debug.LogWarning("[Error] PNG file was found but could not be loaded.");
                 }
 
                 found = true;
@@ -101,7 +101,7 @@ public class ItemRenamerEditor : Editor
 
         if (!found)
         {
-            Debug.LogWarning($"âŒ No exact PNG match found for '{pngName}' in UI-UX/Items folder.");
+            Debug.LogWarning($"[Error] No exact PNG match found for '{pngName}' in UI-UX/Items folder.");
         }
 
 
