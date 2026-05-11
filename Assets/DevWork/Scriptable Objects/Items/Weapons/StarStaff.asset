@@ -15,10 +15,11 @@ MonoBehaviour:
   itemName: StarStaff
   description: StarStaff
   icon: {fileID: 21300000, guid: 819fd747cdc9fc44db64ee19ee3d4d5d, type: 3}
-  rarity: 0
+  rarity: 4
   modifiers:
-  - statType: 5
-    value: 10
+  - statType: 3
+    value: 38.4
+    mode: 0
   passiveBuffs: []
   holdBeamVfxPrefab: {fileID: 0}
   holdBeamStartOffset: {x: 0, y: 0, z: 0.1}

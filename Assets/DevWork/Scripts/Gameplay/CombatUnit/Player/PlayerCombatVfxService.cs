@@ -1,163 +1,123 @@
-using System.Collections;
 using Lean.Pool;
 using UnityEngine;
 
 public sealed class PlayerCombatVfxService
 {
-    private readonly MonoBehaviour coroutineHost;
     private static readonly int AttackTriggerHash = Animator.StringToHash("Attack");
 
-    private GameObject activeHoldBeamObject;
-    private HoldBeamVFX activeHoldBeam;
+    private GameObject activePetObject;
+    private GameObject activePetPrefab;
+    private IPetAutoAttackFeedback activePetFeedback;
+    private Animator activePetAnimatorFallback;
 
-    private GameObject activeIdlePetObject;
-    private GameObject activeIdlePetPrefab;
-    private IIdlePetAttackFeedback activeIdlePetFeedback;
-    private Animator activeIdlePetAnimatorFallback;
+    public PlayerCombatVfxService() { }
 
-    public PlayerCombatVfxService(MonoBehaviour host)
+    public void HandleStateChanged(
+        PetItem equippedPet,
+        bool isAutoCombatMode,
+        bool isDead,
+        Transform petVisualAnchor,
+        Transform fallbackAnchor)
     {
-        coroutineHost = host;
+        RefreshPetVisual(equippedPet, isAutoCombatMode, isDead, petVisualAnchor, fallbackAnchor);
     }
 
-    public void OnHold(Pickaxe equippedPickaxe, Transform holdBeamOrigin, Vector3 holdPoint)
+    public void NotifyAutoAttackDamageDealt(bool isDead, bool isAutoCombatMode, float damage, Vector3 targetWorldPosition)
     {
-        EnsureHoldBeam(equippedPickaxe, holdBeamOrigin);
-        UpdateHoldBeamPositions(holdPoint);
-    }
-
-    public bool UpdateHoldBeamLifecycle(bool isDead, bool isHoldState, bool pointerHeld, float combatNow, float lastHoldUpdateTime)
-    {
-        if (activeHoldBeamObject == null)
-            return false;
-
-        bool invalidHold =
-            isDead ||
-            !isHoldState ||
-            !pointerHeld;
-
-        // Small tolerance avoids despawn/spawn jitter when one raycast frame is missed.
-        if (!invalidHold && combatNow - lastHoldUpdateTime > 0.15f)
-            invalidHold = true;
-
-        if (!invalidHold)
-            return false;
-
-        StopHoldBeam();
-        return true;
-    }
-
-    public void HandleStateChanged(Pickaxe equippedPickaxe, ClickerState state, bool isDead, Transform idlePetAnchor, Transform fallbackAnchor)
-    {
-        if (state is not HoldState)
-            StopHoldBeam();
-
-        RefreshIdlePetVisual(equippedPickaxe, state is IdleState, isDead, idlePetAnchor, fallbackAnchor);
-    }
-
-    public void HandleEquippedPickaxeCleared()
-    {
-        StopHoldBeam();
-        StopIdlePetVisual();
-    }
-
-    public void NotifyIdleDamageDealt(bool isDead, bool isIdleState, float damage, Vector3 targetWorldPosition)
-    {
-        if (isDead || !isIdleState)
+        if (isDead || !isAutoCombatMode)
             return;
-        if (activeIdlePetObject == null)
+        if (activePetObject == null)
             return;
 
-        if (activeIdlePetFeedback == null && activeIdlePetAnimatorFallback == null)
-            CacheIdlePetFeedbackRefs();
+        if (activePetFeedback == null && activePetAnimatorFallback == null)
+            CachePetFeedbackRefs();
 
-        if (activeIdlePetFeedback != null)
+        if (activePetFeedback != null)
         {
-            activeIdlePetFeedback.PlayIdleAttack(Mathf.Max(0f, damage), targetWorldPosition);
+            activePetFeedback.PlayAutoAttack(Mathf.Max(0f, damage), targetWorldPosition);
             return;
         }
 
-        if (activeIdlePetAnimatorFallback != null)
-            activeIdlePetAnimatorFallback.SetTrigger(AttackTriggerHash);
+        if (activePetAnimatorFallback != null)
+            activePetAnimatorFallback.SetTrigger(AttackTriggerHash);
     }
 
     public void ResetImmediate()
     {
-        StopHoldBeam(immediate: true);
-        StopIdlePetVisual(immediate: true);
+        StopPetVisual(immediate: true);
     }
 
-    private void RefreshIdlePetVisual(
-        Pickaxe equippedPickaxe,
-        bool isIdleState,
+    private void RefreshPetVisual(
+        PetItem equippedPet,
+        bool isAutoCombatMode,
         bool isDead,
-        Transform idlePetAnchor,
+        Transform petVisualAnchor,
         Transform fallbackAnchor)
     {
         bool shouldShow =
             !isDead &&
-            equippedPickaxe != null &&
-            equippedPickaxe.Type != ItemType.None &&
-            isIdleState &&
-            equippedPickaxe.IdlePetVisualPrefab != null;
+            equippedPet != null &&
+            equippedPet.Type == ItemType.Pet &&
+            isAutoCombatMode &&
+            equippedPet.PetVisualPrefab != null;
 
         if (!shouldShow)
         {
-            StopIdlePetVisual();
+            StopPetVisual();
             return;
         }
 
-        GameObject prefab = equippedPickaxe.IdlePetVisualPrefab;
-        Transform anchor = idlePetAnchor != null ? idlePetAnchor : fallbackAnchor;
+        GameObject prefab = equippedPet.PetVisualPrefab;
+        Transform anchor = petVisualAnchor != null ? petVisualAnchor : fallbackAnchor;
         if (anchor == null)
         {
-            StopIdlePetVisual();
+            StopPetVisual();
             return;
         }
 
-        if (activeIdlePetObject == null || activeIdlePetPrefab != prefab)
+        if (activePetObject == null || activePetPrefab != prefab)
         {
-            StopIdlePetVisual(immediate: true);
-            activeIdlePetObject = LeanPool.Spawn(prefab, anchor.position, anchor.rotation, anchor);
+            StopPetVisual(immediate: true);
+            activePetObject = LeanPool.Spawn(prefab, anchor.position, anchor.rotation, anchor);
 
             // Ensure pooled instance starts exactly at anchor local origin.
-            Transform spawnedPetTransform = activeIdlePetObject.transform;
+            Transform spawnedPetTransform = activePetObject.transform;
             if (spawnedPetTransform.parent != anchor)
                 spawnedPetTransform.SetParent(anchor, false);
             spawnedPetTransform.localPosition = Vector3.zero;
-            spawnedPetTransform.localEulerAngles = equippedPickaxe.IdlePetSpawnLocalEuler;
+            spawnedPetTransform.localEulerAngles = equippedPet.PetSpawnLocalEuler;
 
-            activeIdlePetPrefab = prefab;
-            CacheIdlePetFeedbackRefs();
-            RefreshIdlePetLookYawBase();
+            activePetPrefab = prefab;
+            CachePetFeedbackRefs();
+            RefreshPetLookYawBase();
         }
 
-        if (activeIdlePetObject == null)
+        if (activePetObject == null)
             return;
 
-        Transform petTransform = activeIdlePetObject.transform;
+        Transform petTransform = activePetObject.transform;
         if (petTransform.parent != anchor)
             petTransform.SetParent(anchor, false);
         petTransform.localPosition = Vector3.zero;
-        petTransform.localEulerAngles = equippedPickaxe.IdlePetSpawnLocalEuler;
-        RefreshIdlePetLookYawBase();
+        petTransform.localEulerAngles = equippedPet.PetSpawnLocalEuler;
+        RefreshPetLookYawBase();
     }
 
-    private void StopIdlePetVisual(bool immediate = false)
+    private void StopPetVisual(bool immediate = false)
     {
-        if (activeIdlePetObject == null)
+        if (activePetObject == null)
         {
-            activeIdlePetPrefab = null;
-            activeIdlePetFeedback = null;
-            activeIdlePetAnimatorFallback = null;
+            activePetPrefab = null;
+            activePetFeedback = null;
+            activePetAnimatorFallback = null;
             return;
         }
 
-        GameObject petToDespawn = activeIdlePetObject;
-        activeIdlePetObject = null;
-        activeIdlePetPrefab = null;
-        activeIdlePetFeedback = null;
-        activeIdlePetAnimatorFallback = null;
+        GameObject petToDespawn = activePetObject;
+        activePetObject = null;
+        activePetPrefab = null;
+        activePetFeedback = null;
+        activePetAnimatorFallback = null;
 
         if (immediate)
             LeanPool.Despawn(petToDespawn);
@@ -165,113 +125,28 @@ public sealed class PlayerCombatVfxService
             LeanPool.Despawn(petToDespawn);
     }
 
-    private void CacheIdlePetFeedbackRefs()
+    private void CachePetFeedbackRefs()
     {
-        activeIdlePetFeedback = null;
-        activeIdlePetAnimatorFallback = null;
+        activePetFeedback = null;
+        activePetAnimatorFallback = null;
 
-        if (activeIdlePetObject == null)
+        if (activePetObject == null)
             return;
 
-        var petBehaviours = activeIdlePetObject.GetComponentsInChildren<MonoBehaviour>(true);
+        var petBehaviours = activePetObject.GetComponentsInChildren<MonoBehaviour>(true);
         for (int i = 0; i < petBehaviours.Length; i++)
         {
-            if (activeIdlePetFeedback == null && petBehaviours[i] is IIdlePetAttackFeedback feedback)
-                activeIdlePetFeedback = feedback;
+            if (activePetFeedback == null && petBehaviours[i] is IPetAutoAttackFeedback feedback)
+                activePetFeedback = feedback;
         }
 
-        if (activeIdlePetFeedback == null)
-            activeIdlePetAnimatorFallback = activeIdlePetObject.GetComponentInChildren<Animator>(true);
+        if (activePetFeedback == null)
+            activePetAnimatorFallback = activePetObject.GetComponentInChildren<Animator>(true);
     }
 
-    private void RefreshIdlePetLookYawBase()
+    private void RefreshPetLookYawBase()
     {
-        if (activeIdlePetFeedback is IdlePetAttackFeedback feedback)
+        if (activePetFeedback is IdlePetAttackFeedback feedback)
             feedback.RefreshLookYawBaseFromCurrentPose();
-    }
-
-    private void EnsureHoldBeam(Pickaxe equippedPickaxe, Transform holdBeamOrigin)
-    {
-        if (activeHoldBeamObject != null) return;
-        if (equippedPickaxe == null) return;
-        if (equippedPickaxe.HoldBeamVfxPrefab == null) return;
-
-        activeHoldBeamObject = LeanPool.Spawn(equippedPickaxe.HoldBeamVfxPrefab);
-        activeHoldBeam = activeHoldBeamObject.GetComponent<HoldBeamVFX>();
-        Vector3 start = GetHoldBeamStartPosition(equippedPickaxe, holdBeamOrigin);
-
-        if (activeHoldBeam != null)
-        {
-            activeHoldBeam.Begin(start);
-        }
-        else
-        {
-            Debug.LogWarning("[PlayerCombatVfxService] Hold beam prefab is missing HoldBeamVFX component.");
-        }
-    }
-
-    private void UpdateHoldBeamPositions(Vector3 endPoint)
-    {
-        if (activeHoldBeamObject == null)
-            return;
-
-        if (activeHoldBeam != null)
-            activeHoldBeam.SetEndPoint(endPoint);
-    }
-
-    private Vector3 GetHoldBeamStartPosition(Pickaxe equippedPickaxe, Transform holdBeamOrigin)
-    {
-        Transform origin = holdBeamOrigin;
-
-        if (origin == null && Camera.main != null)
-            origin = Camera.main.transform;
-
-        if (origin == null)
-            return Vector3.zero;
-
-        Vector3 offset = equippedPickaxe != null ? equippedPickaxe.HoldBeamStartOffset : Vector3.zero;
-        return origin.position + origin.TransformDirection(offset);
-    }
-
-    private void StopHoldBeam(bool immediate = false)
-    {
-        if (activeHoldBeamObject == null)
-        {
-            activeHoldBeam = null;
-            return;
-        }
-
-        GameObject beamToStop = activeHoldBeamObject;
-        HoldBeamVFX beamVfx = activeHoldBeam;
-
-        activeHoldBeamObject = null;
-        activeHoldBeam = null;
-
-        if (immediate || beamVfx == null)
-        {
-            LeanPool.Despawn(beamToStop);
-            return;
-        }
-
-        beamVfx.EndBeam();
-        float delay = beamVfx.EndDespawnDelay;
-        if (delay <= 0f)
-        {
-            LeanPool.Despawn(beamToStop);
-            return;
-        }
-
-        if (coroutineHost != null)
-            coroutineHost.StartCoroutine(DespawnHoldBeamAfterDelay(beamToStop, delay));
-        else
-            LeanPool.Despawn(beamToStop);
-    }
-
-    private static IEnumerator DespawnHoldBeamAfterDelay(GameObject beamObject, float delay)
-    {
-        yield return new WaitForSecondsRealtime(delay);
-
-        if (beamObject != null)
-            LeanPool.Despawn(beamObject);
     }
 }

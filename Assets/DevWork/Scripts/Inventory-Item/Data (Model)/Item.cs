@@ -3,13 +3,14 @@ using UnityEngine;
 
 public enum ItemType
 {
-    None,
-    Pickaxe,
-    Consumable,
-    Accessory,
-    ItemMaterial,
-    BossSummoner,
-    Lootbox
+    None = 0,
+    Consumable = 2,
+    Accessory = 3,
+    ItemMaterial = 4,
+    BossSummoner = 5,
+    Lootbox = 6,
+    Weapon = 7,
+    Pet = 8
 }
 public enum Rarity
 {

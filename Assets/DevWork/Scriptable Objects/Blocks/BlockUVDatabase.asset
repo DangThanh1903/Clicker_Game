@@ -12,6 +12,25 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 188188d2be5a7a24aa36e836fc82dfda, type: 3}
   m_Name: BlockUVDatabase
   m_EditorClassIdentifier: 
+  usePlainMergeProgression: 1
+  grassUnlockProgress: 1
+  clayUnlockProgress: 3
+  stage1GrassSpawnChance: 0.2
+  stage3ClaySpawnChance: 0.95
+  stage1GrassDropChance: 0.2
+  stage3ClayDropChance: 0.95
+  stage3FlintDropChance: 0.05
+  dirtBlockName: Dirt
+  grassBlockName: Grass
+  clayBlockName: Clay
+  dirtDropAddress: Dirt
+  grassDropAddress: Grass
+  clayDropAddress: Clay
+  flintDropAddress: Flint
+  progressionDirtAmount: 1
+  progressionGrassAmount: 1
+  progressionClayAmount: 1
+  progressionFlintAmount: 1
   blocks:
   - blockName: Dirt
     atlasIndex: 0

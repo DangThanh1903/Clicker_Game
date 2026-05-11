@@ -31,9 +31,6 @@ public class MonsterClickable : MonoBehaviour, IDamageReceiver, IPointerHitConte
     private float spawnTime;
     private string monsterId;
     private Collider aimCollider;
-    private float accumulatedHoldTime = 0f;
-    private readonly float timeHoldReset = 0.1f;
-    private readonly float timeIdleReset = 1f;
     private Vector2 onClickPos;
     public BlockMomentumSpinDriver MomentumSpinDriver => momentumSpinDriver;
     private Vector3 lastClickWorldPoint;
@@ -127,7 +124,7 @@ public class MonsterClickable : MonoBehaviour, IDamageReceiver, IPointerHitConte
     public void HandleClick()
     {
         float power = DamageInputPowerResolver.GetClickPower();
-        TakeDamage(power, "click", countAsHit: true);
+        TakeDamage(power, countAsHit: true, applyClickVisuals: true);
     }
 
     public void ApplyDamageInput(DamageInputKind inputKind)
@@ -137,11 +134,8 @@ public class MonsterClickable : MonoBehaviour, IDamageReceiver, IPointerHitConte
             case DamageInputKind.Click:
                 HandleClick();
                 return;
-            case DamageInputKind.Hold:
-                HandleHold();
-                return;
-            case DamageInputKind.Idle:
-                HandleIdle();
+            case DamageInputKind.AutoAttack:
+                HandleAutoAttack();
                 return;
             default:
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
@@ -151,30 +145,18 @@ public class MonsterClickable : MonoBehaviour, IDamageReceiver, IPointerHitConte
         }
     }
 
-    public void HandleHold()
+    public void HandleAutoAttack()
     {
-        float dt = DamageInputPowerResolver.GetInputDeltaTime();
-        StatsManager.Ins.Add(StatType.HoldedTime, dt);
-
-        if (DamageTickAccumulator.TryConsumeTick(ref accumulatedHoldTime, dt, timeHoldReset))
-        {
-            float power = DamageInputPowerResolver.GetHoldTickPower(timeHoldReset);
-            TakeDamage(power, "hold", countAsHit: true);
-        }
-    }
-
-    public void HandleIdle()
-    {
-        float power = DamageInputPowerResolver.GetIdleTickPower(timeIdleReset);
+        float power = DamageInputPowerResolver.GetAutoAttackPower();
         Vector3 aimPoint = GetAimWorldPosition();
-        onClickPos = GetUIPosition(aimPoint);
-        TakeDamage(power, "idle", countAsHit: false);
-        CombatFeedbackRuntime.NotifyIdleDamageDealt(power, aimPoint);
+        SetPointerHit(aimPoint);
+        TakeDamage(power, countAsHit: true, applyClickVisuals: true);
+        CombatFeedbackRuntime.NotifyAutoAttackDamageDealt(power, aimPoint);
     }
 
     // ===== Combat =====
 
-    void TakeDamage(float power, string source, bool countAsHit = true)
+    void TakeDamage(float power, bool countAsHit = true, bool applyClickVisuals = false)
     {
         if (resolved) return;
         if (power <= 0f) return;
@@ -194,12 +176,7 @@ public class MonsterClickable : MonoBehaviour, IDamageReceiver, IPointerHitConte
         // Optional: hit feedback (toast / anim)
         Toaster.Show($"-{power:F1}", null, 0.2f, onClickPos);
         bool usedSharedBlockAnim = false;
-        if (string.Equals(source, "hold", StringComparison.Ordinal))
-        {
-            animCtrl?.PlayHold();
-            usedSharedBlockAnim = animCtrl != null;
-        }
-        else if (string.Equals(source, "click", StringComparison.Ordinal))
+        if (applyClickVisuals)
         {
             animCtrl?.PlayClick();
             usedSharedBlockAnim = animCtrl != null;
@@ -274,7 +251,6 @@ public class MonsterClickable : MonoBehaviour, IDamageReceiver, IPointerHitConte
         healthSub?.Dispose();
         healthSub = null;
         resolved = false;
-        accumulatedHoldTime = 0f;
         spawnTime = 0f;
         monsterId = null;
         hasLastClickWorldPoint = false;

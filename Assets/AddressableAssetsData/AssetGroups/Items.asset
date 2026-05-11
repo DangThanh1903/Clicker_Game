@@ -32,6 +32,11 @@ MonoBehaviour:
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 0d2db95fd7f547ec91cf19fb2ebf4cc8
+    m_Address: Clay
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: 0ded06e44b0e29543847ecab5c3ba536
     m_Address: TrueIceCube
     m_ReadOnly: 0
@@ -89,11 +94,6 @@ MonoBehaviour:
     FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: 2a2e148f032c0ff43b4c692380eac8ee
     m_Address: Ruby
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 2d1e2c8cfaf934c4a81de0897d73378f
-    m_Address: ClayStaff
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
@@ -207,11 +207,6 @@ MonoBehaviour:
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 69c48c737b5a3ef438799fd75b451469
-    m_Address: Clay
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: 6b9393087ac194444b338530596eec20
     m_Address: Emerald
     m_ReadOnly: 0
@@ -252,8 +247,18 @@ MonoBehaviour:
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: a4ef3c8b8f284e74aa2e7a7a5ce0f3c1
+    m_Address: Dirt
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: a675b34cf6191694aa93207bb07214da
     m_Address: Amber
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: a696db46f9e744519890cd04ca715b55
+    m_Address: ClayStaff
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
@@ -269,11 +274,6 @@ MonoBehaviour:
     FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: b4b45169c1d55ef478776ecc544921bd
     m_Address: IronChestplate
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: b58c152454d354b47b2cd8650bf8bf45
-    m_Address: Dirt
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0

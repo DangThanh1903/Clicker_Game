@@ -7,18 +7,19 @@ using System.Linq;
 
 public enum InventoryType
 {
-    Inventory,
-    Accessory,
-    Pickaxe,
-    CraftingStation,
-    CraftingOut,
-    TrashCan,
-    Split
+    Inventory = 0,
+    Accessory = 1,
+    CraftingStation = 3,
+    CraftingOut = 4,
+    TrashCan = 5,
+    Split = 6,
+    Pet = 7
 }
 
 [CreateAssetMenu(fileName = "NewInventoryData", menuName = "Inventory/InventoryData")]
 public class InventoryData : ScriptableObject
 {
+    private static readonly HashSet<int> WarnedLegacyInventoryTypes = new HashSet<int>();
     [SerializeField] private int size = 20;
     [SerializeField] private Item nullItem;
     public Item NullItem => nullItem;
@@ -33,6 +34,13 @@ public class InventoryData : ScriptableObject
 
     private void OnEnable()
     {
+        if (!Enum.IsDefined(typeof(InventoryType), inventoryType))
+        {
+            int raw = (int)inventoryType;
+            if (WarnedLegacyInventoryTypes.Add(raw))
+                DevLog.Log($"[Inventory] Ignore legacy/unknown inventory type value: {raw}");
+        }
+
         if (Items.Count == 0)
         {
             for (int i = 0; i < size; i++)
@@ -107,8 +115,10 @@ public class InventoryData : ScriptableObject
         var item = it.itemData;
         if (item == null || item.Type == ItemType.None) return;
 
-        // ONLY these two item types get prefixes
-        bool allowPrefix = item.Type == ItemType.Pickaxe || item.Type == ItemType.Accessory;
+        // Prefixes apply to combat equipment only.
+        bool allowPrefix =
+            item.Type == ItemType.Weapon ||
+            item.Type == ItemType.Accessory;
         if (!allowPrefix) return;
 
         // roll once

@@ -4,7 +4,10 @@ using UniRx;
 
 public class Biome : MonoBehaviour
 {
+    [Header("Light Sources")]
     [SerializeField] private GameObject[] lightSources;
+    [Header("GameObject Toggle")]
+    [SerializeField] private GameObject[] gameObjectsToToggle;
 
     [Header("Light Toggle")]
     [SerializeField] private bool toggleByIntensity = true;
@@ -79,26 +82,15 @@ public class Biome : MonoBehaviour
             }
         }
 
+        SetGameObjectActive(gameObjectsToToggle, on);
+
         if (toggleSourceGameObject)
         {
-            if (lightSources == null)
-                return;
-
-            for (int i = 0; i < lightSources.Length; i++)
-            {
-                var source = lightSources[i];
-                if (source != null)
-                    source.SetActive(on);
-            }
+            SetGameObjectActive(lightSources, on);
             return;
         }
 
-        for (int i = 0; i < sourcesWithoutLight.Count; i++)
-        {
-            var source = sourcesWithoutLight[i];
-            if (source != null)
-                source.SetActive(on);
-        }
+        SetGameObjectActive(sourcesWithoutLight, on);
     }
 
     private void BuildLightCache()
@@ -156,10 +148,33 @@ public class Biome : MonoBehaviour
 
     private void OnValidate()
     {
-        if (toggleByIntensity)
-            toggleSourceGameObject = false;
-
         cacheBuilt = false;
+    }
+
+    private static void SetGameObjectActive(GameObject[] targets, bool on)
+    {
+        if (targets == null)
+            return;
+
+        for (int i = 0; i < targets.Length; i++)
+        {
+            var target = targets[i];
+            if (target != null)
+                target.SetActive(on);
+        }
+    }
+
+    private static void SetGameObjectActive(List<GameObject> targets, bool on)
+    {
+        if (targets == null)
+            return;
+
+        for (int i = 0; i < targets.Count; i++)
+        {
+            var target = targets[i];
+            if (target != null)
+                target.SetActive(on);
+        }
     }
 
     private struct LightEntry

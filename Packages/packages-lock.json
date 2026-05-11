@@ -1,5 +1,12 @@
 {
   "dependencies": {
+    "com.innogames.asset-relations-viewer": {
+      "version": "https://github.com/innogames/asset-relations-viewer.git",
+      "depth": 0,
+      "source": "git",
+      "dependencies": {},
+      "hash": "c59f49c302f3ee605b88334911e2e7443db8fe9c"
+    },
     "com.unity.2d.sprite": {
       "version": "1.0.0",
       "depth": 0,

@@ -15,10 +15,11 @@ MonoBehaviour:
   itemName: StarWand
   description: StarWand
   icon: {fileID: 21300000, guid: 7af662603de22de469a4737d2f467a86, type: 3}
-  rarity: 0
+  rarity: 4
   modifiers:
-  - statType: 4
-    value: 25
+  - statType: 3
+    value: 25.6
+    mode: 0
   passiveBuffs: []
   holdBeamVfxPrefab: {fileID: 0}
   holdBeamStartOffset: {x: 0, y: 0, z: 0.1}

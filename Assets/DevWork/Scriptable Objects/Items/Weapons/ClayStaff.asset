@@ -13,21 +13,13 @@ MonoBehaviour:
   m_Name: ClayStaff
   m_EditorClassIdentifier: 
   itemName: ClayStaff
-  description: ClayStaff
+  description: Merge tier weapon.
   icon: {fileID: 21300000, guid: 204032e901a60e64696615bea31adcf0, type: 3}
-  rarity: 0
+  rarity: 4
+  mergeable: 0
+  mergeNextWeapon: {fileID: 0}
   modifiers:
-  - statType: 5
-    value: 2
-  - statType: 30
-    value: 0.05
-  - statType: 31
-    value: 10
+  - statType: 3
+    value: 25.6
+    mode: 0
   passiveBuffs: []
-  holdBeamVfxPrefab: {fileID: 8713863806777898148, guid: 4d84e7967ca7913458517cf3949739c0,
-    type: 3}
-  holdBeamStartOffset: {x: 0, y: 0, z: 0.1}
-  idlePetVisualPrefab: {fileID: 3389217031568968856, guid: c236780fa157e34479fd9f1fa7b66984,
-    type: 3}
-  idlePetSpawnLocalEuler: {x: 0, y: 70, z: 0}
-  currentState: 2

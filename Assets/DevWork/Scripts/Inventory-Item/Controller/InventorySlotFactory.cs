@@ -1,4 +1,3 @@
-using System;
 using UniRx;
 using UnityEngine;
 using Lean.Pool;
@@ -9,6 +8,30 @@ public static class InventorySlotFactory
 
     public static void CreateSlots(InventorySection section)
     {
+        if (section == null)
+        {
+            DevLog.Log("[InventorySlotFactory] Skip null section.");
+            return;
+        }
+        if (section.inventoryData == null)
+        {
+            DevLog.Log($"[InventorySlotFactory] Section '{section.name}' missing inventoryData.");
+            return;
+        }
+        if (section.slotParent == null)
+        {
+            DevLog.Log($"[InventorySlotFactory] Section '{section.name}' missing slotParent.");
+            return;
+        }
+        if (section.slotPrefab == null)
+        {
+            DevLog.Log($"[InventorySlotFactory] Section '{section.name}' missing slotPrefab.");
+            return;
+        }
+
+        section.slotUIs ??= new System.Collections.Generic.List<InventorySlotUI>();
+        section.disposables ??= new CompositeDisposable();
+
         // Clean previous
         foreach (Transform child in section.slotParent)
             LeanPool.Despawn(child.gameObject);
@@ -22,6 +45,12 @@ public static class InventorySlotFactory
         {
             var slotGO = LeanPool.Spawn(section.slotPrefab, section.slotParent);
             var slotUI = slotGO.GetComponent<InventorySlotUI>();
+            if (slotUI == null)
+            {
+                DevLog.Log($"[InventorySlotFactory] Prefab '{section.slotPrefab.name}' has no InventorySlotUI.");
+                LeanPool.Despawn(slotGO);
+                continue;
+            }
 
             if (inventory.inventoryType == InventoryType.CraftingOut)
             {
@@ -31,10 +60,10 @@ public static class InventorySlotFactory
 
             slotUI.Bind(inventory, i);
             slotUI.UpdateSlotUI(inventory.Items[i]);
+            slotUI.SetEquippedWeaponVisual(false);
 
             section.slotUIs.Add(slotUI);
         }
-
 
         // Observe Replace
         inventory.Items
@@ -45,10 +74,8 @@ public static class InventorySlotFactory
                 if (index >= 0 && index < section.slotUIs.Count)
                 {
                     section.slotUIs[index].UpdateSlotUI(x.NewValue);
-                    if (section.inventoryData.inventoryType == InventoryType.Pickaxe)
-                    {
-                        HandlePickaxeState(x.NewValue.itemData);
-                    }
+                    if (ShouldRefreshWeaponHighlight(section.inventoryData.inventoryType))
+                        RefreshWeaponHighlight(section);
                 }
             })
             .AddTo(section.disposables);
@@ -63,18 +90,39 @@ public static class InventorySlotFactory
                     if (i < section.slotUIs.Count)
                         section.slotUIs[i].UpdateSlotUI(inventory.Items[i]);
                 }
+
+                if (ShouldRefreshWeaponHighlight(section.inventoryData.inventoryType))
+                    RefreshWeaponHighlight(section);
             })
             .AddTo(section.disposables);
+
+        if (ShouldRefreshWeaponHighlight(section.inventoryData.inventoryType))
+            RefreshWeaponHighlight(section);
     }
 
-    public static void HandlePickaxeState(Item item)
+    private static bool ShouldRefreshWeaponHighlight(InventoryType inventoryType)
     {
-        var player = PlayerController.Instance;
-        if (player == null) return;
-
-        if (item is not Pickaxe pickaxe || item.Type == ItemType.None)
-            player.SetEquippedPickaxe(null);
-        else
-            player.SetEquippedPickaxe(pickaxe);
+        return inventoryType == InventoryType.Inventory;
     }
+
+    private static void RefreshWeaponHighlight(InventorySection section)
+    {
+        var inventory = section != null ? section.inventoryData : null;
+        if (inventory == null || section.slotUIs == null)
+            return;
+
+        WeaponSelectionService.TryGetStrongestWeaponItem(inventory, out InventoryItem strongestWeaponItem);
+
+        for (int i = 0; i < section.slotUIs.Count; i++)
+        {
+            InventorySlotUI slotUI = section.slotUIs[i];
+            if (slotUI == null)
+                continue;
+
+            InventoryItem slotItem = i < inventory.Items.Count ? inventory.Items[i] : null;
+            bool isEquippedWeaponSlot = strongestWeaponItem != null && ReferenceEquals(slotItem, strongestWeaponItem);
+            slotUI.SetEquippedWeaponVisual(isEquippedWeaponSlot);
+        }
+    }
+
 }

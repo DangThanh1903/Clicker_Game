@@ -49,13 +49,13 @@ public static class ItemPrefixConfig
         }
     }
 
-    // Optional: roll rules based on item type (so pickaxes can't get "Tanky", etc.)
+    // Optional: roll rules based on item type.
     public static ItemPrefix GetRandomFor(Item item)
     {
         if (item == null) return ItemPrefix.None;
 
         // Example pools (adjust)
-        if (item.Type == ItemType.Pickaxe)
+        if (item.Type == ItemType.Weapon)
             return RandomFrom(ItemPrefix.None, ItemPrefix.Lucky, ItemPrefix.Sharp, ItemPrefix.Cursed);
 
         if (item.Type == ItemType.Accessory)

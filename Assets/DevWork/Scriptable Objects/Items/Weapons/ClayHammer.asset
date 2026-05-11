@@ -15,10 +15,10 @@ MonoBehaviour:
   itemName: ClayHammer
   description: ClayHammer
   icon: {fileID: 21300000, guid: b20396e59dff76c4580e0fa6e89a3277, type: 3}
-  rarity: 0
+  rarity: 1
   modifiers:
   - statType: 3
-    value: 1
+    value: 5.1
     mode: 0
   passiveBuffs: []
   holdBeamVfxPrefab: {fileID: 0}

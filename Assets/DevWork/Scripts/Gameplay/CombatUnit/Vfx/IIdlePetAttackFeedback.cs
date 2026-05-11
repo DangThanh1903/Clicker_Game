@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public interface IIdlePetAttackFeedback
+public interface IPetAutoAttackFeedback
 {
-    void PlayIdleAttack(float damage, Vector3 targetWorldPosition);
+    void PlayAutoAttack(float damage, Vector3 targetWorldPosition);
 }

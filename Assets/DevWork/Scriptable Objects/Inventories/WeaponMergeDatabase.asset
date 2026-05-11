@@ -1,0 +1,51 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8318f3a3b69347d29f4b3f16627f33ae, type: 3}
+  m_Name: WeaponMergeDatabase
+  m_EditorClassIdentifier: 
+  recipes:
+  - fromWeapon: {fileID: 11400000, guid: a4ef3c8b8f284e74aa2e7a7a5ce0f3c1, type: 2}
+    toWeapon: {fileID: 11400000, guid: 82473d30c1a84043b401d6e041a9c61a, type: 2}
+    rareItem: {fileID: 0}
+    rareAmount: 0
+  - fromWeapon: {fileID: 11400000, guid: 82473d30c1a84043b401d6e041a9c61a, type: 2}
+    toWeapon: {fileID: 11400000, guid: 0d2db95fd7f547ec91cf19fb2ebf4cc8, type: 2}
+    rareItem: {fileID: 0}
+    rareAmount: 0
+  - fromWeapon: {fileID: 11400000, guid: 0d2db95fd7f547ec91cf19fb2ebf4cc8, type: 2}
+    toWeapon: {fileID: 11400000, guid: 972c82769f744f3fa3e58fd563f6d2d2, type: 2}
+    rareItem: {fileID: 0}
+    rareAmount: 0
+  - fromWeapon: {fileID: 11400000, guid: 972c82769f744f3fa3e58fd563f6d2d2, type: 2}
+    toWeapon: {fileID: 11400000, guid: 568a60f8923e63147a4d886034bf10da, type: 2}
+    rareItem: {fileID: 0}
+    rareAmount: 0
+  - fromWeapon: {fileID: 11400000, guid: 568a60f8923e63147a4d886034bf10da, type: 2}
+    toWeapon: {fileID: 11400000, guid: 42f37d51a53698544a6e81103f143f9c, type: 2}
+    rareItem: {fileID: 0}
+    rareAmount: 0
+  - fromWeapon: {fileID: 11400000, guid: 42f37d51a53698544a6e81103f143f9c, type: 2}
+    toWeapon: {fileID: 11400000, guid: 11321575b32e2f14e913f3c8d97ab368, type: 2}
+    rareItem: {fileID: 11400000, guid: 7edc2ad3ba06bac49ad1c0dc388b28b6, type: 2}
+    rareAmount: 1
+  - fromWeapon: {fileID: 11400000, guid: 11321575b32e2f14e913f3c8d97ab368, type: 2}
+    toWeapon: {fileID: 11400000, guid: 2bd0239604d24dbc9507fb8dcc376e85, type: 2}
+    rareItem: {fileID: 11400000, guid: 7edc2ad3ba06bac49ad1c0dc388b28b6, type: 2}
+    rareAmount: 2
+  - fromWeapon: {fileID: 11400000, guid: 2bd0239604d24dbc9507fb8dcc376e85, type: 2}
+    toWeapon: {fileID: 11400000, guid: 8e5b45b681b13834f86ab40b23effb6e, type: 2}
+    rareItem: {fileID: 11400000, guid: 7edc2ad3ba06bac49ad1c0dc388b28b6, type: 2}
+    rareAmount: 3
+  - fromWeapon: {fileID: 11400000, guid: 8e5b45b681b13834f86ab40b23effb6e, type: 2}
+    toWeapon: {fileID: 11400000, guid: d109241e29491604a96df3d1fdacf06f, type: 2}
+    rareItem: {fileID: 11400000, guid: 7edc2ad3ba06bac49ad1c0dc388b28b6, type: 2}
+    rareAmount: 5

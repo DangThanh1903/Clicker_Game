@@ -1,8 +1,7 @@
 public enum DamageInputKind
 {
     Click = 0,
-    Hold = 1,
-    Idle = 2
+    AutoAttack = 1
 }
 
 public interface IDamageReceiver

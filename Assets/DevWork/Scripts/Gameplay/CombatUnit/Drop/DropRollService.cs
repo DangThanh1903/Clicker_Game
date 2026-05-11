@@ -77,6 +77,21 @@ public static class DropRollService
         int minAmount = drop.minAmount;
         int maxAmount = Mathf.Max(minAmount, drop.maxAmount);
         amount = Random.Range(minAmount, maxAmount + 1);
+        amount = ApplyDropMultiplier(amount);
         return true;
+    }
+
+    private static int ApplyDropMultiplier(int amount)
+    {
+        if (amount <= 0)
+            return 0;
+
+        float dropMultiplier = StatsManager.Ins != null
+            ? StatsManager.Ins.Get(StatType.DropMultiplier)
+            : 1f;
+        if (dropMultiplier <= 0f)
+            dropMultiplier = 1f;
+
+        return Mathf.Max(0, Mathf.RoundToInt(amount * dropMultiplier));
     }
 }

@@ -15,7 +15,6 @@ public class GameplayUIManager : MonoBehaviour
     [SerializeField] private Image ManaUI;
     [SerializeField] private Sprite manaSprite;
     [SerializeField] private Sprite staminaSprite;
-    [SerializeField] private Sprite idleSprite;
     private float displayedManaFill = 0f;
     private int lastShownRunSecond = int.MinValue;
     private ResourceDisplayMode currentResourceMode = ResourceDisplayMode.Mana;
@@ -23,8 +22,7 @@ public class GameplayUIManager : MonoBehaviour
     private enum ResourceDisplayMode
     {
         Stamina,
-        Mana,
-        Idle
+        Mana
     }
 
     private string lastShownBlockName = string.Empty;
@@ -110,20 +108,8 @@ public class GameplayUIManager : MonoBehaviour
 
     private ResourceDisplayMode ResolveResourceMode()
     {
-        var player = PlayerController.Instance;
-        if (player == null || player.currentState == null)
-            return ResourceDisplayMode.Mana;
-
-        if (player.currentState is HoldState)
-            return ResourceDisplayMode.Mana;
-
-        if (player.currentState is NormalState)
-            return ResourceDisplayMode.Stamina;
-
-        if (player.currentState is IdleState)
-            return ResourceDisplayMode.Idle;
-
-        return ResourceDisplayMode.Mana;
+        // Click/manual and pet/auto both use stamina resource display in current design.
+        return ResourceDisplayMode.Stamina;
     }
 
     private float GetTargetResourceFill(ResourceDisplayMode mode)
@@ -139,10 +125,6 @@ public class GameplayUIManager : MonoBehaviour
                 float maxMana = StatsManager.Ins.Get(StatType.Mana);
                 float curMana = StatsManager.Ins.Get(StatType.CurrentMana);
                 return (maxMana > 0f) ? Mathf.Clamp01(curMana / maxMana) : 0f;
-            case ResourceDisplayMode.Idle:
-                return PlayerController.Instance != null
-                    ? PlayerController.Instance.GetIdleStackPercent()
-                    : 0f;
             default:
                 return 0f;
         }
@@ -162,9 +144,6 @@ public class GameplayUIManager : MonoBehaviour
         {
             case ResourceDisplayMode.Stamina:
                 useSprite = staminaSprite;
-                break;
-            case ResourceDisplayMode.Idle:
-                useSprite = idleSprite;
                 break;
             case ResourceDisplayMode.Mana:
             default:

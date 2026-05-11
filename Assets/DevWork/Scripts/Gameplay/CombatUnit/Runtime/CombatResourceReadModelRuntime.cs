@@ -1,8 +1,6 @@
 public interface ICombatResourceReadModel
 {
     float ApplyStaminaToFinalDamage(float finalClickDamage);
-    float GetHoldDamageMultiplier();
-    float GetIdleDamageMultiplier();
     bool UseUnscaledTime { get; }
 }
 

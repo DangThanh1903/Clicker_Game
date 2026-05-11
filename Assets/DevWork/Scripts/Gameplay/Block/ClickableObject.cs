@@ -54,9 +54,6 @@ public class ClickableObject : MonoBehaviour, IDamageReceiver, IPointerHitContex
     private static readonly int EmissionStrengthID = Shader.PropertyToID("_EmissionStrength");
     private static readonly int GlowPowerID = Shader.PropertyToID("_GlowPower");
     private MeshRenderer cubeRenderer;
-    private float accumulatedHoldTime = 0f;
-    private readonly float timeHoldReset = 0.1f;
-    private readonly float timeIdleReset = 1f;
     bool isDyingEffect;
     private bool breakFinalized;
 
@@ -136,6 +133,7 @@ public class ClickableObject : MonoBehaviour, IDamageReceiver, IPointerHitContex
     private int lastDamageFrame = -1;
     private Mesh generatedCubeMesh;
     private MeshFilter meshFilter;
+    private Collider cachedHitCollider;
     private readonly Vector2[] cubeUvBuffer = new Vector2[24];
     private Tween deathFlowTween;
     private BlockMomentumSpinDriver momentumSpinDriver;
@@ -150,6 +148,7 @@ public class ClickableObject : MonoBehaviour, IDamageReceiver, IPointerHitContex
         baseGlowPropertyBlock = new MaterialPropertyBlock();
         cubeRenderer = GetComponent<MeshRenderer>();
         meshFilter = GetComponent<MeshFilter>();
+        cachedHitCollider = GetComponent<Collider>();
         momentumSpinDriver = GetComponent<BlockMomentumSpinDriver>();
         if (blockPointLight == null)
             blockPointLight = GetComponentInChildren<Light>(true);
@@ -218,7 +217,6 @@ public class ClickableObject : MonoBehaviour, IDamageReceiver, IPointerHitContex
         BlockWeight = blockUVDatabase.GetWeight(name);
         isDyingEffect = false;
         breakFinalized = false;
-        accumulatedHoldTime = 0f;
         isReady = true;
         ListenRuntime();
         GenerateCube();
@@ -229,14 +227,18 @@ public class ClickableObject : MonoBehaviour, IDamageReceiver, IPointerHitContex
     }
     public void SetClickableBlockByCondition(BlockSpawnLocation blockSpawnLocation, TimeState timeState, NormalWeatherName normalWeatherName, SpecialWeatherName specialWeatherName)
     {
-        SetClickableBlock(
-            blockUVDatabase.GetRandomBlockByConditions(
+        int mergeProgress = DataSaver.Ins != null ? DataSaver.Ins.MergeProgress : 0;
+        var nextBlock = blockUVDatabase.GetRandomBlockByConditions(
             blockSpawnLocation,
             timeState,
             normalWeatherName,
             specialWeatherName,
-            StatsManager.Ins.Get(StatType.Lucky)).blockName
-        );
+            StatsManager.Ins.Get(StatType.Lucky),
+            mergeProgress);
+        if (nextBlock == null)
+            return;
+
+        SetClickableBlock(nextBlock.blockName);
     }
     #endregion
     #region CLICK_LOGIC -------------------------------------------------------------------------------------
@@ -356,7 +358,7 @@ public class ClickableObject : MonoBehaviour, IDamageReceiver, IPointerHitContex
     public void HandleClick()
     {
         float power = DamageInputPowerResolver.GetClickPower();
-        TakeDamage(power, "click", countAsHit: true);
+        TakeDamage(power, "click", countAsHit: true, applyClickVisuals: true);
     }
 
     public void SetIdleAnimationSuppressed(bool suppressed)
@@ -371,11 +373,8 @@ public class ClickableObject : MonoBehaviour, IDamageReceiver, IPointerHitContex
             case DamageInputKind.Click:
                 HandleClick();
                 return;
-            case DamageInputKind.Hold:
-                HandleHold();
-                return;
-            case DamageInputKind.Idle:
-                HandleIdle();
+            case DamageInputKind.AutoAttack:
+                HandleAutoAttack();
                 return;
             default:
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
@@ -385,25 +384,32 @@ public class ClickableObject : MonoBehaviour, IDamageReceiver, IPointerHitContex
         }
     }
 
-    public void HandleHold()
+    public void HandleAutoAttack()
     {
-        float dt = DamageInputPowerResolver.GetInputDeltaTime();
-        StatsManager.Ins.Add(StatType.HoldedTime, dt);
-        if (DamageTickAccumulator.TryConsumeTick(ref accumulatedHoldTime, dt, timeHoldReset))
-        {
-            float power = DamageInputPowerResolver.GetHoldTickPower(timeHoldReset);
-            TakeDamage(power, "hold", timeHoldReset, countAsHit: true);
-        }
+        float power = DamageInputPowerResolver.GetAutoAttackPower();
+        SetPointerHit(ResolveAutoAttackHitPoint());
+        TakeDamage(power, "pet_auto", countAsHit: true, applyClickVisuals: true);
+        CombatFeedbackRuntime.NotifyAutoAttackDamageDealt(power, transform.position);
     }
 
-    public void HandleIdle()
+    private Vector3 ResolveAutoAttackHitPoint()
     {
-        float power = DamageInputPowerResolver.GetIdleTickPower(timeIdleReset);
-        TakeDamage(power, "idle", timeIdleReset, countAsHit: false);
-        CombatFeedbackRuntime.NotifyIdleDamageDealt(power, transform.position);
+        if (cachedHitCollider == null)
+            return transform.position;
+
+        var cam = ResolveMainCamera();
+        if (cam == null)
+            return cachedHitCollider.bounds.center;
+
+        return cachedHitCollider.ClosestPoint(cam.transform.position);
     }
 
-    void TakeDamage(float power, string source, float timeReset = 1f, bool countAsHit = true)
+    void TakeDamage(
+        float power,
+        string source,
+        float timeReset = 1f,
+        bool countAsHit = true,
+        bool applyClickVisuals = false)
     {
         if (power <= 0f)
             return;
@@ -425,15 +431,10 @@ public class ClickableObject : MonoBehaviour, IDamageReceiver, IPointerHitContex
 
         Toaster.Show($"-{power:F1}", null, 0.2f, onClickPos);
 
-        if ((string.Equals(source, "click", StringComparison.Ordinal) ||
-             string.Equals(source, "hold", StringComparison.Ordinal)) &&
-            hasLastClickWorldPoint)
+        if (applyClickVisuals && hasLastClickWorldPoint)
             VFXManager.Ins?.PlayBlockClickVfx(lastClickWorldPoint, currentOutlineColor);
 
-        if (string.Equals(source, "hold", StringComparison.Ordinal))
-            animCtrl?.PlayHold();
-        else
-            animCtrl?.PlayClick();
+        animCtrl?.PlayClick();
     }
 
     public int GetRecentHitCount(float windowSeconds = 1f)
@@ -444,7 +445,11 @@ public class ClickableObject : MonoBehaviour, IDamageReceiver, IPointerHitContex
     {
         string dropBlockName = blockName;
         float luck = StatsManager.Ins != null ? StatsManager.Ins.Get(StatType.Lucky) : 0f;
-        var drops = blockUVDatabase.GetDropResultsByName(dropBlockName, luck);
+        int mergeProgress = DataSaver.Ins != null ? DataSaver.Ins.MergeProgress : 0;
+        BlockSpawnLocation biomeLocation = BlockManager.Ins != null
+            ? BlockManager.Ins.CurrentLocation
+            : BlockSpawnLocation.Any;
+        var drops = blockUVDatabase.GetDropResultsByName(dropBlockName, luck, mergeProgress, biomeLocation);
         StartCoroutine(HandleItemDrop_Co(dropBlockName, drops));
     }
 

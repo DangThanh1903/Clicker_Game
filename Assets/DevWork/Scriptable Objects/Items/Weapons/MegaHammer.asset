@@ -18,7 +18,7 @@ MonoBehaviour:
   rarity: 2
   modifiers:
   - statType: 3
-    value: 2
+    value: 7.6
     mode: 0
   passiveBuffs: []
   holdBeamVfxPrefab: {fileID: 0}

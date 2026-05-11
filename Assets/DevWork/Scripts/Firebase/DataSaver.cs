@@ -19,13 +19,16 @@ public enum CloudSyncMode
 public class DataSaver : MonoBehaviour
 {
     public static DataSaver Ins { get; private set; }
+    private const int CurrentSaveVersion = 2;
 
     [Header("Gameplay")]
     public string currentBlock;
     public BlockSpawnLocation? currentLocation;
     public BlockSpawnLocation? PeakLocation;
+    public int mergeProgress;
     public float CurrentTime;
     public float TotalPlaytime;
+    public int MergeProgress => Mathf.Max(0, mergeProgress);
 
     [Header("Profile")]
     public string DisplayName;
@@ -38,7 +41,7 @@ public class DataSaver : MonoBehaviour
     [SerializeField] private List<InventoryData> inventoryDatas = new List<InventoryData>();
     [SerializeField] private CraftNodeManager craftNodeManager;
     private readonly Dictionary<string, List<int>> craftNodeStatesByBiomeCache = new Dictionary<string, List<int>>();
-    private List<int> pendingLegacyCraftNodeStates;
+    private readonly Dictionary<string, int> milestoneClaimIndexByBiome = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
     [Header("Local Save")]
     [SerializeField, Min(0.1f)] private float localSaveCooldown = 2f;
@@ -79,6 +82,8 @@ public class DataSaver : MonoBehaviour
     private float cachedDiamonds;
     private bool hasCachedGameplayStats;
     private bool pendingRuntimeStatApply;
+    private bool forceCloudSaveAfterLoad;
+    private bool skipCloudInventoryLoadForSchemaReset;
     private long lastCloudUpdatedUtcTicks;
     private long lastLocalUpdatedUtcTicks;
     private const string LocalCacheFileName = "local_save.json";
@@ -184,6 +189,47 @@ public class DataSaver : MonoBehaviour
     public void IncreaseBreakCounter(int amount = 1)
     {
         blockBreakCounter.Value += amount;
+    }
+
+    public void IncreaseMergeProgress(int amount = 1, bool queueSave = true)
+    {
+        if (amount <= 0)
+            return;
+
+        mergeProgress = Mathf.Max(0, mergeProgress + amount);
+        if (queueSave)
+            SaveDataFn();
+    }
+
+    public void SetMergeProgress(int value, bool queueSave = true)
+    {
+        int nextValue = Mathf.Max(0, value);
+        if (mergeProgress == nextValue)
+            return;
+
+        mergeProgress = nextValue;
+        if (queueSave)
+            SaveDataFn();
+    }
+
+    public int GetClaimedMilestoneIndex(BlockSpawnLocation biome)
+    {
+        string key = NormalizeMilestoneBiomeKey(biome);
+        if (milestoneClaimIndexByBiome.TryGetValue(key, out int milestoneIndex))
+            return Mathf.Max(-1, milestoneIndex);
+        return -1;
+    }
+
+    public void SetClaimedMilestoneIndex(BlockSpawnLocation biome, int milestoneIndex, bool queueSave = true)
+    {
+        string key = NormalizeMilestoneBiomeKey(biome);
+        int safeIndex = Mathf.Max(-1, milestoneIndex);
+        if (milestoneClaimIndexByBiome.TryGetValue(key, out int existing) && existing == safeIndex)
+            return;
+
+        milestoneClaimIndexByBiome[key] = safeIndex;
+        if (queueSave)
+            SaveDataFn();
     }
 
     private void QueueLocalSave(bool forceImmediate = false)
@@ -296,14 +342,18 @@ public class DataSaver : MonoBehaviour
         {
             var batch = db.StartBatch();
             var userDoc = db.Collection("users").Document(uid);
+            var metaPayload = new Dictionary<string, object>
+            {
+                ["updatedAt"] = updatedAt,
+                ["rev"] = FieldValue.Increment(1),
+                ["saveVersion"] = CurrentSaveVersion
+            };
 
             var payload = new Dictionary<string, object>
             {
                 ["gameplay"] = gameplay,
                 ["profile"] = profile,
-                ["meta.updatedAt"] = updatedAt,
-                ["meta.rev"] = FieldValue.Increment(1),
-                ["meta.saveVersion"] = 1
+                ["meta"] = metaPayload
             };
 
             batch.Set(userDoc, payload, SetOptions.MergeAll);
@@ -414,20 +464,19 @@ public class DataSaver : MonoBehaviour
             timeValue = TimeSystem.Instance.CurrentTime.Value;
 
         SyncCraftNodeStateToCache(craftNodeManager);
-        List<int> currentScopeStates = craftNodeManager != null ? craftNodeManager.GetStates() : null;
 
         return new GameplaySaveData
         {
             currentBlock = blockValue,
             currentLocation = locationValue,
             peakLocation = peakValue,
+            mergeProgress = MergeProgress,
             clicks = clicks,
             diamonds = diamonds,
             currentTime = timeValue,
             totalPlaytime = TotalPlaytime,
             craftNodeStatesByBiome = BuildCraftNodeStatesByBiomePayload(),
-            // Keep legacy field for backward compatibility/migration safety.
-            craftNodeStates = currentScopeStates
+            milestoneClaimsByBiome = BuildMilestoneClaimsByBiomePayload()
         };
     }
 
@@ -502,6 +551,22 @@ public class DataSaver : MonoBehaviour
         return Path.Combine(Application.persistentDataPath, LocalCacheFileName);
     }
 
+    private void DeleteLocalCache()
+    {
+        string path = GetLocalCachePath();
+        if (!File.Exists(path))
+            return;
+
+        try
+        {
+            File.Delete(path);
+        }
+        catch (Exception ex)
+        {
+            Debug.LogWarning($"[Warn] Failed to delete local cache: {ex}");
+        }
+    }
+
     private bool TryLoadLocalCache(out LocalSaveData data)
     {
         data = null;
@@ -526,6 +591,14 @@ public class DataSaver : MonoBehaviour
         if (!TryLoadLocalCache(out var local) || local.gameplay == null)
         {
             Debug.LogWarning("[Warn] Local cache missing or invalid.");
+            onComplete?.Invoke(false);
+            yield break;
+        }
+
+        if (local.saveVersion != CurrentSaveVersion)
+        {
+            DevLog.Log($"[SaveFallback] Local cache schema {local.saveVersion} is not supported (expected {CurrentSaveVersion}). Reset local cache.");
+            DeleteLocalCache();
             onComplete?.Invoke(false);
             yield break;
         }
@@ -559,6 +632,7 @@ public class DataSaver : MonoBehaviour
 
         var local = new LocalSaveData
         {
+            saveVersion = CurrentSaveVersion,
             savedAtUtcTicks = lastLocalUpdatedUtcTicks,
             gameplay = new LocalGameplayData(BuildGameplaySaveData()),
             profile = new LocalProfileData(BuildProfileSaveData())
@@ -601,25 +675,37 @@ public class DataSaver : MonoBehaviour
         }
 
         bool ok = true;
+        bool needsCloudPatch = false;
         foreach (var inv in inventoryDatas)
         {
             bool invOk = false;
-            yield return StartCoroutine(LoadOneInventory(uid, inv, success => invOk = success));
+            bool invNeedsPatch = false;
+            yield return StartCoroutine(LoadOneInventory(uid, inv, (success, needPatch) =>
+            {
+                invOk = success;
+                invNeedsPatch = needPatch;
+            }));
             if (!invOk) ok = false;
+            if (invNeedsPatch) needsCloudPatch = true;
         }
 
         if (ok)
             MarkDataLoaded();
         if (ok) SaveLocalCache();
+        if (ok && needsCloudPatch)
+        {
+            forceCloudSaveAfterLoad = true;
+            DevLog.Log("[SavePatch] Missing inventory documents/components were detected and will be upserted to the same uid.");
+        }
         DevLog.Log("[OK] All inventories loaded (Firestore)");
         onComplete?.Invoke(ok);
     }
 
-    private IEnumerator LoadOneInventory(string uid, InventoryData inv, Action<bool> onComplete)
+    private IEnumerator LoadOneInventory(string uid, InventoryData inv, Action<bool, bool> onComplete)
     {
         if (inv == null)
         {
-            onComplete?.Invoke(false);
+            onComplete?.Invoke(false, false);
             yield break;
         }
 
@@ -633,7 +719,7 @@ public class DataSaver : MonoBehaviour
         if (task.Exception != null)
         {
             Debug.LogError($"[Error] Failed to load {inv.inventoryType}: {task.Exception}");
-            onComplete?.Invoke(false);
+            onComplete?.Invoke(false, false);
             yield break;
         }
 
@@ -645,17 +731,19 @@ public class DataSaver : MonoBehaviour
             Debug.LogWarning($"[Warn] No data for {inv.inventoryType}, create default size = {inv.GetSize()}");
             inv.Items.Clear();
             EnsureInventorySize(inv);
-            onComplete?.Invoke(true);
+            onComplete?.Invoke(true, true);
             yield break;
         }
 
         var loadedData = snap.ConvertTo<InventorySaveData>() ?? new InventorySaveData();
         yield return ApplyInventoryData(inv, loadedData);
-        onComplete?.Invoke(true);
+        onComplete?.Invoke(true, false);
     }
 
     public IEnumerator LoadGameplay(string uid, Action<bool> onComplete = null)
     {
+        skipCloudInventoryLoadForSchemaReset = false;
+
         if (db == null || string.IsNullOrEmpty(uid))
         {
             Debug.LogWarning("LoadGameplay skipped: Firebase DB or uid is unavailable.");
@@ -677,9 +765,23 @@ public class DataSaver : MonoBehaviour
         if (!snap.Exists)
         {
             Debug.LogWarning("[Warn] No user doc, keep defaults.");
+            ApplyDefaultGameplayDataForSchemaReset();
+            forceCloudSaveAfterLoad = true;
             MarkDataLoaded();
             onComplete?.Invoke(true);
             yield break;
+        }
+
+        bool needsCloudPatch = false;
+        if (!TryGetCloudSaveVersion(snap, out int cloudSaveVersion))
+        {
+            DevLog.Log($"[SavePatch] Missing meta.saveVersion on uid '{uid}', will add it.");
+            needsCloudPatch = true;
+        }
+        else if (cloudSaveVersion != CurrentSaveVersion)
+        {
+            DevLog.Log($"[SavePatch] Cloud schema {cloudSaveVersion} found on uid '{uid}' (expected {CurrentSaveVersion}), will migrate metadata.");
+            needsCloudPatch = true;
         }
 
         if (TryGetCloudUpdatedTicks(snap, out var cloudTicks))
@@ -687,18 +789,29 @@ public class DataSaver : MonoBehaviour
             lastCloudUpdatedUtcTicks = cloudTicks;
             lastLocalUpdatedUtcTicks = cloudTicks;
         }
+        else
+        {
+            needsCloudPatch = true;
+        }
 
         if (!snap.TryGetValue("gameplay", out GameplaySaveData gameplay) || gameplay == null)
         {
-            Debug.LogWarning("[Warn] No gameplay field.");
-            onComplete?.Invoke(false);
-            yield break;
+            Debug.LogWarning("[Warn] No gameplay field. Initializing defaults on current uid.");
+            ApplyDefaultGameplayDataForSchemaReset();
+            needsCloudPatch = true;
+        }
+        else
+        {
+            ApplyGameplayData(gameplay);
         }
 
-        ApplyGameplayData(gameplay);
         if (snap.TryGetValue("profile", out UserProfileData profile) && profile != null)
             ApplyProfileData(profile);
+        else
+            needsCloudPatch = true;
+
         DevLog.Log("[OK] Loaded gameplay (Firestore)");
+        forceCloudSaveAfterLoad = needsCloudPatch;
         MarkDataLoaded();
         onComplete?.Invoke(true);
     }
@@ -718,6 +831,7 @@ public class DataSaver : MonoBehaviour
         else
             PeakLocation = null;
 
+        mergeProgress = Mathf.Max(0, gameplay.mergeProgress);
         CacheGameplayStats(gameplay.clicks, gameplay.diamonds);
         TryApplyCachedGameplayStatsToRuntime();
 
@@ -725,6 +839,21 @@ public class DataSaver : MonoBehaviour
         TotalPlaytime = Mathf.Max(0f, gameplay.totalPlaytime);
         AnalyticsManager.Ins?.UpdateUserProperties(this);
         LoadCraftNodeStates(gameplay);
+        LoadMilestoneClaims(gameplay);
+    }
+
+    private void ApplyDefaultGameplayDataForSchemaReset()
+    {
+        currentBlock = "Dirt";
+        currentLocation = null;
+        PeakLocation = null;
+        mergeProgress = 0;
+        CurrentTime = 0f;
+        TotalPlaytime = 0f;
+        CacheGameplayStats(0f, 0f);
+        TryApplyCachedGameplayStatsToRuntime();
+        craftNodeStatesByBiomeCache.Clear();
+        milestoneClaimIndexByBiome.Clear();
     }
 
     private void CacheGameplayStats(float clicks, float diamonds)
@@ -782,22 +911,13 @@ public class DataSaver : MonoBehaviour
             return;
         }
 
-        if (pendingLegacyCraftNodeStates == null || pendingLegacyCraftNodeStates.Count == 0)
-        {
-            // No cloud state for this scope yet: seed cache from current local tree state.
-            SyncCraftNodeStateToCache(craftNodeManager);
-            return;
-        }
-
-        craftNodeManager.ApplyStates(pendingLegacyCraftNodeStates, saveLocal: true);
-        craftNodeStatesByBiomeCache[scope] = new List<int>(pendingLegacyCraftNodeStates);
-        pendingLegacyCraftNodeStates = null;
+        // No cloud state for this scope yet: seed cache from current local tree state.
+        SyncCraftNodeStateToCache(craftNodeManager);
     }
 
     private void LoadCraftNodeStates(GameplaySaveData gameplay)
     {
         craftNodeStatesByBiomeCache.Clear();
-        pendingLegacyCraftNodeStates = null;
 
         if (gameplay.craftNodeStatesByBiome != null)
         {
@@ -809,13 +929,6 @@ public class DataSaver : MonoBehaviour
                 string scope = NormalizeCraftScope(scopedState.biome);
                 craftNodeStatesByBiomeCache[scope] = new List<int>(scopedState.states);
             }
-        }
-
-        if (craftNodeStatesByBiomeCache.Count == 0 &&
-            gameplay.craftNodeStates != null &&
-            gameplay.craftNodeStates.Count > 0)
-        {
-            pendingLegacyCraftNodeStates = new List<int>(gameplay.craftNodeStates);
         }
 
         TryApplyCraftNodeStates();
@@ -837,6 +950,44 @@ public class DataSaver : MonoBehaviour
         }
 
         return result;
+    }
+
+    private List<BiomeMilestoneClaimState> BuildMilestoneClaimsByBiomePayload()
+    {
+        if (milestoneClaimIndexByBiome.Count == 0)
+            return null;
+
+        var result = new List<BiomeMilestoneClaimState>(milestoneClaimIndexByBiome.Count);
+        foreach (var entry in milestoneClaimIndexByBiome)
+        {
+            if (string.IsNullOrWhiteSpace(entry.Key))
+                continue;
+
+            result.Add(new BiomeMilestoneClaimState
+            {
+                biome = entry.Key,
+                milestoneIndex = Mathf.Max(-1, entry.Value)
+            });
+        }
+
+        return result;
+    }
+
+    private void LoadMilestoneClaims(GameplaySaveData gameplay)
+    {
+        milestoneClaimIndexByBiome.Clear();
+        if (gameplay?.milestoneClaimsByBiome == null)
+            return;
+
+        for (int i = 0; i < gameplay.milestoneClaimsByBiome.Count; i++)
+        {
+            BiomeMilestoneClaimState claim = gameplay.milestoneClaimsByBiome[i];
+            if (claim == null)
+                continue;
+
+            string key = NormalizeMilestoneBiomeKey(claim.biome);
+            milestoneClaimIndexByBiome[key] = Mathf.Max(-1, claim.milestoneIndex);
+        }
     }
 
     private void SyncCraftNodeStateToCache(CraftNodeManager manager)
@@ -862,6 +1013,18 @@ public class DataSaver : MonoBehaviour
     private string NormalizeCraftScope(string scope)
     {
         return string.IsNullOrWhiteSpace(scope) ? DefaultCraftScope : scope.Trim();
+    }
+
+    private static string NormalizeMilestoneBiomeKey(BlockSpawnLocation biome)
+    {
+        return biome.ToString();
+    }
+
+    private static string NormalizeMilestoneBiomeKey(string biome)
+    {
+        return string.IsNullOrWhiteSpace(biome)
+            ? BlockSpawnLocation.Plain.ToString()
+            : biome.Trim();
     }
 
     public void SetDisplayName(string displayName, bool forceSave = true)
@@ -890,6 +1053,12 @@ public class DataSaver : MonoBehaviour
         if (hasData)
             MarkDataLoaded();
 
+        if (forceCloudSaveAfterLoad)
+        {
+            forceCloudSaveAfterLoad = false;
+            SaveDataFn(force: true, forceLocalWrite: true);
+        }
+
         if (pendingSave && (ongoingSave == null || ongoingSave.IsCompleted))
         {
             bool force = pendingForce;
@@ -916,15 +1085,63 @@ public class DataSaver : MonoBehaviour
     private bool TryGetCloudUpdatedTicks(DocumentSnapshot snap, out long utcTicks)
     {
         utcTicks = 0;
-        if (snap == null) return false;
+        if (!TryGetMetaFieldValue(snap, "updatedAt", out object updatedAtRaw))
+            return false;
 
-        if (snap.TryGetValue("meta.updatedAt", out Timestamp updatedAt))
+        if (updatedAtRaw is Timestamp timestamp)
         {
-            utcTicks = updatedAt.ToDateTime().ToUniversalTime().Ticks;
+            utcTicks = timestamp.ToDateTime().ToUniversalTime().Ticks;
             return utcTicks > 0;
         }
 
+        if (updatedAtRaw is DateTime dateTime)
+        {
+            utcTicks = dateTime.ToUniversalTime().Ticks;
+            return utcTicks > 0;
+        }
+
+        DevLog.Log($"[SaveFallback] meta.updatedAt has unsupported type: {updatedAtRaw?.GetType().Name ?? "null"}");
         return false;
+    }
+
+    private bool TryGetCloudSaveVersion(DocumentSnapshot snap, out int saveVersion)
+    {
+        saveVersion = 0;
+        if (!TryGetMetaFieldValue(snap, "saveVersion", out object saveVersionRaw))
+            return false;
+
+        if (saveVersionRaw is int intValue)
+        {
+            saveVersion = intValue;
+            return true;
+        }
+
+        if (saveVersionRaw is long longValue)
+        {
+            if (longValue < int.MinValue || longValue > int.MaxValue)
+            {
+                DevLog.Log($"[SaveFallback] meta.saveVersion out of int range: {longValue}");
+                return false;
+            }
+
+            saveVersion = (int)longValue;
+            return true;
+        }
+
+        DevLog.Log($"[SaveFallback] meta.saveVersion has unsupported type: {saveVersionRaw?.GetType().Name ?? "null"}");
+        return false;
+    }
+
+    private bool TryGetMetaFieldValue(DocumentSnapshot snap, string fieldName, out object value)
+    {
+        value = null;
+        if (snap == null || string.IsNullOrEmpty(fieldName))
+            return false;
+
+        if (!snap.TryGetValue("meta", out Dictionary<string, object> meta) || meta == null)
+            return false;
+
+        return meta.TryGetValue(fieldName, out value);
     }
 
     private IEnumerator ApplyInventoryData(InventoryData inv, InventorySaveData loadedData)
@@ -961,8 +1178,7 @@ public class DataSaver : MonoBehaviour
         {
             DevLog.Log($"[OK] Migrated {inv.inventoryType} to size {inv.GetSize()}");
             SaveLocalCache();
-            if (isReady)
-                SaveDataFn(true);
+            forceCloudSaveAfterLoad = true;
         }
     }
 
@@ -994,6 +1210,15 @@ public class DataSaver : MonoBehaviour
         }
 
         return changed;
+    }
+
+    private void ResetInventoryToDefaults(InventoryData inv)
+    {
+        if (inv == null)
+            return;
+
+        inv.Items.Clear();
+        EnsureInventorySize(inv);
     }
 
     void OnApplicationPause(bool paused)

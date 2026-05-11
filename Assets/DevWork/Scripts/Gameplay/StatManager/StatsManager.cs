@@ -61,35 +61,25 @@ public class StatsManager : StatsManagerBase
         if (accumulator == null || uiManager == null || uiManager.inventorySections == null)
             return;
 
+        InventoryData bagInventory = uiManager.GetInventoryData(InventoryType.Inventory);
+        if (WeaponSelectionService.TryGetStrongestWeaponItem(bagInventory, out InventoryItem strongestWeaponItem))
+            AccumulateItemModifiers(accumulator, strongestWeaponItem);
+
         foreach (var section in uiManager.inventorySections)
         {
             if (section == null || section.inventoryData == null)
                 continue;
 
             var invData = section.inventoryData;
-            if (invData.inventoryType != InventoryType.Pickaxe &&
-                invData.inventoryType != InventoryType.Accessory)
+            if (invData.inventoryType != InventoryType.Accessory &&
+                invData.inventoryType != InventoryType.Pet)
             {
                 continue;
             }
 
             foreach (var invItem in invData.Items)
             {
-                if (invItem == null)
-                    continue;
-
-                var item = invItem.itemData;
-                if (item == null || item.Type == ItemType.None)
-                    continue;
-
-                if (item is IStatProvider provider)
-                {
-                    foreach (var mod in provider.GetStatModifiers())
-                        AccumulateModifier(accumulator, mod);
-                }
-
-                foreach (var pm in ItemPrefixConfig.GetFlatMods(invItem.prefix))
-                    AccumulateModifier(accumulator, pm);
+                AccumulateItemModifiers(accumulator, invItem);
             }
         }
     }
@@ -104,6 +94,12 @@ public class StatsManager : StatsManagerBase
 
         currentEquippedPassiveItems.Clear();
 
+        InventoryData bagInventory = uiManager != null
+            ? uiManager.GetInventoryData(InventoryType.Inventory)
+            : null;
+        if (WeaponSelectionService.TryGetStrongestWeaponItem(bagInventory, out InventoryItem strongestWeaponItem))
+            ApplyPassiveBuffsFromItem(strongestWeaponItem);
+
         if (uiManager != null && uiManager.inventorySections != null)
         {
             foreach (var section in uiManager.inventorySections)
@@ -112,31 +108,15 @@ public class StatsManager : StatsManagerBase
                     continue;
 
                 var invData = section.inventoryData;
-                if (invData.inventoryType != InventoryType.Pickaxe &&
-                    invData.inventoryType != InventoryType.Accessory)
+                if (invData.inventoryType != InventoryType.Accessory &&
+                    invData.inventoryType != InventoryType.Pet)
                 {
                     continue;
                 }
 
                 foreach (var invItem in invData.Items)
                 {
-                    if (invItem == null)
-                        continue;
-
-                    var item = invItem.itemData;
-                    if (item == null || item.Type == ItemType.None)
-                        continue;
-
-                    if (item is Pickaxe pickaxe)
-                    {
-                        buffManager.ApplyItemBuffs(item, pickaxe.GetPassiveBuffs());
-                        currentEquippedPassiveItems.Add(item);
-                    }
-                    else if (item is Accessory accessory)
-                    {
-                        buffManager.ApplyItemBuffs(item, accessory.GetPassiveBuffs());
-                        currentEquippedPassiveItems.Add(item);
-                    }
+                    ApplyPassiveBuffsFromItem(invItem);
                 }
             }
         }
@@ -165,5 +145,54 @@ public class StatsManager : StatsManagerBase
     {
         if (buffManager == null || buff == null) return;
         buffManager.ApplyBuff(buff);
+    }
+
+    private void AccumulateItemModifiers(ModifierAccumulator accumulator, InventoryItem inventoryItem)
+    {
+        if (accumulator == null || inventoryItem == null)
+            return;
+
+        var item = inventoryItem.itemData;
+        if (item == null || item.Type == ItemType.None)
+            return;
+
+        if (item is IStatProvider provider)
+        {
+            foreach (var mod in provider.GetStatModifiers())
+                AccumulateModifier(accumulator, mod);
+        }
+
+        foreach (var prefixModifier in ItemPrefixConfig.GetFlatMods(inventoryItem.prefix))
+            AccumulateModifier(accumulator, prefixModifier);
+    }
+
+    private void ApplyPassiveBuffsFromItem(InventoryItem inventoryItem)
+    {
+        if (inventoryItem == null)
+            return;
+
+        var item = inventoryItem.itemData;
+        if (item == null || item.Type == ItemType.None)
+            return;
+
+        if (item is Pickaxe weapon)
+        {
+            buffManager.ApplyItemBuffs(item, weapon.GetPassiveBuffs());
+            currentEquippedPassiveItems.Add(item);
+            return;
+        }
+
+        if (item is Accessory accessory)
+        {
+            buffManager.ApplyItemBuffs(item, accessory.GetPassiveBuffs());
+            currentEquippedPassiveItems.Add(item);
+            return;
+        }
+
+        if (item is PetItem pet)
+        {
+            buffManager.ApplyItemBuffs(item, pet.GetPassiveBuffs());
+            currentEquippedPassiveItems.Add(item);
+        }
     }
 }

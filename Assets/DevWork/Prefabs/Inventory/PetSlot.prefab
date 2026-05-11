@@ -123,7 +123,7 @@ GameObject:
   - component: {fileID: 8099152558188359928}
   - component: {fileID: 8687804200211303432}
   m_Layer: 5
-  m_Name: PickaxeSlot
+  m_Name: PetSlot
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -199,7 +199,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3ec3046706f3b384c8f83583a53bae29, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  acceptRule: {fileID: 11400000, guid: 1399dd05ee19eb24ca26e0600647d7f1, type: 2}
+  acceptRule: {fileID: 11400000, guid: 0aacf2cf476dc9e44abf8851c737c7ce, type: 2}
   slotIndex: 0
   draggable: {fileID: 19475549461583016}
   quantityText: {fileID: 0}
+  slotBackgroundImage: {fileID: 0}
+  equippedWeaponColor: {r: 1, g: 0.9, b: 0.45, a: 1}

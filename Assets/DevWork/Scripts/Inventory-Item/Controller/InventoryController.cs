@@ -23,6 +23,8 @@ public class InventoryController : MonoBehaviour
     [SerializeField] private Button sortInventoryButton;
     [SerializeField] private PopupView lootboxPrefab;
     [SerializeField] private CaseRollController caseRollController;
+    [Header("Merge")]
+    [SerializeField] private WeaponMergeDatabaseSO weaponMergeDatabase;
     private bool isItemDescriptionLocked;
     public event Action<Item, int> OnMainInventoryItemAdded;
 
@@ -39,6 +41,7 @@ public class InventoryController : MonoBehaviour
         else
             Destroy(gameObject);
 
+        InventoryMergeService.ConfigureDatabase(weaponMergeDatabase);
 
         InventoryItem.LoadNoneItem(() =>
         {
@@ -66,10 +69,16 @@ public class InventoryController : MonoBehaviour
             mainPageManager = UIManager.Ins;
         if (mainPageManager != null)
             mainPageManager.OnPageChanged += HandleMainPageChanged;
+
+        if (inventoryUiManager != null)
+            inventoryUiManager.OnEquippedItemsChanged += HandleEquippedItemsChanged;
     }
 
     void OnDestroy()
     {
+        if (inventoryUiManager != null)
+            inventoryUiManager.OnEquippedItemsChanged -= HandleEquippedItemsChanged;
+
         if (StatsManager.Ins != null)
             StatsManager.Ins.OnStatsRecalculated -= UpdateStatDescription;
 
@@ -279,6 +288,9 @@ public class InventoryController : MonoBehaviour
         if (fromIndex < 0 || fromIndex >= fromData.Items.Count) return false;
         if (toIndex < 0 || toIndex >= toData.Items.Count) return false;
 
+        if (InventoryMergeService.TryMergeWeapon(fromData, fromIndex, toData, toIndex))
+            return true;
+
         var itemA = fromData.Items[fromIndex];
         var itemB = toData.Items[toIndex];
 
@@ -336,12 +348,12 @@ public class InventoryController : MonoBehaviour
         toData.SetItem(toIndex, itemA, true);
 
         DevLog.Log("Swapped items");
-
-        if (fromData.inventoryType != InventoryType.Inventory || toData.inventoryType != InventoryType.Inventory)
-        {
-            UpdateStat();
-        }
         return true;
+    }
+
+    private void HandleEquippedItemsChanged()
+    {
+        UpdateStat();
     }
     public void SetUseButton(Item item, int index, InventoryData inventoryData)
     {
@@ -537,13 +549,7 @@ public class InventoryController : MonoBehaviour
 
     float GetDamageByState()
     {
-        return PlayerController.Instance.currentState switch
-        {
-            NormalState => StatsManager.Ins.Get(StatType.NormalPower),
-            HoldState => StatsManager.Ins.Get(StatType.HoldPower),
-            IdleState => StatsManager.Ins.Get(StatType.IdlePower),
-            _ => StatsManager.Ins.Get(StatType.NormalPower),
-        };
+        return StatsManager.Ins.Get(StatType.NormalPower);
     }
 
     void UseConsumable(ConsumableItem consumable)

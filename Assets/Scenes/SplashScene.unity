@@ -995,6 +995,10 @@ MonoBehaviour:
   maxCloudLoadAttempts: 3
   requireQuestReady: 1
   waitQuestTimeout: 10
+  allowOfflineFallbackOnStartupFailure: 1
+  allowVersionGateFailOpenOnRequestError: 1
+  allowSkipQuestGateOnTimeout: 1
+  maxVersionGateWaitSeconds: 20
   progressFillImage: {fileID: 827412885}
   progressText: {fileID: 0}
 --- !u!1 &1646232486
@@ -1166,10 +1170,12 @@ MonoBehaviour:
   CurrentTime: 0
   TotalPlaytime: 0
   DisplayName: 
+  AvatarId: 
   inventoryDatas:
   - {fileID: 11400000, guid: b84c9858687c88141bbf66a29d6c81a8, type: 2}
   - {fileID: 11400000, guid: 2211ad537f7af824e8fa7fb577cdbe4f, type: 2}
   - {fileID: 11400000, guid: 3406d5478e424094f94ba73e7b13739a, type: 2}
+  - {fileID: 11400000, guid: 4b18490aea3e36745a37226c215b80c5, type: 2}
   craftNodeManager: {fileID: 0}
   localSaveCooldown: 2
   cloudSyncMode: 0

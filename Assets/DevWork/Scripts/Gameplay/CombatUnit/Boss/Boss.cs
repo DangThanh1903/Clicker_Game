@@ -9,9 +9,6 @@ public class Boss : MonoBehaviour, IDamageReceiver
 {
     [SerializeField] EnemyStatsManager enemyStatsManager;
     [SerializeField] Image HpUI;
-    private float accumulatedHoldTime = 0f;
-    private readonly float timeHoldReset = 0.1f;
-    private readonly float timeIdleReset = 1f;
     public event Action<Boss> Died;
     public int InputPriority => 2;
     public bool CanReceiveDamage => isActiveAndEnabled;
@@ -26,7 +23,6 @@ public class Boss : MonoBehaviour, IDamageReceiver
     private BossEntry rewardEntry;
     private bool hasDied;
     private float BossNow => useUnscaledTime ? Time.unscaledTime : Time.time;
-    private float BossDelta => useUnscaledTime ? Time.unscaledDeltaTime : Time.deltaTime;
 
     void OnEnable()
     {
@@ -98,11 +94,8 @@ public class Boss : MonoBehaviour, IDamageReceiver
             case DamageInputKind.Click:
                 HandleClick();
                 return;
-            case DamageInputKind.Hold:
-                HandleHold();
-                return;
-            case DamageInputKind.Idle:
-                HandleIdle();
+            case DamageInputKind.AutoAttack:
+                HandleAutoAttack();
                 return;
             default:
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
@@ -112,20 +105,11 @@ public class Boss : MonoBehaviour, IDamageReceiver
         }
     }
 
-    public void HandleHold()
+    public void HandleAutoAttack()
     {
-        if (DamageTickAccumulator.TryConsumeTick(ref accumulatedHoldTime, BossDelta, timeHoldReset))
-        {
-            float power = DamageInputPowerResolver.GetHoldTickPower(timeHoldReset);
-            TakeDamage(power, countAsHit: true);
-        }
-    }
-
-    public void HandleIdle()
-    {
-        float power = DamageInputPowerResolver.GetIdleTickPower(timeIdleReset);
-        TakeDamage(power, countAsHit: false);
-        CombatFeedbackRuntime.NotifyIdleDamageDealt(power, transform.position);
+        float power = DamageInputPowerResolver.GetAutoAttackPower();
+        TakeDamage(power, countAsHit: true);
+        CombatFeedbackRuntime.NotifyAutoAttackDamageDealt(power, transform.position);
     }
     void TakeDamage(float power, bool countAsHit = true)
     {

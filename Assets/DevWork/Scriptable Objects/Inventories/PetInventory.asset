@@ -9,10 +9,9 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 602175215b9c5ab4ca919894f7c8517c, type: 3}
-  m_Name: Dirt
+  m_Script: {fileID: 11500000, guid: 9620cf68e4443f34983cca4963304778, type: 3}
+  m_Name: PetInventory
   m_EditorClassIdentifier: 
-  itemName: Dirt
-  description: It's dirt
-  icon: {fileID: 21300000, guid: e713db2c30cae3949ac4bb60a6d1c156, type: 3}
-  rarity: 0
+  size: 1
+  nullItem: {fileID: 11400000, guid: 51d287ca54e2da64cae6ffd5593d2031, type: 2}
+  inventoryType: 7

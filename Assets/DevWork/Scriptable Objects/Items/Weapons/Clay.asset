@@ -9,11 +9,17 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 602175215b9c5ab4ca919894f7c8517c, type: 3}
+  m_Script: {fileID: 11500000, guid: bce14b2aa53219d4c879b1db3eb59821, type: 3}
   m_Name: Clay
   m_EditorClassIdentifier: 
   itemName: Clay
-  description: Taste like dirt
+  description: Temporary test weapon for merge output.
   icon: {fileID: 21300000, guid: 94b026226a3a99545ae14371e64c7d35, type: 3}
-  Location: 0
   rarity: 0
+  mergeable: 0
+  mergeNextWeapon: {fileID: 0}
+  modifiers:
+  - statType: 3
+    value: 2.3
+    mode: 0
+  passiveBuffs: []

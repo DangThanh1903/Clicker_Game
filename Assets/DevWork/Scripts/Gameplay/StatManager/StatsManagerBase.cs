@@ -18,6 +18,7 @@ public abstract class StatsManagerBase : MonoBehaviour
     [SerializeField] protected BuffManager buffManager;
 
     private CompositeDisposable _cd = new CompositeDisposable();
+    private static readonly HashSet<int> WarnedLegacyStatTypes = new HashSet<int>();
 
     protected virtual void Awake()
     {
@@ -74,19 +75,22 @@ public abstract class StatsManagerBase : MonoBehaviour
         if (accumulator == null)
             return;
 
+        if (!TryGetSupportedStatType(mod.statType, "StatModifier", out StatType statType))
+            return;
+
         if (mod.mode == StatModifierMode.Multiply)
         {
-            if (accumulator.MultiplyTotals.TryGetValue(mod.statType, out float currentMul))
-                accumulator.MultiplyTotals[mod.statType] = currentMul * mod.value;
+            if (accumulator.MultiplyTotals.TryGetValue(statType, out float currentMul))
+                accumulator.MultiplyTotals[statType] = currentMul * mod.value;
             else
-                accumulator.MultiplyTotals[mod.statType] = mod.value;
+                accumulator.MultiplyTotals[statType] = mod.value;
             return;
         }
 
-        if (accumulator.AddTotals.TryGetValue(mod.statType, out float currentAdd))
-            accumulator.AddTotals[mod.statType] = currentAdd + mod.value;
+        if (accumulator.AddTotals.TryGetValue(statType, out float currentAdd))
+            accumulator.AddTotals[statType] = currentAdd + mod.value;
         else
-            accumulator.AddTotals[mod.statType] = mod.value;
+            accumulator.AddTotals[statType] = mod.value;
     }
 
     protected void ApplyAccumulatedModifiers(ModifierAccumulator accumulator)
@@ -111,7 +115,6 @@ public abstract class StatsManagerBase : MonoBehaviour
             case StatType.Clicks:
             case StatType.ClickPerTick:
             case StatType.Diamond:
-            case StatType.HoldedTime:
             case StatType.TotalBlockBreaked:
             case StatType.TotalDamageDealed:
             case StatType.TotalTimePlayed:
@@ -128,7 +131,6 @@ public abstract class StatsManagerBase : MonoBehaviour
             case StatType.Clicks:
             case StatType.ClickPerTick:
             case StatType.Diamond:
-            case StatType.HoldedTime:
             case StatType.TotalBlockBreaked:
             case StatType.TotalDamageDealed:
             case StatType.TotalTimePlayed:
@@ -301,18 +303,21 @@ public abstract class StatsManagerBase : MonoBehaviour
             foreach (var stat in baseStat.statsList)
             {
                 if (stat == null) continue;
-                activeTypes?.Add(stat.statType);
+                if (!TryGetSupportedStatType(stat.statType, "BaseStat.statsList", out StatType statType))
+                    continue;
+
+                activeTypes?.Add(statType);
                 float value = ReadStatValue(stat);
 
-                if (stats.TryGetValue(stat.statType, out var existing))
+                if (stats.TryGetValue(statType, out var existing))
                 {
-                    if (overwriteValues && !IsRuntimeProgressStat(stat.statType))
+                    if (overwriteValues && !IsRuntimeProgressStat(statType))
                         existing.Set(value);
                 }
                 else
                 {
-                    float initialValue = IsRuntimeProgressStat(stat.statType) ? 0f : value;
-                    stats[stat.statType] = CreateRuntimeStat(stat.statType, initialValue);
+                    float initialValue = IsRuntimeProgressStat(statType) ? 0f : value;
+                    stats[statType] = CreateRuntimeStat(statType, initialValue);
                 }
             }
         }
@@ -322,18 +327,21 @@ public abstract class StatsManagerBase : MonoBehaviour
             foreach (var bs in baseStat.baseStats)
             {
                 if (bs == null) continue;
-                activeTypes?.Add(bs.statType);
+                if (!TryGetSupportedStatType(bs.statType, "BaseStat.baseStats", out StatType statType))
+                    continue;
+
+                activeTypes?.Add(statType);
                 float baseValue = ReadStatValue(bs);
 
-                if (baseStatsDict.TryGetValue(bs.statType, out var existingBase))
+                if (baseStatsDict.TryGetValue(statType, out var existingBase))
                     existingBase.Set(baseValue);
                 else
-                    baseStatsDict[bs.statType] = CreateRuntimeStat(bs.statType, baseValue);
+                    baseStatsDict[statType] = CreateRuntimeStat(statType, baseValue);
 
-                if (!stats.ContainsKey(bs.statType))
+                if (!stats.ContainsKey(statType))
                 {
-                    float initialValue = IsRuntimeProgressStat(bs.statType) ? 0f : baseValue;
-                    stats[bs.statType] = CreateRuntimeStat(bs.statType, initialValue);
+                    float initialValue = IsRuntimeProgressStat(statType) ? 0f : baseValue;
+                    stats[statType] = CreateRuntimeStat(statType, initialValue);
                 }
             }
         }
@@ -362,5 +370,18 @@ public abstract class StatsManagerBase : MonoBehaviour
             statType = type,
             value = new ReactiveProperty<float>(value)
         };
+    }
+
+    private static bool TryGetSupportedStatType(StatType value, string source, out StatType statType)
+    {
+        statType = value;
+        if (Enum.IsDefined(typeof(StatType), value))
+            return true;
+
+        int raw = (int)value;
+        if (WarnedLegacyStatTypes.Add(raw))
+            DevLog.Log($"[Stats] Ignore legacy/unknown StatType {raw} from {source}.");
+
+        return false;
     }
 }

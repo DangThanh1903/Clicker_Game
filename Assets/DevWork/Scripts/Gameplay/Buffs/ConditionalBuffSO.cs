@@ -1,10 +1,12 @@
 using UnityEngine;
 using UniRx;
 using System;
+using System.Collections.Generic;
 
 [CreateAssetMenu(fileName = "ConditionalBuff", menuName = "Buff System/ConditionalBuff")]
 public class ConditionalBuffSO : BuffSO
 {
+    private static readonly HashSet<int> WarnedLegacyConditionValues = new HashSet<int>();
     public BuffConditionType conditionType;
     [SerializeField, Min(0.02f)] private float checkIntervalSeconds = 0.1f;
 
@@ -15,22 +17,31 @@ public class ConditionalBuffSO : BuffSO
         if (stats == null)
             return false;
 
-        return conditionType switch
+        switch (conditionType)
         {
-            BuffConditionType.HPBelow50Percent => stats.Get(StatType.CurrentHP) < stats.Get(StatType.HP) * 0.5f,
-            BuffConditionType.ManaBelow50Percent => stats.Get(StatType.CurrentMana) < stats.Get(StatType.Mana) * 0.5f,
-            BuffConditionType.ClickPerTick20 => stats.Get(StatType.ClickPerTick) > 20f,
-            BuffConditionType.DayTime => TimeSystem.Instance != null && TimeSystem.Instance.CurrentTimeState.Value == TimeState.Day,
-            BuffConditionType.NightTime => TimeSystem.Instance != null && TimeSystem.Instance.CurrentTimeState.Value == TimeState.Night,
+            case BuffConditionType.HPBelow50Percent:
+                return stats.Get(StatType.CurrentHP) < stats.Get(StatType.HP) * 0.5f;
+            case BuffConditionType.ManaBelow50Percent:
+                return stats.Get(StatType.CurrentMana) < stats.Get(StatType.Mana) * 0.5f;
+            case BuffConditionType.ClickPerTick20:
+                return stats.Get(StatType.ClickPerTick) > 20f;
+            case BuffConditionType.DayTime:
+                return TimeSystem.Instance != null && TimeSystem.Instance.CurrentTimeState.Value == TimeState.Day;
+            case BuffConditionType.NightTime:
+                return TimeSystem.Instance != null && TimeSystem.Instance.CurrentTimeState.Value == TimeState.Night;
             // Pre-arm before the hit so the 5th click can benefit from this conditional buff.
-            BuffConditionType.Every5Click => ((int)stats.Get(StatType.Clicks) + 1) % 5 == 0,
-            BuffConditionType.Every8Click => ((int)stats.Get(StatType.Clicks) + 1) % 8 == 0,
-            BuffConditionType.Holded3Sec => (int)stats.Get(StatType.HoldedTime) >= 3,
-            BuffConditionType.Holded6Sec => (int)stats.Get(StatType.HoldedTime) >= 6,
-            BuffConditionType.IsInPlain => DataSaver.Ins != null && DataSaver.Ins.currentLocation == BlockSpawnLocation.Plain,
-            BuffConditionType.IsBossOutOfCondition => BlockManager.Ins != null && BlockManager.Ins.IsBossOutOfCondition(),
-            _ => true,
-        };
+            case BuffConditionType.Every5Click:
+                return ((int)stats.Get(StatType.Clicks) + 1) % 5 == 0;
+            case BuffConditionType.Every8Click:
+                return ((int)stats.Get(StatType.Clicks) + 1) % 8 == 0;
+            case BuffConditionType.IsInPlain:
+                return DataSaver.Ins != null && DataSaver.Ins.currentLocation == BlockSpawnLocation.Plain;
+            case BuffConditionType.IsBossOutOfCondition:
+                return BlockManager.Ins != null && BlockManager.Ins.IsBossOutOfCondition();
+            default:
+                LogLegacyConditionFallback(conditionType);
+                return false;
+        }
     }
 
     public IObservable<bool> ObserveCondition(StatsManagerBase stats)
@@ -52,21 +63,28 @@ public class ConditionalBuffSO : BuffSO
             .Select(_ => CheckCondition(stats))
             .DistinctUntilChanged();
     }
+
+    private static void LogLegacyConditionFallback(BuffConditionType value)
+    {
+        int raw = (int)value;
+        if (!WarnedLegacyConditionValues.Add(raw))
+            return;
+
+        DevLog.Log($"[Buff] Ignore legacy/unknown condition value: {raw}");
+    }
 }
 
 public enum BuffConditionType
 {
-    None,
-    HPBelow50Percent,
-    ManaBelow50Percent,
-    ClickPerTick20,
-    DayTime,
-    NightTime,
-    Every5Click,
-    Every8Click,
-    Holded3Sec,
-    Holded6Sec,
+    None = 0,
+    HPBelow50Percent = 1,
+    ManaBelow50Percent = 2,
+    ClickPerTick20 = 3,
+    DayTime = 4,
+    NightTime = 5,
+    Every5Click = 6,
+    Every8Click = 7,
     // Area
-    IsInPlain,
-    IsBossOutOfCondition,
+    IsInPlain = 10,
+    IsBossOutOfCondition = 11,
 }

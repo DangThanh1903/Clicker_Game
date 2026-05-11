@@ -14,6 +14,8 @@ public class BlockManager : MonoBehaviour
     public float rareWeightCap = 10;
     public ClickableObject CurrentBlock => currentBlock;
     public MonsterSpawner MonsterSpawner => monsterSpawner;
+    public BlockSpawnLocation CurrentLocation =>
+        locationLoader != null ? locationLoader.currentLocation : BlockSpawnLocation.Plain;
     public event Action<string> CurrentBlockChanged;
     public event Action<int, int> MonsterSpawnProgressChanged;
     public event Action<bool> MonsterEncounterStateChanged;

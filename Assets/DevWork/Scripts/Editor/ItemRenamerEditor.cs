@@ -17,12 +17,15 @@ public class ItemRenamerEditor : Editor
 
         if (GUILayout.Button("Rename Asset & Set Addressable ID to itemName"))
         {
-            RenameAssetAndConfigureAddressables(item);
+            RenameAssetAndConfigureAddressables(item, itemGroupIndex);
         }
     }
 
-    private void RenameAssetAndConfigureAddressables(Item item)
+    public static void RenameAssetAndConfigureAddressables(Item item, int itemGroupIndex = 2)
     {
+        if (item == null)
+            return;
+
         string path = AssetDatabase.GetAssetPath(item);
         if (string.IsNullOrEmpty(path)) return;
 
@@ -49,7 +52,7 @@ public class ItemRenamerEditor : Editor
         // Get group at index 2 (Items group)
         if (settings.groups.Count <= itemGroupIndex)
         {
-            Debug.LogError("Group index 1 (Items) does not exist.");
+            Debug.LogError($"Group index {itemGroupIndex} (Items) does not exist.");
             return;
         }
 
@@ -71,7 +74,7 @@ public class ItemRenamerEditor : Editor
         DevLog.Log($"Set Addressable ID to: {newName} in group: {itemsGroup.Name}");
 
         string pngName = item.itemName;
-        string[] pngGuids = AssetDatabase.FindAssets($"t:Texture2D", new[] { "Assets/DevWork/Graphics/UI-UX/Items/Materials" });
+        string[] pngGuids = AssetDatabase.FindAssets($"t:Texture2D", new[] { "Assets/DevWork/Graphics/UI-UX/Items" });
 
         bool found = false;
 

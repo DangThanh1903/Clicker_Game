@@ -1,6 +1,12 @@
 using UnityEngine;
 using UnityEngine.EventSystems;
 
+public enum CombatMode
+{
+    Manual = 0,
+    AutoPet = 1
+}
+
 public class PlayerController : MonoBehaviour, ICombatResourceReadModel, ICombatFeedbackSink, IRunFailNotifier
 {
     private static PlayerController _instance;
@@ -10,11 +16,11 @@ public class PlayerController : MonoBehaviour, ICombatResourceReadModel, ICombat
     private readonly PlayerRunLifecycleService runLifecycleService = new PlayerRunLifecycleService();
     private readonly PlayerPointerDispatchService pointerDispatchService = new PlayerPointerDispatchService();
     private readonly PlayerDragRotateService dragRotateService = new PlayerDragRotateService();
-    private readonly PlayerIdleAttackTickService idleAttackTickService = new PlayerIdleAttackTickService();
+    private readonly PlayerAutoAttackTickService autoAttackTickService = new PlayerAutoAttackTickService();
     private readonly ClickPerTickService clickPerTickService = new ClickPerTickService();
     private PlayerCombatVfxService combatVfxService;
 
-    public ClickerState currentState = new NormalState();
+    private CombatMode combatMode = CombatMode.Manual;
     public event System.Action<PlayerRunFailReason> OnRunFailed;
     public bool IsDead { get; private set; } // Reserved for future fail-state wiring.
     private IDamageReceiver pendingTarget;
@@ -39,15 +45,13 @@ public class PlayerController : MonoBehaviour, ICombatResourceReadModel, ICombat
     [SerializeField, Min(0f)] private float dragRotateSpinMaxAngularSpeed = 0f;
     [SerializeField, Min(0.001f)] private float dragRotateSpinStopSpeedThreshold = 0.11f;
 
-    [Header("Pickaxe")]
-    [SerializeField] InventoryData pickaxeData;
-    [SerializeField] private Transform holdBeamOrigin;
+    [Header("Equipment Visuals")]
     [SerializeField] private Transform idlePetVisualAnchor;
 
-    private Pickaxe equippedPickaxe;
-    private const float TimeUnset = float.NegativeInfinity;
-    private float lastHoldUpdateTime = TimeUnset;
-    public int IdleStackCount => combatResourceService.IdleStackCount;
+    private PetItem equippedPet;
+    private InventoryUIManager subscribedInventoryUiManager;
+    public CombatMode CurrentCombatMode => combatMode;
+    public bool IsAutoCombatMode => combatMode == CombatMode.AutoPet;
     public bool UseUnscaledTime => useUnscaledTime;
     private float CombatNow => useUnscaledTime ? Time.unscaledTime : Time.time;
     private float CombatDelta => useUnscaledTime ? Time.unscaledDeltaTime : Time.deltaTime;
@@ -68,10 +72,8 @@ public class PlayerController : MonoBehaviour, ICombatResourceReadModel, ICombat
 
         BindCombatRuntimeBootstrap();
         ConfigurePointerResolver();
-        combatVfxService = new PlayerCombatVfxService(this);
+        combatVfxService = new PlayerCombatVfxService();
         runLifecycleService.RunFailed += HandleRunFailed;
-
-        SetUpCurrentStateItem();  
     }
 
     private void Start()
@@ -79,23 +81,26 @@ public class PlayerController : MonoBehaviour, ICombatResourceReadModel, ICombat
         if (StatsManager.Ins == null)
             return;
 
+        TryBindInventoryEquipmentEvents();
         IsDead = false;
         combatResourceService.InitializeResources();
         clickPerTickService.ResetRuntime();
         StatsManager.Ins.ForceNotifyStatsChanged();
+        TryResolveEquippedItemsFromInventory();
     }
     void Update()
     {
+        if (subscribedInventoryUiManager == null)
+            TryBindInventoryEquipmentEvents();
+
         bool gameplayInputAllowed = IsGameplayInputAllowed();
 
         pointerDispatchService.Tick(
             gameplayInputAllowed,
             pointerTargetResolver,
             targetSelectionService,
-            currentState is not HoldState,
-            currentState is HoldState,
-            OnClick,
-            OnHold);
+            !IsPetEquipped(),
+            OnClick);
 
         dragRotateService.Tick(
             gameplayInputAllowed,
@@ -115,21 +120,7 @@ public class PlayerController : MonoBehaviour, ICombatResourceReadModel, ICombat
         clickPerTickService.Tick(CombatNow);
         combatResourceService.Tick(
             false,
-            currentState is HoldState,
-            CombatNow,
-            CombatDelta,
-            lastHoldUpdateTime);
-
-        if (combatVfxService != null &&
-            combatVfxService.UpdateHoldBeamLifecycle(
-                IsDead,
-                currentState is HoldState,
-                Input.GetMouseButton(0),
-                CombatNow,
-                lastHoldUpdateTime))
-        {
-            lastHoldUpdateTime = TimeUnset;
-        }
+            CombatDelta);
     }
 
     void LateUpdate()
@@ -141,21 +132,24 @@ public class PlayerController : MonoBehaviour, ICombatResourceReadModel, ICombat
             return;
         }
 
-        currentState.OnUpdate(this, pendingTarget);
+        if (IsAutoCombatMode)
+            ProcessAutoAttack(pendingTarget);
     }
     void OnDisable()
     {
         runLifecycleService.RunFailed -= HandleRunFailed;
+        UnbindInventoryEquipmentEvents();
         combatResourceService.ResetRuntime();
         runLifecycleService.ResetRuntime();
         clickPerTickService.ResetRuntime();
         pointerDispatchService.ResetRuntime();
         dragRotateService.ResetRuntime();
-        idleAttackTickService.ResetRuntime();
+        autoAttackTickService.ResetRuntime();
         CombatRuntimeBootstrap.UnbindOwner(this);
         IsDead = false;
         pendingTarget = null;
-        lastHoldUpdateTime = TimeUnset;
+        equippedPet = null;
+        combatMode = CombatMode.Manual;
         combatVfxService?.ResetImmediate();
     }
 
@@ -168,10 +162,12 @@ public class PlayerController : MonoBehaviour, ICombatResourceReadModel, ICombat
         ConfigurePointerResolver();
         runLifecycleService.RunFailed -= HandleRunFailed;
         runLifecycleService.RunFailed += HandleRunFailed;
+        TryBindInventoryEquipmentEvents();
         clickPerTickService.ResetRuntime();
         pointerDispatchService.ResetRuntime();
         dragRotateService.ResetRuntime();
         IsDead = false;
+        TryResolveEquippedItemsFromInventory();
     }
 
     private void BindCombatRuntimeBootstrap()
@@ -185,63 +181,15 @@ public class PlayerController : MonoBehaviour, ICombatResourceReadModel, ICombat
 
         targetRegistry = ownedTargetRegistry;
     }
-    void SetUpCurrentStateItem()
-    {
-        if (pickaxeData == null || pickaxeData.GetSize() <= 0)
-        {
-            SetEquippedPickaxe(null);
-            return;
-        }
-
-        var slot = pickaxeData.GetItem(0);
-        var item = slot != null ? slot.itemData : null;
-        SetEquippedPickaxe(item as Pickaxe);
-    }
-    public void SetStateByType(PickaxeType pickaxeType)
-    {
-        switch (pickaxeType)
-        {
-            case PickaxeType.Normal:
-                SetState(new NormalState());
-                return;
-            case PickaxeType.Hold:
-                SetState(new HoldState());
-                return;
-            case PickaxeType.Idle:
-                SetState(new IdleState());
-                return;
-            default:
-                SetState(new NormalState());
-                return;
-        }
-    }
-    public void SetState(ClickerState newState)
-    {
-        currentState.OnExit(this);
-
-        currentState = newState;
-        combatResourceService.OnStateChanged();
-
-        currentState.OnEnter(this);
-
-        idleAttackTickService.OnStateChanged(
-            newState is IdleState,
-            GetSummonAttackInterval()); // first idle hit can happen immediately
-
-        if (newState is not HoldState)
-            lastHoldUpdateTime = TimeUnset;
-
-        combatVfxService?.HandleStateChanged(
-            equippedPickaxe,
-            newState,
-            IsDead,
-            idlePetVisualAnchor,
-            transform);
-    }
     public void OnClick(IDamageReceiver clickableObject)
     {
-        combatResourceService.OnClickDispatched(currentState is IdleState);
-        currentState.OnClick(clickableObject);
+        if (IsAutoCombatMode)
+            return;
+
+        if (clickableObject == null || !clickableObject.CanReceiveDamage)
+            return;
+
+        clickableObject.ApplyDamageInput(DamageInputKind.Click);
     }
 
     public void SetTargetRegistry(ITargetRegistry registry)
@@ -304,38 +252,12 @@ public class PlayerController : MonoBehaviour, ICombatResourceReadModel, ICombat
     {
         return combatResourceService.ApplyStaminaToFinalDamage(
             finalClickDamage,
-            currentState is NormalState);
+            !IsAutoCombatMode);
     }
 
     public float GetStaminaPercent()
     {
         return combatResourceService.GetStaminaPercent();
-    }
-
-    public float GetIdleDamageMultiplier()
-    {
-        return combatResourceService.GetIdleDamageMultiplier();
-    }
-
-    public float GetIdleStackPercent()
-    {
-        return combatResourceService.GetIdleStackPercent();
-    }
-
-    public void OnHold(IDamageReceiver clickableObject, Vector3 holdPoint)
-    {
-        if (currentState is HoldState)
-        {
-            lastHoldUpdateTime = CombatNow;
-            combatVfxService?.OnHold(equippedPickaxe, holdBeamOrigin, holdPoint);
-        }
-
-        currentState.OnHold(this, clickableObject);
-    }
-
-    public float GetHoldDamageMultiplier()
-    {
-        return combatResourceService.GetHoldDamageMultiplier();
     }
 
     public void NotifyRunFailed(PlayerRunFailReason reason)
@@ -355,9 +277,7 @@ public class PlayerController : MonoBehaviour, ICombatResourceReadModel, ICombat
 
     private void HandleRunFailed(PlayerRunFailReason reason)
     {
-        pointerDispatchService.CancelHold();
         pendingTarget = null;
-        lastHoldUpdateTime = TimeUnset;
         combatVfxService?.ResetImmediate();
         OnRunFailed?.Invoke(reason);
     }
@@ -384,40 +304,26 @@ public class PlayerController : MonoBehaviour, ICombatResourceReadModel, ICombat
     }
 
     #region COMBAT_LOGIC -----------------------------------------------------------------------------------
-    public void UseMana()
+    public void SetEquippedPet(PetItem pet)
     {
-        combatResourceService.ConsumeMana(CombatDelta);
+        equippedPet = pet;
+        ReconcileCombatState();
     }
 
-    public void SetEquippedPickaxe(Pickaxe pickaxe)
+    public void NotifyAutoAttackDamageDealt(float damage, Vector3 targetWorldPosition)
     {
-        equippedPickaxe = pickaxe;
-
-        if (equippedPickaxe == null || equippedPickaxe.Type == ItemType.None)
-        {
-            SetState(new NormalState());
-            lastHoldUpdateTime = TimeUnset;
-            combatVfxService?.HandleEquippedPickaxeCleared();
-            return;
-        }
-
-        SetStateByType(equippedPickaxe.currentState);
-    }
-
-    public void NotifyIdleDamageDealt(float damage, Vector3 targetWorldPosition)
-    {
-        combatVfxService?.NotifyIdleDamageDealt(
+        combatVfxService?.NotifyAutoAttackDamageDealt(
             IsDead,
-            currentState is IdleState,
+            IsAutoCombatMode,
             damage,
             targetWorldPosition);
     }
 
-    public void ProcessIdleAttack(IDamageReceiver target)
+    public void ProcessAutoAttack(IDamageReceiver target)
     {
-        idleAttackTickService.TickAndDispatch(
+        autoAttackTickService.TickAndDispatch(
             target,
-            currentState is IdleState,
+            IsAutoCombatMode,
             IsDead,
             CombatDelta,
             GetSummonAttackInterval());
@@ -430,6 +336,79 @@ public class PlayerController : MonoBehaviour, ICombatResourceReadModel, ICombat
             : 0f;
         summonAttackSpeed = Mathf.Max(0.05f, summonAttackSpeed);
         return 1f / summonAttackSpeed;
+    }
+
+    private void TryResolveEquippedItemsFromInventory()
+    {
+        var uiManager = InventoryController.Instance != null
+            ? InventoryController.Instance.InventoryUIManager
+            : null;
+        if (uiManager == null)
+            return;
+
+        SetEquippedPet(uiManager.GetEquippedPet());
+    }
+
+    private void TryBindInventoryEquipmentEvents()
+    {
+        InventoryUIManager nextUiManager = InventoryController.Instance != null
+            ? InventoryController.Instance.InventoryUIManager
+            : null;
+
+        if (ReferenceEquals(subscribedInventoryUiManager, nextUiManager))
+            return;
+
+        if (subscribedInventoryUiManager != null)
+            subscribedInventoryUiManager.OnEquippedItemsChanged -= HandleEquippedItemsChanged;
+
+        subscribedInventoryUiManager = nextUiManager;
+
+        if (subscribedInventoryUiManager != null)
+        {
+            subscribedInventoryUiManager.OnEquippedItemsChanged += HandleEquippedItemsChanged;
+            HandleEquippedItemsChanged();
+        }
+    }
+
+    private void UnbindInventoryEquipmentEvents()
+    {
+        if (subscribedInventoryUiManager == null)
+            return;
+
+        subscribedInventoryUiManager.OnEquippedItemsChanged -= HandleEquippedItemsChanged;
+        subscribedInventoryUiManager = null;
+    }
+
+    private void HandleEquippedItemsChanged()
+    {
+        TryResolveEquippedItemsFromInventory();
+    }
+
+    private void ReconcileCombatState()
+    {
+        bool hasPet = IsPetEquipped();
+        CombatMode nextMode = hasPet ? CombatMode.AutoPet : CombatMode.Manual;
+        bool modeChanged = combatMode != nextMode;
+        combatMode = nextMode;
+
+        if (modeChanged)
+        {
+            autoAttackTickService.OnCombatModeChanged(
+                IsAutoCombatMode,
+                GetSummonAttackInterval()); // first auto attack can happen immediately
+        }
+
+        combatVfxService?.HandleStateChanged(
+            equippedPet,
+            IsAutoCombatMode,
+            IsDead,
+            idlePetVisualAnchor,
+            transform);
+    }
+
+    private bool IsPetEquipped()
+    {
+        return equippedPet != null && equippedPet.Type == ItemType.Pet;
     }
 
     #endregion

@@ -3,7 +3,7 @@ using UnityEngine;
 public interface ICombatFeedbackSink
 {
     void NotifyDamageHit();
-    void NotifyIdleDamageDealt(float damage, Vector3 targetWorldPosition);
+    void NotifyAutoAttackDamageDealt(float damage, Vector3 targetWorldPosition);
     int GetRecentHitCount(float windowSeconds = 1f);
 }
 
@@ -22,12 +22,12 @@ public static class CombatFeedbackRuntime
         feedbackSink.NotifyDamageHit();
     }
 
-    public static void NotifyIdleDamageDealt(float damage, Vector3 targetWorldPosition)
+    public static void NotifyAutoAttackDamageDealt(float damage, Vector3 targetWorldPosition)
     {
         if (!TryGet(out ICombatFeedbackSink feedbackSink))
             return;
 
-        feedbackSink.NotifyIdleDamageDealt(damage, targetWorldPosition);
+        feedbackSink.NotifyAutoAttackDamageDealt(damage, targetWorldPosition);
     }
 
     public static int GetRecentHitCount(float windowSeconds = 1f)

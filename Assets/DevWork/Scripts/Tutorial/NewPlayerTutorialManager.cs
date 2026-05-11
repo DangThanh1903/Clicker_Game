@@ -825,6 +825,23 @@ public class NewPlayerTutorialManager : MonoBehaviour
         PlayerPrefs.Save();
     }
 
+    [ContextMenu("Debug/Grant Starter Materials Now")]
+    private void DebugGrantStarterMaterialsNow()
+    {
+        ResolveReferencesOnce();
+        if (inventoryController == null)
+        {
+            Debug.LogWarning("Tutorial Debug: InventoryController missing, cannot grant starter materials.");
+            return;
+        }
+
+        if (starterDirtAmount > 0 && starterDirtItem != null)
+            inventoryController.TryAddItemToInventory(new InventoryItem(starterDirtItem, starterDirtAmount));
+
+        if (starterClayAmount > 0 && starterClayItem != null)
+            inventoryController.TryAddItemToInventory(new InventoryItem(starterClayItem, starterClayAmount));
+    }
+
     private TutorialOverlayView BindOrInstantiateOverlay(TutorialOverlayView source, string runtimeName)
     {
         if (source == null)

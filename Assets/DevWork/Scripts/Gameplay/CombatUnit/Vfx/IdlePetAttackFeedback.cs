@@ -9,7 +9,7 @@ public enum PetAttackVisualMode
 }
 
 [DisallowMultipleComponent]
-public class IdlePetAttackFeedback : MonoBehaviour, IIdlePetAttackFeedback
+public class IdlePetAttackFeedback : MonoBehaviour, IPetAutoAttackFeedback
 {
     [Header("Refs")]
     [SerializeField] private Animator animator;
@@ -84,7 +84,7 @@ public class IdlePetAttackFeedback : MonoBehaviour, IIdlePetAttackFeedback
         StopDotweenPlayback(resetPosition: true);
     }
 
-    public void PlayIdleAttack(float _damage, Vector3 targetWorldPosition)
+    public void PlayAutoAttack(float _damage, Vector3 targetWorldPosition)
     {
         if (rotateTowardTarget && lookRoot != null)
         {

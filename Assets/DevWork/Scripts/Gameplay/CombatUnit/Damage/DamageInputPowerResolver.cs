@@ -10,34 +10,21 @@ public static class DamageInputPowerResolver
         float finalDamage = StatsManager.Ins != null
             ? StatsManager.Ins.Get(StatType.NormalPower)
             : 0f;
+        finalDamage = Mathf.Max(1f, finalDamage);
 
         return readModel.ApplyStaminaToFinalDamage(finalDamage);
     }
 
-    public static float GetHoldTickPower(float tickSeconds)
+    public static float GetAutoAttackPower()
     {
-        if (!CombatResourceReadModelRuntime.TryGet(out ICombatResourceReadModel readModel))
+        if (!CombatResourceReadModelRuntime.TryGet(out _))
             return 0f;
 
-        float holdPower = StatsManager.Ins != null
-            ? StatsManager.Ins.Get(StatType.HoldPower)
+        float autoAttackPower = StatsManager.Ins != null
+            ? StatsManager.Ins.Get(StatType.NormalPower)
             : 0f;
-
-        float manaMul = readModel.GetHoldDamageMultiplier();
-        return holdPower * manaMul * tickSeconds;
-    }
-
-    public static float GetIdleTickPower(float tickSeconds)
-    {
-        if (!CombatResourceReadModelRuntime.TryGet(out ICombatResourceReadModel readModel))
-            return 0f;
-
-        float idlePower = StatsManager.Ins != null
-            ? StatsManager.Ins.Get(StatType.IdlePower)
-            : 0f;
-
-        float idleMul = readModel.GetIdleDamageMultiplier();
-        return idlePower * idleMul * tickSeconds;
+        autoAttackPower = Mathf.Max(1f, autoAttackPower);
+        return autoAttackPower;
     }
 
     public static float GetInputDeltaTime()

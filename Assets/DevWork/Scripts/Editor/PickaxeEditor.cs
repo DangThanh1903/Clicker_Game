@@ -4,17 +4,16 @@ using UnityEngine;
 [CustomEditor(typeof(Pickaxe))]
 public class PickaxeEditor : Editor
 {
+    private int itemGroupIndex = 2;
+
     private SerializedProperty itemNameProp;
     private SerializedProperty descriptionProp;
     private SerializedProperty iconProp;
     private SerializedProperty rarityProp;
+    private SerializedProperty mergeableProp;
+    private SerializedProperty mergeNextWeaponProp;
     private SerializedProperty modifiersProp;
     private SerializedProperty passiveBuffsProp;
-    private SerializedProperty currentStateProp;
-    private SerializedProperty holdBeamVfxPrefabProp;
-    private SerializedProperty holdBeamStartOffsetProp;
-    private SerializedProperty idlePetVisualPrefabProp;
-    private SerializedProperty idlePetSpawnLocalEulerProp;
 
     private void OnEnable()
     {
@@ -22,13 +21,10 @@ public class PickaxeEditor : Editor
         descriptionProp = serializedObject.FindProperty("description");
         iconProp = serializedObject.FindProperty("icon");
         rarityProp = serializedObject.FindProperty("rarity");
+        mergeableProp = serializedObject.FindProperty("mergeable");
+        mergeNextWeaponProp = serializedObject.FindProperty("mergeNextWeapon");
         modifiersProp = serializedObject.FindProperty("modifiers");
         passiveBuffsProp = serializedObject.FindProperty("passiveBuffs");
-        currentStateProp = serializedObject.FindProperty("currentState");
-        holdBeamVfxPrefabProp = serializedObject.FindProperty("holdBeamVfxPrefab");
-        holdBeamStartOffsetProp = serializedObject.FindProperty("holdBeamStartOffset");
-        idlePetVisualPrefabProp = serializedObject.FindProperty("idlePetVisualPrefab");
-        idlePetSpawnLocalEulerProp = serializedObject.FindProperty("idlePetSpawnLocalEuler");
     }
 
     public override void OnInspectorGUI()
@@ -47,39 +43,24 @@ public class PickaxeEditor : Editor
         DrawProp(rarityProp);
 
         EditorGUILayout.Space();
+        EditorGUILayout.LabelField("Merge", EditorStyles.boldLabel);
+        EditorGUILayout.HelpBox(
+            "Preferred setup: configure merge chain in WeaponMergeDatabaseSO on InventoryController.\n" +
+            "Fields below are legacy fallback.",
+            MessageType.Info);
+        DrawProp(mergeableProp, "Mergeable");
+        if (mergeableProp != null && mergeableProp.boolValue)
+            DrawProp(mergeNextWeaponProp, "Next Weapon");
+
+        EditorGUILayout.Space();
         DrawProp(modifiersProp);
         DrawProp(passiveBuffsProp);
 
         EditorGUILayout.Space();
-        DrawProp(currentStateProp);
-        DrawStateVisualSection();
+        if (GUILayout.Button("Rename Asset & Set Addressable ID to itemName"))
+            ItemRenamerEditor.RenameAssetAndConfigureAddressables((Pickaxe)target, itemGroupIndex);
 
         serializedObject.ApplyModifiedProperties();
-    }
-
-    private void DrawStateVisualSection()
-    {
-        if (currentStateProp == null)
-            return;
-
-        var state = (PickaxeType)currentStateProp.enumValueIndex;
-        EditorGUILayout.Space();
-        EditorGUILayout.LabelField("State Visuals", EditorStyles.boldLabel);
-
-        switch (state)
-        {
-            case PickaxeType.Hold:
-                DrawProp(holdBeamVfxPrefabProp, "Beam Prefab");
-                DrawProp(holdBeamStartOffsetProp, "Beam Start Offset");
-                break;
-            case PickaxeType.Idle:
-                DrawProp(idlePetVisualPrefabProp, "Pet Prefab");
-                DrawProp(idlePetSpawnLocalEulerProp, "Pet Spawn Local Euler");
-                break;
-            default:
-                EditorGUILayout.HelpBox("Normal state has no extra visual fields.", MessageType.Info);
-                break;
-        }
     }
 
     private static void DrawProp(SerializedProperty prop, string label = null)

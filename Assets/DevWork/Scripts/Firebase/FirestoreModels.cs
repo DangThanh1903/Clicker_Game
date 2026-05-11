@@ -37,12 +37,13 @@ public class GameplaySaveData
     [FirestoreProperty] public string currentBlock { get; set; }
     [FirestoreProperty] public string currentLocation { get; set; }
     [FirestoreProperty] public string peakLocation { get; set; }
+    [FirestoreProperty] public int mergeProgress { get; set; }
     [FirestoreProperty] public float clicks { get; set; }
     [FirestoreProperty] public float diamonds { get; set; }
     [FirestoreProperty] public float currentTime { get; set; }
     [FirestoreProperty] public float totalPlaytime { get; set; }
     [FirestoreProperty] public List<BiomeCraftNodeState> craftNodeStatesByBiome { get; set; }
-    [FirestoreProperty] public List<int> craftNodeStates { get; set; }
+    [FirestoreProperty] public List<BiomeMilestoneClaimState> milestoneClaimsByBiome { get; set; }
 }
 
 [FirestoreData]
@@ -50,4 +51,11 @@ public class BiomeCraftNodeState
 {
     [FirestoreProperty] public string biome { get; set; }
     [FirestoreProperty] public List<int> states { get; set; }
+}
+
+[FirestoreData]
+public class BiomeMilestoneClaimState
+{
+    [FirestoreProperty] public string biome { get; set; }
+    [FirestoreProperty] public int milestoneIndex { get; set; }
 }
