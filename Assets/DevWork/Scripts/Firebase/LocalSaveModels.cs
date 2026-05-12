@@ -47,6 +47,8 @@ public class LocalGameplayData
     public float totalPlaytime;
     public List<LocalBiomeCraftNodeState> craftNodeStatesByBiome;
     public List<int> craftNodeStates;
+    public List<LocalBiomeEssenceEarnedState> biomeEssenceEarned;
+    public List<LocalBiomeProgressClaimState> biomeProgressClaims;
 
     public LocalGameplayData() { }
 
@@ -74,6 +76,34 @@ public class LocalGameplayData
             }
         }
         craftNodeStates = src.craftNodeStates != null ? new List<int>(src.craftNodeStates) : null;
+
+        if (src.biomeEssenceEarned != null)
+        {
+            biomeEssenceEarned = new List<LocalBiomeEssenceEarnedState>(src.biomeEssenceEarned.Count);
+            foreach (var state in src.biomeEssenceEarned)
+            {
+                if (state == null) continue;
+                biomeEssenceEarned.Add(new LocalBiomeEssenceEarnedState
+                {
+                    biome = state.biome,
+                    amount = state.amount
+                });
+            }
+        }
+
+        if (src.biomeProgressClaims != null)
+        {
+            biomeProgressClaims = new List<LocalBiomeProgressClaimState>(src.biomeProgressClaims.Count);
+            foreach (var state in src.biomeProgressClaims)
+            {
+                if (state == null) continue;
+                biomeProgressClaims.Add(new LocalBiomeProgressClaimState
+                {
+                    biome = state.biome,
+                    claimedLevel = state.claimedLevel
+                });
+            }
+        }
     }
 
     public GameplaySaveData ToGameplaySaveData()
@@ -88,7 +118,9 @@ public class LocalGameplayData
             currentTime = currentTime,
             totalPlaytime = totalPlaytime,
             craftNodeStatesByBiome = BuildBiomeCraftNodeStates(),
-            craftNodeStates = craftNodeStates != null ? new List<int>(craftNodeStates) : null
+            craftNodeStates = craftNodeStates != null ? new List<int>(craftNodeStates) : null,
+            biomeEssenceEarned = BuildBiomeEssenceEarnedStates(),
+            biomeProgressClaims = BuildBiomeProgressClaimStates()
         };
     }
 
@@ -110,6 +142,44 @@ public class LocalGameplayData
 
         return result;
     }
+
+    private List<BiomeEssenceEarnedState> BuildBiomeEssenceEarnedStates()
+    {
+        if (biomeEssenceEarned == null)
+            return null;
+
+        var result = new List<BiomeEssenceEarnedState>(biomeEssenceEarned.Count);
+        foreach (var state in biomeEssenceEarned)
+        {
+            if (state == null) continue;
+            result.Add(new BiomeEssenceEarnedState
+            {
+                biome = state.biome,
+                amount = state.amount
+            });
+        }
+
+        return result;
+    }
+
+    private List<BiomeProgressClaimState> BuildBiomeProgressClaimStates()
+    {
+        if (biomeProgressClaims == null)
+            return null;
+
+        var result = new List<BiomeProgressClaimState>(biomeProgressClaims.Count);
+        foreach (var state in biomeProgressClaims)
+        {
+            if (state == null) continue;
+            result.Add(new BiomeProgressClaimState
+            {
+                biome = state.biome,
+                claimedLevel = state.claimedLevel
+            });
+        }
+
+        return result;
+    }
 }
 
 [Serializable]
@@ -117,6 +187,20 @@ public class LocalBiomeCraftNodeState
 {
     public string biome;
     public List<int> states;
+}
+
+[Serializable]
+public class LocalBiomeEssenceEarnedState
+{
+    public string biome;
+    public int amount;
+}
+
+[Serializable]
+public class LocalBiomeProgressClaimState
+{
+    public string biome;
+    public int claimedLevel;
 }
 
 [Serializable]

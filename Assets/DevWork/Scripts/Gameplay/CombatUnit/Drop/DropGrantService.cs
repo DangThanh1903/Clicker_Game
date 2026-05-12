@@ -102,6 +102,7 @@ public static class DropGrantService
             Vector2 pos = Toaster.GetRandomAnchoredPosition();
             bool rainbow = item.rarity == Rarity.Exclusive;
             Toaster.Show($"x{added}", item.icon, 1.6f, pos, rainbow);
+            BiomeProgressionService.NotifyItemEarned(item, added);
 
             if (summaryBuilder.Length > 0)
                 summaryBuilder.Append(", ");

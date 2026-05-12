@@ -322,6 +322,11 @@ MonoBehaviour:
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: dcd73831bb2aeac47be3b9b04d74f8c3
+    m_Address: NatureEssence
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: e5f6aa03116f4214482efdda6fc8991c
     m_Address: SilverOre
     m_ReadOnly: 0

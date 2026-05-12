@@ -2,60 +2,109 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.IO;
 using System.Linq;
+using System.Net;
+using System.Text;
 using UnityEditor;
 using UnityEngine;
 
 [CustomEditor(typeof(BlockUVDatabase))]
 public class BlockUVDatabaseEditor : Editor
 {
-    public override void OnInspectorGUI()
+    private const string BlockSheetId = "1MS8PZC-8mWTw9KHIdOyyE7x8BtiaHfdgqY3KOXAbJRM";
+    private const string BlockSheetName = "Block";
+    private const string ToolMenuPath = "Tools/ARealClickerGame/Load Blocks From Google Sheet (Block)";
+
+    [MenuItem(ToolMenuPath)]
+    private static void LoadSelectedOrProjectBlockDatabaseFromGoogleSheet()
     {
-        DrawDefaultInspector();
-
-        BlockUVDatabase db = (BlockUVDatabase)target;
-
-        EditorGUILayout.Space();
-        if (GUILayout.Button("Load From CSV"))
+        BlockUVDatabase db = ResolveTargetDatabase();
+        if (db == null)
         {
-            string path = EditorUtility.OpenFilePanel("Load Block CSV", "", "csv");
-            if (!string.IsNullOrEmpty(path))
-            {
-                LoadFromCsv(db, path);
-            }
+            EditorUtility.DisplayDialog(
+                "Load Blocks",
+                "No BlockUVDatabase asset found. Select one in Project view or create a Block UV Database asset first.",
+                "OK");
+            return;
+        }
+
+        LoadFromGoogleSheet(db);
+    }
+
+    [MenuItem(ToolMenuPath, true)]
+    private static bool ValidateLoadSelectedOrProjectBlockDatabaseFromGoogleSheet()
+    {
+        return ResolveTargetDatabase(showWarnings: false) != null;
+    }
+
+    private static BlockUVDatabase ResolveTargetDatabase(bool showWarnings = true)
+    {
+        if (Selection.activeObject is BlockUVDatabase selectedDb)
+            return selectedDb;
+
+        string[] guids = AssetDatabase.FindAssets("t:BlockUVDatabase");
+        if (guids == null || guids.Length == 0)
+            return null;
+
+        if (guids.Length > 1 && showWarnings)
+        {
+            Debug.LogWarning(
+                $"[BlockUVDatabaseEditor] Multiple BlockUVDatabase assets found. Using first result: {AssetDatabase.GUIDToAssetPath(guids[0])}. Select a specific database asset before running the tool to choose another.");
+        }
+
+        string path = AssetDatabase.GUIDToAssetPath(guids[0]);
+        return AssetDatabase.LoadAssetAtPath<BlockUVDatabase>(path);
+    }
+
+    private static void LoadFromGoogleSheet(BlockUVDatabase db)
+    {
+        string url = BuildGoogleSheetCsvUrl(BlockSheetId, BlockSheetName);
+        try
+        {
+            using WebClient client = new WebClient { Encoding = Encoding.UTF8 };
+            string csv = client.DownloadString(url);
+            ImportFromCsvText(db, csv, $"Google Sheet tab '{BlockSheetName}'");
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"[BlockUVDatabaseEditor] Failed to load Google Sheet tab '{BlockSheetName}'.\nURL: {url}\n{ex}");
         }
     }
 
-    private static void LoadFromCsv(BlockUVDatabase db, string path)
+    private static string BuildGoogleSheetCsvUrl(string spreadsheetId, string sheetName)
     {
-        List<string> lines = File.ReadAllLines(path)
+        return $"https://docs.google.com/spreadsheets/d/{spreadsheetId}/gviz/tq?tqx=out:csv&sheet={Uri.EscapeDataString(sheetName)}";
+    }
+
+    private static void ImportFromCsvText(BlockUVDatabase db, string csv, string sourceName)
+    {
+        List<string> lines = SplitCsvLines(csv)
             .Where(l => !string.IsNullOrWhiteSpace(l) && !l.TrimStart().StartsWith("#"))
             .ToList();
 
         if (lines.Count <= 1)
         {
-            Debug.LogWarning("[BlockUVDatabaseEditor] CSV is empty or missing data rows.");
+            Debug.LogWarning($"[BlockUVDatabaseEditor] {sourceName} is empty or missing data rows.");
             return;
         }
 
-        Undo.RecordObject(db, "Import Block UV CSV");
+        Undo.RecordObject(db, "Import Block UV from Google Sheet");
         db.blocks.Clear();
 
         int imported = 0;
         foreach (string line in lines.Skip(1))
         {
-            string[] tokens = line.Split(',').Select(t => t.Trim()).ToArray();
-            if (tokens.Length < 9)
+            List<string> tokens = ParseCsvLine(line);
+            if (tokens.Count < 9)
             {
-                Debug.LogWarning($"[BlockUVDatabaseEditor] Skipping malformed row ({tokens.Length} columns): {line}");
+                Debug.LogWarning($"[BlockUVDatabaseEditor] Skipping malformed row ({tokens.Count} columns): {line}");
                 continue;
             }
 
             try
             {
                 ParseOutlineVisual(
-                    tokens.Length > 9 ? tokens[9] : string.Empty,
+                    tokens.Count > 9 ? tokens[9] : string.Empty,
                     Color.black,
                     0f,
                     out Color outlineColor,
@@ -89,7 +138,91 @@ public class BlockUVDatabaseEditor : Editor
 
         EditorUtility.SetDirty(db);
         AssetDatabase.SaveAssets();
-        DevLog.Log($"[BlockUVDatabaseEditor] Imported {imported} block rows from CSV.");
+        DevLog.Log($"[BlockUVDatabaseEditor] Imported {imported} block rows from {sourceName}.");
+    }
+
+    private static List<string> SplitCsvLines(string csv)
+    {
+        List<string> lines = new List<string>();
+        if (string.IsNullOrEmpty(csv))
+            return lines;
+
+        StringBuilder line = new StringBuilder();
+        bool inQuotes = false;
+
+        for (int i = 0; i < csv.Length; i++)
+        {
+            char c = csv[i];
+            if (c == '"')
+            {
+                if (inQuotes && i + 1 < csv.Length && csv[i + 1] == '"')
+                {
+                    line.Append(c);
+                    i++;
+                    continue;
+                }
+
+                inQuotes = !inQuotes;
+                line.Append(c);
+                continue;
+            }
+
+            if (!inQuotes && (c == '\n' || c == '\r'))
+            {
+                if (c == '\r' && i + 1 < csv.Length && csv[i + 1] == '\n')
+                    i++;
+
+                lines.Add(line.ToString());
+                line.Clear();
+                continue;
+            }
+
+            line.Append(c);
+        }
+
+        if (line.Length > 0)
+            lines.Add(line.ToString());
+
+        return lines;
+    }
+
+    private static List<string> ParseCsvLine(string line)
+    {
+        List<string> values = new List<string>();
+        if (line == null)
+            return values;
+
+        StringBuilder value = new StringBuilder();
+        bool inQuotes = false;
+
+        for (int i = 0; i < line.Length; i++)
+        {
+            char c = line[i];
+            if (c == '"')
+            {
+                if (inQuotes && i + 1 < line.Length && line[i + 1] == '"')
+                {
+                    value.Append(c);
+                    i++;
+                    continue;
+                }
+
+                inQuotes = !inQuotes;
+                continue;
+            }
+
+            if (!inQuotes && c == ',')
+            {
+                values.Add(value.ToString().Trim());
+                value.Clear();
+                continue;
+            }
+
+            value.Append(c);
+        }
+
+        values.Add(value.ToString().Trim());
+        return values;
     }
 
     private static void ParseOutlineVisual(string raw, Color fallbackColor, float fallbackIntensity, out Color color, out float intensity)

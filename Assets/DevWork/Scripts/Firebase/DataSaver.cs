@@ -38,6 +38,8 @@ public class DataSaver : MonoBehaviour
     [SerializeField] private List<InventoryData> inventoryDatas = new List<InventoryData>();
     [SerializeField] private CraftNodeManager craftNodeManager;
     private readonly Dictionary<string, List<int>> craftNodeStatesByBiomeCache = new Dictionary<string, List<int>>();
+    private readonly Dictionary<string, int> biomeEssenceEarnedByBiome = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, int> biomeProgressClaimedLevelByBiome = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
     private List<int> pendingLegacyCraftNodeStates;
 
     [Header("Local Save")]
@@ -184,6 +186,48 @@ public class DataSaver : MonoBehaviour
     public void IncreaseBreakCounter(int amount = 1)
     {
         blockBreakCounter.Value += amount;
+    }
+
+    public int GetBiomeEssenceEarned(BlockSpawnLocation biome)
+    {
+        string key = NormalizeBiomeProgressKey(biome);
+        return biomeEssenceEarnedByBiome.TryGetValue(key, out int amount)
+            ? Mathf.Max(0, amount)
+            : 0;
+    }
+
+    public void AddBiomeEssenceEarned(BlockSpawnLocation biome, int amount, bool queueSave = true)
+    {
+        if (amount <= 0)
+            return;
+
+        string key = NormalizeBiomeProgressKey(biome);
+        int current = biomeEssenceEarnedByBiome.TryGetValue(key, out int existing) ? Mathf.Max(0, existing) : 0;
+        biomeEssenceEarnedByBiome[key] = current + amount;
+
+        if (queueSave)
+            SaveDataFn();
+    }
+
+    public int GetBiomeProgressClaimedLevel(BlockSpawnLocation biome)
+    {
+        string key = NormalizeBiomeProgressKey(biome);
+        return biomeProgressClaimedLevelByBiome.TryGetValue(key, out int level)
+            ? Mathf.Max(-1, level)
+            : -1;
+    }
+
+    public void SetBiomeProgressClaimedLevel(BlockSpawnLocation biome, int claimedLevel, bool queueSave = true)
+    {
+        string key = NormalizeBiomeProgressKey(biome);
+        int safeLevel = Mathf.Max(-1, claimedLevel);
+        if (biomeProgressClaimedLevelByBiome.TryGetValue(key, out int existing) && existing == safeLevel)
+            return;
+
+        biomeProgressClaimedLevelByBiome[key] = safeLevel;
+
+        if (queueSave)
+            SaveDataFn();
     }
 
     private void QueueLocalSave(bool forceImmediate = false)
@@ -427,7 +471,9 @@ public class DataSaver : MonoBehaviour
             totalPlaytime = TotalPlaytime,
             craftNodeStatesByBiome = BuildCraftNodeStatesByBiomePayload(),
             // Keep legacy field for backward compatibility/migration safety.
-            craftNodeStates = currentScopeStates
+            craftNodeStates = currentScopeStates,
+            biomeEssenceEarned = BuildBiomeEssenceEarnedPayload(),
+            biomeProgressClaims = BuildBiomeProgressClaimPayload()
         };
     }
 
@@ -725,6 +771,7 @@ public class DataSaver : MonoBehaviour
         TotalPlaytime = Mathf.Max(0f, gameplay.totalPlaytime);
         AnalyticsManager.Ins?.UpdateUserProperties(this);
         LoadCraftNodeStates(gameplay);
+        LoadBiomeProgressData(gameplay);
     }
 
     private void CacheGameplayStats(float clicks, float diamonds)
@@ -839,6 +886,81 @@ public class DataSaver : MonoBehaviour
         return result;
     }
 
+    private List<BiomeEssenceEarnedState> BuildBiomeEssenceEarnedPayload()
+    {
+        if (biomeEssenceEarnedByBiome.Count == 0)
+            return null;
+
+        var result = new List<BiomeEssenceEarnedState>(biomeEssenceEarnedByBiome.Count);
+        foreach (var entry in biomeEssenceEarnedByBiome)
+        {
+            if (string.IsNullOrWhiteSpace(entry.Key) || entry.Value <= 0)
+                continue;
+
+            result.Add(new BiomeEssenceEarnedState
+            {
+                biome = entry.Key,
+                amount = Mathf.Max(0, entry.Value)
+            });
+        }
+
+        return result;
+    }
+
+    private List<BiomeProgressClaimState> BuildBiomeProgressClaimPayload()
+    {
+        if (biomeProgressClaimedLevelByBiome.Count == 0)
+            return null;
+
+        var result = new List<BiomeProgressClaimState>(biomeProgressClaimedLevelByBiome.Count);
+        foreach (var entry in biomeProgressClaimedLevelByBiome)
+        {
+            if (string.IsNullOrWhiteSpace(entry.Key) || entry.Value < 0)
+                continue;
+
+            result.Add(new BiomeProgressClaimState
+            {
+                biome = entry.Key,
+                claimedLevel = Mathf.Max(-1, entry.Value)
+            });
+        }
+
+        return result;
+    }
+
+    private void LoadBiomeProgressData(GameplaySaveData gameplay)
+    {
+        biomeEssenceEarnedByBiome.Clear();
+        biomeProgressClaimedLevelByBiome.Clear();
+
+        if (gameplay == null)
+            return;
+
+        if (gameplay.biomeEssenceEarned != null)
+        {
+            foreach (var state in gameplay.biomeEssenceEarned)
+            {
+                if (state == null)
+                    continue;
+
+                string key = NormalizeBiomeProgressKey(state.biome);
+                biomeEssenceEarnedByBiome[key] = Mathf.Max(0, state.amount);
+            }
+        }
+
+        if (gameplay.biomeProgressClaims != null)
+        {
+            foreach (var state in gameplay.biomeProgressClaims)
+            {
+                if (state == null)
+                    continue;
+
+                string key = NormalizeBiomeProgressKey(state.biome);
+                biomeProgressClaimedLevelByBiome[key] = Mathf.Max(-1, state.claimedLevel);
+            }
+        }
+    }
+
     private void SyncCraftNodeStateToCache(CraftNodeManager manager)
     {
         if (manager == null)
@@ -862,6 +984,18 @@ public class DataSaver : MonoBehaviour
     private string NormalizeCraftScope(string scope)
     {
         return string.IsNullOrWhiteSpace(scope) ? DefaultCraftScope : scope.Trim();
+    }
+
+    private static string NormalizeBiomeProgressKey(BlockSpawnLocation biome)
+    {
+        return biome.ToString();
+    }
+
+    private static string NormalizeBiomeProgressKey(string biome)
+    {
+        return string.IsNullOrWhiteSpace(biome)
+            ? BlockSpawnLocation.Plain.ToString()
+            : biome.Trim();
     }
 
     public void SetDisplayName(string displayName, bool forceSave = true)

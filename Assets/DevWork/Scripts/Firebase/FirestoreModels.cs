@@ -43,6 +43,8 @@ public class GameplaySaveData
     [FirestoreProperty] public float totalPlaytime { get; set; }
     [FirestoreProperty] public List<BiomeCraftNodeState> craftNodeStatesByBiome { get; set; }
     [FirestoreProperty] public List<int> craftNodeStates { get; set; }
+    [FirestoreProperty] public List<BiomeEssenceEarnedState> biomeEssenceEarned { get; set; }
+    [FirestoreProperty] public List<BiomeProgressClaimState> biomeProgressClaims { get; set; }
 }
 
 [FirestoreData]
@@ -50,4 +52,18 @@ public class BiomeCraftNodeState
 {
     [FirestoreProperty] public string biome { get; set; }
     [FirestoreProperty] public List<int> states { get; set; }
+}
+
+[FirestoreData]
+public class BiomeEssenceEarnedState
+{
+    [FirestoreProperty] public string biome { get; set; }
+    [FirestoreProperty] public int amount { get; set; }
+}
+
+[FirestoreData]
+public class BiomeProgressClaimState
+{
+    [FirestoreProperty] public string biome { get; set; }
+    [FirestoreProperty] public int claimedLevel { get; set; }
 }
