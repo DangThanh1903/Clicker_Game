@@ -8,12 +8,13 @@ public class BlockManager : MonoBehaviour
     public static BlockManager Ins;
     [SerializeField] private ClickableObject currentBlock;
     [SerializeField] private LocationLoader locationLoader;
+    [SerializeField] private bool enableMonsterEncounters = false;
     [SerializeField] private MonsterSpawner monsterSpawner;
     [SerializeField] BossSO bossSO;
     [SerializeField] Transform  spawnPos;
     public float rareWeightCap = 10;
     public ClickableObject CurrentBlock => currentBlock;
-    public MonsterSpawner MonsterSpawner => monsterSpawner;
+    public MonsterSpawner MonsterSpawner => enableMonsterEncounters ? monsterSpawner : null;
     public event Action<string> CurrentBlockChanged;
     public event Action<int, int> MonsterSpawnProgressChanged;
     public event Action<bool> MonsterEncounterStateChanged;
@@ -42,7 +43,8 @@ public class BlockManager : MonoBehaviour
 
     void OnEnable()
     {
-        BindMonsterSpawner();
+        if (enableMonsterEncounters)
+            BindMonsterSpawner();
     }
 
     void OnDisable()
@@ -55,7 +57,7 @@ public class BlockManager : MonoBehaviour
     {
         yield return new WaitUntil(() => DataSaver.Ins != null);
 
-        if (monsterSpawner != null && currentBlock != null)
+        if (enableMonsterEncounters && monsterSpawner != null && currentBlock != null)
             monsterSpawner.SetBlockAnchor(currentBlock.transform);
 
         if (currentBlock != null)
@@ -147,7 +149,7 @@ public class BlockManager : MonoBehaviour
         activeBossComp = null;
         activeBossInfo = null;
 
-        if (currentBlock && !IsMonsterEncounterRunning())
+        if (currentBlock)
             currentBlock.gameObject.SetActive(true);
         UIManager.Ins.SetNavigationLocked(false);
     }
@@ -266,7 +268,7 @@ public class BlockManager : MonoBehaviour
         activeBossInfo = null;
 
         if (currentBlock)
-            currentBlock.gameObject.SetActive(!IsMonsterEncounterRunning());
+            currentBlock.gameObject.SetActive(true);
 
         UIManager.Ins?.SetNavigationLocked(false);
     }
@@ -279,6 +281,9 @@ public class BlockManager : MonoBehaviour
 
     private void NotifyMonsterSpawnerBlockBroken()
     {
+        if (!enableMonsterEncounters)
+            return;
+
         if (!TryEnsureMonsterSpawner())
         {
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
@@ -296,6 +301,9 @@ public class BlockManager : MonoBehaviour
 
     private bool TryEnsureMonsterSpawner()
     {
+        if (!enableMonsterEncounters)
+            return false;
+
         if (monsterSpawner != null)
             return true;
 
@@ -311,6 +319,13 @@ public class BlockManager : MonoBehaviour
 
     private void BindMonsterSpawner()
     {
+        if (!enableMonsterEncounters)
+        {
+            MonsterSpawnProgressChanged?.Invoke(0, 1);
+            MonsterEncounterStateChanged?.Invoke(false);
+            return;
+        }
+
         if (!TryEnsureMonsterSpawner())
             return;
 
@@ -360,7 +375,7 @@ public class BlockManager : MonoBehaviour
 
     private bool IsMonsterEncounterRunning()
     {
-        return monsterSpawner != null && monsterSpawner.HasActiveEncounter;
+        return enableMonsterEncounters && monsterSpawner != null && monsterSpawner.HasActiveEncounter;
     }
 }
 
