@@ -15,5 +15,8 @@ MonoBehaviour:
   itemName: ClayRing
   description: ClayRing
   icon: {fileID: 21300000, guid: 90801c684b6822b4c819480e67159517, type: 3}
+  worldMesh: {fileID: 4300000, guid: cb09b22418219db4291dcf3ca38cdfe3, type: 2}
+  worldFrontMaterial: {fileID: 2100000, guid: b2c1a0f7f2c6bec409b21d32a5b7d8df, type: 2}
+  worldSideMaterial: {fileID: 2100000, guid: a096fef99b056c34cbafa205fec6b727, type: 2}
   modifiers: []
   passiveBuffs: []

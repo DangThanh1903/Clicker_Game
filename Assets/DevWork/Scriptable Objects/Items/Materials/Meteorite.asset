@@ -15,3 +15,6 @@ MonoBehaviour:
   itemName: Meteorite
   description: 
   icon: {fileID: 21300000, guid: 605a13780a336324db6e4f923081dc8b, type: 3}
+  worldMesh: {fileID: 4300000, guid: 1a92a03b680453547bf069af1e8180ee, type: 2}
+  worldFrontMaterial: {fileID: 2100000, guid: 9494265ad691e1944aed0eaf5c41b5d0, type: 2}
+  worldSideMaterial: {fileID: 2100000, guid: a096fef99b056c34cbafa205fec6b727, type: 2}

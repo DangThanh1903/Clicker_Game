@@ -15,4 +15,7 @@ MonoBehaviour:
   itemName: Dirt
   description: It's dirt
   icon: {fileID: 21300000, guid: e713db2c30cae3949ac4bb60a6d1c156, type: 3}
+  worldMesh: {fileID: 4300000, guid: 7f35f2b3de37daf4aa809a51932b8b34, type: 2}
+  worldFrontMaterial: {fileID: 2100000, guid: 371f99f9bee076b40a199efd7fabd0d8, type: 2}
+  worldSideMaterial: {fileID: 2100000, guid: a096fef99b056c34cbafa205fec6b727, type: 2}
   rarity: 0

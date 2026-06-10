@@ -69,14 +69,19 @@ public class CraftingController : MonoBehaviour
 
     private void TrackCraftQuestForCurrentRecipe()
     {
+        TrackCraftQuest(currentRecipe);
+    }
+
+    private void TrackCraftQuest(Recipe recipe, int craftedAmountOverride = -1)
+    {
         // If no recipe, ignore
-        if (currentRecipe == null || currentRecipe.result == null)
+        if (recipe == null || recipe.result == null)
             return;
 
-        Item craftedItem = currentRecipe.result.itemData;
-        int craftedAmount = currentRecipe.result.quantity != null
-            ? Mathf.Max(0, currentRecipe.result.quantity.Value)
-            : 0;
+        Item craftedItem = recipe.result.itemData;
+        int craftedAmount = craftedAmountOverride >= 0
+            ? craftedAmountOverride
+            : (recipe.result.quantity != null ? Mathf.Max(0, recipe.result.quantity.Value) : 0);
 
         if (craftedItem == null || craftedAmount <= 0)
             return;
@@ -142,6 +147,44 @@ public class CraftingController : MonoBehaviour
         return true;
     }
 
+    public bool TryCraftRecipe(Recipe recipe, InventoryData sourceInventory = null, int times = 1)
+    {
+        if (recipe == null || recipe.result == null)
+            return false;
+
+        Item resultItem = recipe.result.itemData;
+        int resultQuantity = recipe.result.quantity != null ? Mathf.Max(0, recipe.result.quantity.Value) : 0;
+        int safeTimes = Mathf.Max(1, times);
+        int totalResultQuantity = resultQuantity * safeTimes;
+
+        if (resultItem == null || resultItem.Type == ItemType.None || totalResultQuantity <= 0)
+            return false;
+
+        sourceInventory ??= ResolveMainInventoryData();
+        if (sourceInventory == null || InventoryController.Instance == null)
+            return false;
+
+        if (!RecipeInventoryUtility.HasIngredients(recipe, sourceInventory, safeTimes))
+            return false;
+
+        if (!InventoryController.Instance.CanFullyAddItem(resultItem, totalResultQuantity))
+            return false;
+
+        RemoveIngredientsFromInventory(sourceInventory, RecipeInventoryUtility.BuildRequiredCounts(recipe, safeTimes));
+
+        var crafted = new InventoryItem(resultItem, totalResultQuantity);
+        if (!InventoryController.Instance.TryAddItemToInventory(crafted, requireFullAdd: true))
+        {
+            Debug.LogWarning("CraftingController: failed to add crafted item after ingredient check.");
+            return false;
+        }
+
+        TrackCraftQuest(recipe, totalResultQuantity);
+        DataSaver.Ins?.SaveDataFn();
+        UpdateCraftingOutput();
+        return true;
+    }
+
     private void RemoveIngredients()
     {
         if (currentRecipe == null || matchedVariant == null) return;
@@ -181,6 +224,44 @@ public class CraftingController : MonoBehaviour
         }
 
         DataSaver.Ins.SaveDataFn();
+    }
+
+    private void RemoveIngredientsFromInventory(InventoryData inventory, Dictionary<Item, int> requiredCounts)
+    {
+        if (inventory == null || requiredCounts == null || requiredCounts.Count == 0)
+            return;
+
+        foreach (var pair in requiredCounts)
+        {
+            Item requiredItem = pair.Key;
+            int remaining = Mathf.Max(0, pair.Value);
+            if (requiredItem == null || remaining <= 0)
+                continue;
+
+            var items = inventory.Items;
+            for (int i = 0; i < items.Count && remaining > 0; i++)
+            {
+                var slot = items[i];
+                if (slot == null || slot.itemData != requiredItem || slot.quantity == null)
+                    continue;
+
+                int take = Mathf.Min(slot.quantity.Value, remaining);
+                int newQuantity = slot.quantity.Value - take;
+                remaining -= take;
+
+                if (newQuantity <= 0)
+                {
+                    inventory.SetItem(i, null);
+                }
+                else
+                {
+                    inventory.SetItem(i, new InventoryItem(slot.itemData, newQuantity)
+                    {
+                        prefix = slot.prefix
+                    });
+                }
+            }
+        }
     }
 
     public bool CheckRecipeIngredients(Recipe recipe, InventoryData sourceInventory, out List<int> missingSlots)
@@ -342,5 +423,13 @@ public class CraftingController : MonoBehaviour
                 return true;
         }
         return false;
+    }
+
+    private InventoryData ResolveMainInventoryData()
+    {
+        if (InventoryController.Instance == null || InventoryController.Instance.InventoryUIManager == null)
+            return null;
+
+        return InventoryController.Instance.InventoryUIManager.GetInventoryData(InventoryType.Inventory);
     }
 }

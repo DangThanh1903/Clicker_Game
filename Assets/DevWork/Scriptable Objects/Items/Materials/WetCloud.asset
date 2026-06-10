@@ -15,3 +15,6 @@ MonoBehaviour:
   itemName: WetCloud
   description: 
   icon: {fileID: 21300000, guid: 92174752c90de1942907edb9e2784383, type: 3}
+  worldMesh: {fileID: 4300000, guid: 58cc130d9ea63a444a957057d9d849b7, type: 2}
+  worldFrontMaterial: {fileID: 2100000, guid: c4ef049c6a616d941b37d16ec6d3c1c8, type: 2}
+  worldSideMaterial: {fileID: 2100000, guid: a096fef99b056c34cbafa205fec6b727, type: 2}

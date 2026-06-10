@@ -15,6 +15,9 @@ MonoBehaviour:
   itemName: ForagerCrate
   description: 
   icon: {fileID: 21300000, guid: 9282adae8a23c1345bed14ed1025a3a9, type: 3}
+  worldMesh: {fileID: 4300000, guid: 80e663d34ce052842880e1390db7d91f, type: 2}
+  worldFrontMaterial: {fileID: 2100000, guid: 0d00633256babf14e8096bbc512398fd, type: 2}
+  worldSideMaterial: {fileID: 2100000, guid: a096fef99b056c34cbafa205fec6b727, type: 2}
   rarity: 2
   options:
   - item: {fileID: 11400000, guid: b58c152454d354b47b2cd8650bf8bf45, type: 2}

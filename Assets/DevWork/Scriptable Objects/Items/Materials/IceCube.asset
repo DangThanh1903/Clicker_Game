@@ -15,3 +15,6 @@ MonoBehaviour:
   itemName: IceCube
   description: 
   icon: {fileID: 21300000, guid: 6de81e1934ae4354f9d7d729dae7df9c, type: 3}
+  worldMesh: {fileID: 4300000, guid: fd3b74e5a6e5c144485e616979bea338, type: 2}
+  worldFrontMaterial: {fileID: 2100000, guid: 6b89bb1c94946034091d56681a710d16, type: 2}
+  worldSideMaterial: {fileID: 2100000, guid: a096fef99b056c34cbafa205fec6b727, type: 2}

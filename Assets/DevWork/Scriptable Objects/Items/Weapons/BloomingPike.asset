@@ -15,6 +15,9 @@ MonoBehaviour:
   itemName: BloomingPike
   description: 
   icon: {fileID: 21300000, guid: e0218cd571e3c8f4dbb3c87db1ead5e9, type: 3}
+  worldMesh: {fileID: 4300000, guid: 8de339124e5281046afd5e7dbcaab9d2, type: 2}
+  worldFrontMaterial: {fileID: 2100000, guid: cc781e16d9740d34e888bf2b2dbd3ae3, type: 2}
+  worldSideMaterial: {fileID: 2100000, guid: a096fef99b056c34cbafa205fec6b727, type: 2}
   rarity: 5
   modifiers: []
   currentState: 0

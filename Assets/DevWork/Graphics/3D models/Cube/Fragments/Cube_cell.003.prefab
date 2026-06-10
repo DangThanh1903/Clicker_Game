@@ -162,7 +162,7 @@ MonoBehaviour:
   outOfCameraGraceTime: 0.15
   outOfCameraViewportPadding: 0.05
   optimizeRendererSettings: 1
-  shadowCastingMode: 0
+  shadowCastingMode: 1
   receiveShadows: 0
   lightProbeUsage: 0
   reflectionProbeUsage: 0

@@ -46,6 +46,7 @@ public class ShakeSpawnAnim : BlockAnimationAsset
         // Cache original local transforms
         var origLocalPos = t.localPosition;
         var origLocalRot = t.localRotation;
+        Vector3 targetScale = t.localScale.sqrMagnitude > 0.0001f ? t.localScale : endScale;
 
         if (resetRotation) t.localRotation = Quaternion.identity;
 
@@ -53,7 +54,7 @@ public class ShakeSpawnAnim : BlockAnimationAsset
         if (usePopIn)
             t.localScale = Vector3.zero;
         else
-            t.localScale = endScale;
+            t.localScale = targetScale;
 
         // Optional start offset so it "appears" then shakes into place
         t.localPosition = origLocalPos + startLocalOffset;
@@ -66,12 +67,12 @@ public class ShakeSpawnAnim : BlockAnimationAsset
         // Pop-in
         if (usePopIn && popDur > 0f)
         {
-            seq.Append(t.DOScale(endScale, popDur).SetEase(popEase));
+            seq.Append(t.DOScale(targetScale, popDur).SetEase(popEase));
         }
         else
         {
             // Ensure correct scale even if no pop
-            t.localScale = endScale;
+            t.localScale = targetScale;
         }
 
         // Shake (position) — DOTween shake uses world position internally, so we force a final settle after

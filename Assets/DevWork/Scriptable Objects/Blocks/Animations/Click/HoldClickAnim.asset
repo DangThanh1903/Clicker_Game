@@ -19,35 +19,22 @@ MonoBehaviour:
   baseScale: {x: 2.5, y: 2.5, z: 2.5}
   enableRandomRotation: 1
   randomRotationDegrees: {x: 8, y: 12, z: 12}
-  rotateOutEase: 6
-  rotateBackEase: 27
   rotateByMouseDirection: 1
-  directionalRotationDegrees: {x: 10, y: 6, z: 14}
   momentumMaxDistancePx: 190
   minMomentum: 0.24
   maxMomentum: 1
   momentumCurvePower: 0.72
   pointerSensitivity: 1.6
   invertPhysicalPointerDirection: 0
-  centerDeadZonePx: 6
   addRandomJitter: 0
   randomJitterDegrees: {x: 1.5, y: 2, z: 2}
   scaleImpulseByDamageRatio: 1
   damageRatioBlend: 0.6
   damageRatioScale: 0.8
   damageRatioCurvePower: 0.85
-  spinDuration: 1.1
-  minSpinDegrees: 22
-  maxSpinDegrees: 170
   minSpinImpulseSpeed: 68
   maxSpinImpulseSpeed: 420
   spinAngularDamping: 2.05
   spinMaxAngularSpeed: 0
   spinStopSpeedThreshold: 0.11
-  spinStep1Portion: 0.62
-  spinStep2Portion: 0.26
-  spinStep3Portion: 0.12
-  spinEase1: 5
-  spinEase2: 6
-  spinEase3: 8
   invertSpinDirection: 1

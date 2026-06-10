@@ -28,7 +28,22 @@ public abstract class Item : ScriptableObject
     public Sprite icon;
     public virtual ItemType Type => ItemType.None;
     public Rarity rarity;
+
+    [Header("World Visual")]
+    public Mesh worldMesh;
+    public Material worldFrontMaterial;
+    public Material worldSideMaterial;
+
     public virtual int MaxStack => 1;
+
+    public bool TryGetWorldVisual(out Mesh mesh, out Material frontMaterial, out Material sideMaterial)
+    {
+        mesh = worldMesh;
+        frontMaterial = worldFrontMaterial;
+        sideMaterial = worldSideMaterial;
+        return mesh != null && frontMaterial != null;
+    }
+
     public string GetFormattedDescription()
     {
         string header = $"<size=120%>{GetColoredName()}</size>";

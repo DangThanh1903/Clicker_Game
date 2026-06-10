@@ -15,5 +15,8 @@ MonoBehaviour:
   itemName: Sunflower
   description: Give me sun!
   icon: {fileID: 21300000, guid: 2801ae48992706c47b33dbd025b6c853, type: 3}
+  worldMesh: {fileID: 4300000, guid: cd0c1df3f0a321748a95a166c62b7c42, type: 2}
+  worldFrontMaterial: {fileID: 2100000, guid: 7e1f628dcf6a3bb468f9a40060e0d3cb, type: 2}
+  worldSideMaterial: {fileID: 2100000, guid: a096fef99b056c34cbafa205fec6b727, type: 2}
   Location: 0
   rarity: 1

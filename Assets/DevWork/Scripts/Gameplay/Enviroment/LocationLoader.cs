@@ -27,6 +27,8 @@ public class LocationLoader : MonoBehaviour
     private GameObject currentInstance;
     private GameObject currentCraftingTreeInstance;
     private bool _bootstrapped = false;
+    public CraftNodeManager CurrentCraftNodeManager { get; private set; }
+    public event Action<CraftNodeManager> CurrentCraftNodeManagerChanged;
 
     private void Awake()
     {
@@ -235,7 +237,14 @@ public class LocationLoader : MonoBehaviour
         {
             ClearCraftingTreeInstance();
             if (fallbackCraftingTreeRoot != null)
+            {
                 fallbackCraftingTreeRoot.SetActive(true);
+                BindCraftingTreeManager(fallbackCraftingTreeRoot, data.location);
+            }
+            else
+            {
+                SetCurrentCraftNodeManager(null);
+            }
             return;
         }
 
@@ -255,15 +264,34 @@ public class LocationLoader : MonoBehaviour
         if (!currentCraftingTreeInstance.activeSelf)
             currentCraftingTreeInstance.SetActive(true);
 
-        CraftNodeManager manager = currentCraftingTreeInstance.GetComponent<CraftNodeManager>();
-        if (manager == null)
-            manager = currentCraftingTreeInstance.GetComponentInChildren<CraftNodeManager>(true);
-        if (manager == null)
-            return;
+        BindCraftingTreeManager(currentCraftingTreeInstance, data.location);
+    }
 
-        manager.ConfigureSaveScope(data.location.ToString(), reload: true);
+    private void BindCraftingTreeManager(GameObject treeRoot, BlockSpawnLocation location)
+    {
+        CraftNodeManager manager = treeRoot != null ? treeRoot.GetComponent<CraftNodeManager>() : null;
+        if (manager == null && treeRoot != null)
+            manager = treeRoot.GetComponentInChildren<CraftNodeManager>(true);
+        if (manager == null)
+        {
+            SetCurrentCraftNodeManager(null);
+            return;
+        }
+
+        manager.ConfigureSaveScope(location.ToString(), reload: true);
         if (DataSaver.Ins != null)
             DataSaver.Ins.RegisterCraftNodeManager(manager);
+
+        SetCurrentCraftNodeManager(manager);
+    }
+
+    private void SetCurrentCraftNodeManager(CraftNodeManager manager)
+    {
+        if (CurrentCraftNodeManager == manager)
+            return;
+
+        CurrentCraftNodeManager = manager;
+        CurrentCraftNodeManagerChanged?.Invoke(CurrentCraftNodeManager);
     }
 
     private void ClearCraftingTreeInstance()
@@ -271,6 +299,7 @@ public class LocationLoader : MonoBehaviour
         if (currentCraftingTreeInstance == null)
             return;
 
+        SetCurrentCraftNodeManager(null);
         Destroy(currentCraftingTreeInstance);
         currentCraftingTreeInstance = null;
     }

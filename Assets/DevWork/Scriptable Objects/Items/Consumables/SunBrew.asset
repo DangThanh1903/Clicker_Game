@@ -15,4 +15,7 @@ MonoBehaviour:
   itemName: SunBrew
   description: Use to +20% crit chance
   icon: {fileID: 21300000, guid: abba850135a6fc8409fb4e0480a2ad32, type: 3}
+  worldMesh: {fileID: 4300000, guid: 14a3935c37ee2a545ae7ff151b012ff9, type: 2}
+  worldFrontMaterial: {fileID: 2100000, guid: b201351581f03874bb79f2354035e2c7, type: 2}
+  worldSideMaterial: {fileID: 2100000, guid: a096fef99b056c34cbafa205fec6b727, type: 2}
   buffToApply: {fileID: 11400000, guid: 91414c53e5db0e34582464a42d0c8450, type: 2}

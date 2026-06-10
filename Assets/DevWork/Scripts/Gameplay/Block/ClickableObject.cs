@@ -308,6 +308,9 @@ public class ClickableObject : MonoBehaviour, IDamageReceiver, IPointerHitContex
         if (!HasPointerHitWithinFrames(maxAgeFrames))
             return false;
 
+        if (TryGetCameraCenterTorqueWorldAxis(out worldAxis, maxAgeFrames))
+            return true;
+
         // Physical torque from a ray "push": tau = r x F
         // r: vector from center of mass to hit point, F: ray direction into scene.
         if (!hasLastPointerRayDirection || lastPointerRayDirection.sqrMagnitude <= 0.000001f)
@@ -320,6 +323,32 @@ public class ClickableObject : MonoBehaviour, IDamageReceiver, IPointerHitContex
             return false;
 
         Vector3 torqueWorld = Vector3.Cross(r, forceDir);
+        if (torqueWorld.sqrMagnitude <= 0.000001f)
+            return false;
+
+        worldAxis = torqueWorld.normalized;
+        return true;
+    }
+
+    bool TryGetCameraCenterTorqueWorldAxis(out Vector3 worldAxis, int maxAgeFrames)
+    {
+        worldAxis = Vector3.zero;
+
+        if (!TryGetPointerScreenDirectionFromCenter(out Vector2 screenDirection, out _, maxAgeFrames))
+            return false;
+
+        var cam = ResolveMainCamera();
+        if (cam == null)
+            return false;
+
+        Vector3 screenOffsetWorld =
+            cam.transform.right * screenDirection.x +
+            cam.transform.up * screenDirection.y;
+
+        if (screenOffsetWorld.sqrMagnitude <= 0.000001f)
+            return false;
+
+        Vector3 torqueWorld = Vector3.Cross(screenOffsetWorld.normalized, cam.transform.forward);
         if (torqueWorld.sqrMagnitude <= 0.000001f)
             return false;
 
@@ -443,12 +472,13 @@ public class ClickableObject : MonoBehaviour, IDamageReceiver, IPointerHitContex
     void HandleItemDrop()
     {
         string dropBlockName = blockName;
+        Vector3 dropOrigin = transform.position;
         float luck = StatsManager.Ins != null ? StatsManager.Ins.Get(StatType.Lucky) : 0f;
         var drops = blockUVDatabase.GetDropResultsByName(dropBlockName, luck);
-        StartCoroutine(HandleItemDrop_Co(dropBlockName, drops));
+        StartCoroutine(HandleItemDrop_Co(dropBlockName, dropOrigin, drops));
     }
 
-    IEnumerator HandleItemDrop_Co(string dropBlockName, List<ItemDropResult> drops)
+    IEnumerator HandleItemDrop_Co(string dropBlockName, Vector3 dropOrigin, List<ItemDropResult> drops)
     {
         if (drops == null || drops.Count == 0)
         {
@@ -484,15 +514,36 @@ public class ClickableObject : MonoBehaviour, IDamageReceiver, IPointerHitContex
             resolvedDrops.Add(new DropGrantEntry(item, requested));
         }
 
-        bool addedAny = DropGrantService.TryGrantDrops(
-            resolvedDrops,
-            out string dropSummary,
-            (grantedItem, added) =>
-            {
-                string itemId = Game.Discovery.BlockDiscoveryService.GetItemId(grantedItem);
-                Game.Discovery.BlockDiscoveryService.Ins?.DiscoverDrop(dropBlockName, itemId);
-            },
-            "[BlockDrop]");
+        void OnItemGranted(Item grantedItem, int added)
+        {
+            string itemId = Game.Discovery.BlockDiscoveryService.GetItemId(grantedItem);
+            Game.Discovery.BlockDiscoveryService.Ins?.DiscoverDrop(dropBlockName, itemId);
+        }
+
+        bool addedAny = false;
+        string dropSummary = string.Empty;
+
+        if (BlockDropCollectAnimator.Ins != null)
+        {
+            yield return BlockDropCollectAnimator.Ins.PlayThenGrantDrops_Co(
+                resolvedDrops,
+                dropOrigin,
+                OnItemGranted,
+                "[BlockDrop]",
+                (granted, summary) =>
+                {
+                    addedAny = granted;
+                    dropSummary = summary;
+                });
+        }
+        else
+        {
+            addedAny = DropGrantService.TryGrantDrops(
+                resolvedDrops,
+                out dropSummary,
+                OnItemGranted,
+                "[BlockDrop]");
+        }
 
         if (!addedAny)
         {
@@ -525,8 +576,7 @@ public class ClickableObject : MonoBehaviour, IDamageReceiver, IPointerHitContex
 
         if (animCtrl != null)
         {
-            animCtrl.PlaySpawn(playAnimation: false);
-            animCtrl.TryPlayIdle();
+            animCtrl.PlaySpawn(() => animCtrl.TryPlayIdle(), playAnimation: true);
         }
     }
 

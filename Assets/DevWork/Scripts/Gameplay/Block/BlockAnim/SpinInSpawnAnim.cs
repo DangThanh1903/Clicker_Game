@@ -28,6 +28,7 @@ public class SpinInSpawnAnim : BlockAnimationAsset
     {
         Stop(target);
         var t = target.transform;
+        Vector3 targetScale = t.localScale.sqrMagnitude > 0.0001f ? t.localScale : endScale;
 
         // Reset to a clean base
         t.localScale = Vector3.zero;
@@ -57,7 +58,7 @@ public class SpinInSpawnAnim : BlockAnimationAsset
         var seq = DOTween.Sequence().SetId(TweenIdFor(target)).SetLink(target);
 
         // Scale pop-in
-        seq.Join(t.DOScale(endScale, scaleDuration).SetEase(scaleEase));
+        seq.Join(t.DOScale(targetScale, scaleDuration).SetEase(scaleEase));
 
         // Rotation to zero (if not already)
         // For non-randomized spin feel, you can add Beyond360 using Euler if desired:

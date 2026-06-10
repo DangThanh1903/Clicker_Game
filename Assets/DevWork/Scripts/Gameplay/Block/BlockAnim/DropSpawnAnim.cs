@@ -29,10 +29,11 @@ public class DropSpawnAnim : BlockAnimationAsset
         Stop(target);
 
         var t = target.transform;
+        Vector3 targetScale = t.localScale.sqrMagnitude > 0.0001f ? t.localScale : endScale;
 
         // Reset pose
         t.localRotation = Quaternion.identity;
-        t.localScale    = endScale;
+        t.localScale    = targetScale;
 
         // End pos: keep X/Z from spawner, force Y = groundY
         Vector3 endPos  = new Vector3(t.position.x, groundY, t.position.z);
@@ -53,15 +54,15 @@ public class DropSpawnAnim : BlockAnimationAsset
 
         // SQUASH at impact
         seq.Insert(impactTime,
-            t.DOScale(new Vector3(endScale.x,
-                                  endScale.y * squashScaleY,
-                                  endScale.z),
+            t.DOScale(new Vector3(targetScale.x,
+                                  targetScale.y * squashScaleY,
+                                  targetScale.z),
                       squashDuration)
              .SetEase(Ease.OutQuad)
         );
 
         // SETTLE scale back
-        seq.Append(t.DOScale(endScale, settleTime).SetEase(settleEase));
+        seq.Append(t.DOScale(targetScale, settleTime).SetEase(settleEase));
 
         return seq;
     }

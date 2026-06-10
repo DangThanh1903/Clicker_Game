@@ -15,5 +15,8 @@ MonoBehaviour:
   itemName: StarDust
   description: Not anymore...
   icon: {fileID: 21300000, guid: 9edcb5d23de8f4e4ba8d8b6b2e242510, type: 3}
+  worldMesh: {fileID: 4300000, guid: 861cf85d3d7615446ab830cea8a71ff5, type: 2}
+  worldFrontMaterial: {fileID: 2100000, guid: a5bb4305ccd053845944241f35aa4225, type: 2}
+  worldSideMaterial: {fileID: 2100000, guid: a096fef99b056c34cbafa205fec6b727, type: 2}
   Location: 0
   rarity: 0

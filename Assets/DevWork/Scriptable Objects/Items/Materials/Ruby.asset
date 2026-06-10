@@ -15,3 +15,6 @@ MonoBehaviour:
   itemName: Ruby
   description: 
   icon: {fileID: 21300000, guid: fc51e0a095828ba4ea30dd29c8762ea7, type: 3}
+  worldMesh: {fileID: 4300000, guid: 43a6b6f3c7b72a246899f1cf1d1b5191, type: 2}
+  worldFrontMaterial: {fileID: 2100000, guid: a389051d7ab627344bef0a8cde3cda8e, type: 2}
+  worldSideMaterial: {fileID: 2100000, guid: a096fef99b056c34cbafa205fec6b727, type: 2}

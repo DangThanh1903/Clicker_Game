@@ -15,3 +15,6 @@ MonoBehaviour:
   itemName: TrueIceCube
   description: 
   icon: {fileID: 21300000, guid: 929dcff78b95c0c468bacc40e945b5e2, type: 3}
+  worldMesh: {fileID: 4300000, guid: 425a73a44bc98274a926d6db7da32a18, type: 2}
+  worldFrontMaterial: {fileID: 2100000, guid: 96d15cf54d75bf64ab31965f1ea8cada, type: 2}
+  worldSideMaterial: {fileID: 2100000, guid: a096fef99b056c34cbafa205fec6b727, type: 2}

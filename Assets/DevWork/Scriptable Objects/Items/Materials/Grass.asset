@@ -15,5 +15,8 @@ MonoBehaviour:
   itemName: Grass
   description: yummy
   icon: {fileID: 21300000, guid: 494b5fe6487390a4c8d1ae2c33a4611d, type: 3}
+  worldMesh: {fileID: 4300000, guid: 55ebc05a2d2bb654c8f9741fc033ae60, type: 2}
+  worldFrontMaterial: {fileID: 2100000, guid: 244a9788ced525641969dff1fb8215db, type: 2}
+  worldSideMaterial: {fileID: 2100000, guid: a096fef99b056c34cbafa205fec6b727, type: 2}
   Location: 0
   rarity: 0

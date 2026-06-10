@@ -4,7 +4,6 @@ using TMPro;
 using UnityEngine;
 using Lean.Pool;
 
-// NEW: Localization + Addressables
 using UnityEngine.Localization;
 using UnityEngine.AddressableAssets;
 using UnityEngine.ResourceManagement.AsyncOperations;
@@ -72,13 +71,20 @@ public class GameDebugHandler : MonoBehaviour
     }
 
     /// <summary>
-    /// Create a LocalizedString on the fly using table & key, then log.
-    /// </summary>
     public void LogKey(string tableName, string entryKey, params object[] args)
     {
         if (string.IsNullOrEmpty(tableName) || string.IsNullOrEmpty(entryKey)) return;
-        var loc = new LocalizedString(tableName, entryKey);
-        Log(loc, args);
+
+        string text = LocalizedTextUtility.GetLocalizedString($"{tableName}/{entryKey}", null);
+        if (text == null)
+            text = LocalizedTextUtility.GetLocalizedString($"{tableName}.{entryKey}", null);
+        if (text == null)
+            text = LocalizedTextUtility.GetLocalizedString(entryKey, entryKey);
+
+        text = ApplyFormatArgs(text, args);
+
+        if (!string.IsNullOrEmpty(text))
+            Log(text);
     }
 
     IEnumerator ResolveAndLog_Co(LocalizedString loc, object[] args)
@@ -177,6 +183,37 @@ public class GameDebugHandler : MonoBehaviour
             var peek = rows.Peek();
             if (peek == null || !peek.activeInHierarchy) rows.Dequeue();
             else break;
+        }
+    }
+
+    private static string ApplyFormatArgs(string text, object[] args)
+    {
+        if (string.IsNullOrEmpty(text) || args == null || args.Length == 0)
+            return text;
+
+        foreach (object arg in args)
+        {
+            if (arg == null)
+                continue;
+
+            foreach (var property in arg.GetType().GetProperties())
+            {
+                if (property.GetIndexParameters().Length > 0)
+                    continue;
+
+                string value = property.GetValue(arg, null)?.ToString() ?? string.Empty;
+                text = text.Replace("{" + property.Name + "}", value);
+                text = text.Replace("{" + char.ToLowerInvariant(property.Name[0]) + property.Name.Substring(1) + "}", value);
+            }
+        }
+
+        try
+        {
+            return string.Format(text, args);
+        }
+        catch (System.FormatException)
+        {
+            return text;
         }
     }
 }

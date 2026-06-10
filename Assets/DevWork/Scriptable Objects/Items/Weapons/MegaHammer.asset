@@ -15,6 +15,9 @@ MonoBehaviour:
   itemName: MegaHammer
   description: MegaHammer
   icon: {fileID: 21300000, guid: 3794a7b7395883c4fa75486a701ad944, type: 3}
+  worldMesh: {fileID: 4300000, guid: 0c60f88ed8420dc439fcd4d5e1354236, type: 2}
+  worldFrontMaterial: {fileID: 2100000, guid: eab690031577d5842bca2d7d3d4f4338, type: 2}
+  worldSideMaterial: {fileID: 2100000, guid: a096fef99b056c34cbafa205fec6b727, type: 2}
   rarity: 2
   modifiers:
   - statType: 3

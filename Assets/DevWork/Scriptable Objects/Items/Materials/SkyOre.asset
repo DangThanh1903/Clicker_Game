@@ -15,3 +15,6 @@ MonoBehaviour:
   itemName: SkyOre
   description: 
   icon: {fileID: 21300000, guid: 85ef83c92962ff3408a2e7e08ecb6a09, type: 3}
+  worldMesh: {fileID: 4300000, guid: c51e78ec02cd3b5438e9d9015fc09bd2, type: 2}
+  worldFrontMaterial: {fileID: 2100000, guid: 72af374fc7c789244983d22b11d97f30, type: 2}
+  worldSideMaterial: {fileID: 2100000, guid: a096fef99b056c34cbafa205fec6b727, type: 2}

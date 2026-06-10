@@ -4,7 +4,6 @@ using UnityEngine;
 using System;
 using Sirenix.OdinInspector;
 using System.Linq;
-using UnityEngine.Localization;
 using Lean.Pool;
 
 public class WeatherManager : MonoBehaviour
@@ -53,21 +52,12 @@ public class WeatherManager : MonoBehaviour
         if (nextWeather.effectPrefab != null)
             currentWeaterEffect = LeanPool.Spawn(nextWeather.effectPrefab, weatherPos, Quaternion.Euler(-90, 0, 0));
 
-        // get enum value
         NormalWeatherName enumName = (nextWeather as NormalWeatherData)?.weatherName ?? NormalWeatherName.Any;
 
         if (!(enumName == NormalWeatherName.Any || enumName == NormalWeatherName.Normal))
         {
-            // build a LocalizedString from the enum
-            var locName = enumName.ToLocalized(); // e.g. ("Enums", "normalweathername_rain")
-
-            // resolve it and feed into your Smart String log
-            var handle = locName.GetLocalizedStringAsync();
-            handle.Completed += h =>
-            {
-                GameDebugHandler.LogStaticKey("UI_Debug", "weather_set", new { name = h.Result });
-                UnityEngine.AddressableAssets.Addressables.Release(h);
-            };
+            string weatherName = enumName.ToLocalizedText();
+            GameDebugHandler.LogStaticKey("UI_Debug", "weather_set", new { name = weatherName });
         }
 
         normalWeatherTimer?.Dispose();

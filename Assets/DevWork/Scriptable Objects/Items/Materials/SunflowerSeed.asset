@@ -15,5 +15,8 @@ MonoBehaviour:
   itemName: SunflowerSeed
   description: Can we eat this?
   icon: {fileID: 21300000, guid: 3773a8c14e1cd3b4c982f0fa3282312b, type: 3}
+  worldMesh: {fileID: 4300000, guid: 69d491ac10691c14fb4b99987be6f0a2, type: 2}
+  worldFrontMaterial: {fileID: 2100000, guid: 7d4424c33fc79994a9f3e0565659626b, type: 2}
+  worldSideMaterial: {fileID: 2100000, guid: a096fef99b056c34cbafa205fec6b727, type: 2}
   Location: 0
   rarity: 0

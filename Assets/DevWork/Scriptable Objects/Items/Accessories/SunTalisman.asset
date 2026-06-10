@@ -15,6 +15,9 @@ MonoBehaviour:
   itemName: SunTalisman
   description: SunTalisman
   icon: {fileID: 21300000, guid: 8d5e2bfa73a606d449d44350f3b0d313, type: 3}
+  worldMesh: {fileID: 4300000, guid: 2fec83439c24094429522a1bfd6b03ac, type: 2}
+  worldFrontMaterial: {fileID: 2100000, guid: cb97bd6ffedb2304eb43c1497c0f9925, type: 2}
+  worldSideMaterial: {fileID: 2100000, guid: a096fef99b056c34cbafa205fec6b727, type: 2}
   modifiers:
   - statType: 4
     value: 2

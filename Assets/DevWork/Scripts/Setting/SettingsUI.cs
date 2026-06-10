@@ -1,11 +1,8 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using TMPro;
 using UnityEngine;
-using UnityEngine.Localization;
-using UnityEngine.Localization.Settings;
 using UnityEngine.UI;
 
 public class SettingsUI : MonoBehaviour
@@ -14,6 +11,7 @@ public class SettingsUI : MonoBehaviour
 
     [SerializeField] private Slider sfxSlider;
     [SerializeField] private TMP_Dropdown languageDropdown;
+    [SerializeField] private LocalizationManager localizationManager;
     [SerializeField] private LocaleSwitcher localeSwitcher;
     [SerializeField] private Toggle fpsToggle;
     [SerializeField] private Toggle cameraShakeToggle;
@@ -27,7 +25,7 @@ public class SettingsUI : MonoBehaviour
 
     private const string MusicVolumeKey = "MusicVolume";
     private const string ShowFpsKey = "ShowFPS";
-    private readonly List<Locale> supportedLocales = new List<Locale>();
+    private readonly List<GameLanguage> supportedLanguages = new List<GameLanguage>();
     private bool ignoreLanguageChange;
     private bool ignoreFpsChange;
     private bool ignoreCameraShakeChange;
@@ -65,7 +63,10 @@ public class SettingsUI : MonoBehaviour
         }
 
         if (languageDropdown != null)
-            StartCoroutine(SetupLanguageDropdown());
+            SetupLanguageDropdown();
+
+        if (localizationManager != null)
+            localizationManager.LanguageChanged += OnLocalizationLanguageChanged;
 
         if (fpsToggle != null)
             SetupFpsToggle();
@@ -86,6 +87,9 @@ public class SettingsUI : MonoBehaviour
 
         if (languageDropdown != null)
             languageDropdown.onValueChanged.RemoveListener(OnLanguageDropdownChanged);
+
+        if (localizationManager != null)
+            localizationManager.LanguageChanged -= OnLocalizationLanguageChanged;
 
         if (fpsToggle != null)
             fpsToggle.onValueChanged.RemoveListener(OnFpsToggleChanged);
@@ -123,36 +127,35 @@ public class SettingsUI : MonoBehaviour
         }
     }
 
-    IEnumerator SetupLanguageDropdown()
+    void SetupLanguageDropdown()
     {
-        var init = LocalizationSettings.InitializationOperation;
-        if (!init.IsDone)
-            yield return init;
+        if (localizationManager == null)
+            localizationManager = LocalizationManager.Ins;
 
-        if (localeSwitcher == null)
+        if (localizationManager == null && localeSwitcher != null)
+            localizationManager = LocalizationManager.GetOrCreateInstance();
+
+        if (localizationManager == null)
         {
-            Debug.LogWarning("[SettingsUI] LocaleSwitcher is not assigned. Language switching is disabled.", this);
+            Debug.LogWarning("[SettingsUI] LocalizationManager is not assigned. Language switching is disabled.", this);
             languageDropdown.interactable = false;
-            yield break;
+            return;
         }
 
-        supportedLocales.Clear();
-        foreach (var loc in LocalizationSettings.AvailableLocales.Locales)
-        {
-            if (IsSupportedLocale(loc))
-                supportedLocales.Add(loc);
-        }
+        supportedLanguages.Clear();
+        foreach (var language in localizationManager.GetSupportedLanguages())
+            supportedLanguages.Add(language);
 
-        if (supportedLocales.Count == 0)
+        if (supportedLanguages.Count == 0)
         {
-            Debug.LogWarning("[SettingsUI] No supported locales found for language dropdown.");
-            yield break;
+            Debug.LogWarning("[SettingsUI] No supported languages found for language dropdown.");
+            return;
         }
 
         languageDropdown.ClearOptions();
         var options = new List<TMP_Dropdown.OptionData>();
-        foreach (var loc in supportedLocales)
-            options.Add(new TMP_Dropdown.OptionData(loc.LocaleName));
+        foreach (var language in supportedLanguages)
+            options.Add(new TMP_Dropdown.OptionData(localizationManager.GetDisplayName(language)));
         languageDropdown.AddOptions(options);
 
         int selectedIndex = GetSelectedLocaleIndex();
@@ -163,22 +166,10 @@ public class SettingsUI : MonoBehaviour
         languageDropdown.onValueChanged.AddListener(OnLanguageDropdownChanged);
     }
 
-    bool IsSupportedLocale(Locale loc)
-    {
-        if (loc == null) return false;
-        string code = loc.Identifier.Code?.ToLowerInvariant();
-        if (string.IsNullOrEmpty(code)) return false;
-        return code.StartsWith("en") || code.StartsWith("vi");
-    }
-
     int GetSelectedLocaleIndex()
     {
-        var current = LocalizationSettings.SelectedLocale;
-        if (current != null)
-        {
-            int idx = supportedLocales.IndexOf(current);
-            if (idx >= 0) return idx;
-        }
+        if (localizationManager != null)
+            return Mathf.Max(0, supportedLanguages.IndexOf(localizationManager.CurrentLanguage));
 
         return 0;
     }
@@ -186,9 +177,27 @@ public class SettingsUI : MonoBehaviour
     void OnLanguageDropdownChanged(int index)
     {
         if (ignoreLanguageChange) return;
-        if (index < 0 || index >= supportedLocales.Count) return;
-        var loc = supportedLocales[index];
-        localeSwitcher?.SetLocaleByCode(loc.Identifier.Code);
+        if (index < 0 || index >= supportedLanguages.Count) return;
+
+        var language = supportedLanguages[index];
+        if (localizationManager != null)
+            localizationManager.SetLanguage(language);
+        else
+            localeSwitcher?.SetLocaleByCode(LocalizationLanguageUtility.GetDefaultCultureCode(language));
+    }
+
+    void OnLocalizationLanguageChanged(GameLanguage language)
+    {
+        if (languageDropdown == null || supportedLanguages.Count == 0)
+            return;
+
+        int index = supportedLanguages.IndexOf(language);
+        if (index < 0)
+            return;
+
+        ignoreLanguageChange = true;
+        languageDropdown.SetValueWithoutNotify(index);
+        ignoreLanguageChange = false;
     }
 
     void SetupFpsToggle()

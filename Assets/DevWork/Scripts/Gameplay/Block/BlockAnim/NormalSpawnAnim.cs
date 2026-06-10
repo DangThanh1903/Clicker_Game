@@ -17,13 +17,14 @@ public class NormalSpawnAnim : BlockAnimationAsset
     {
         Stop(target);
         var t = target.transform;
+        Vector3 targetScale = t.localScale.sqrMagnitude > 0.0001f ? t.localScale : endScale;
 
         // Reset scale & rotation first
         t.localScale = Vector3.zero;
         t.localRotation = Quaternion.identity;
 
         // Animate scale in
-        return t.DOScale(endScale, duration)
+        return t.DOScale(targetScale, duration)
                 .SetEase(ease)
                 .SetId(TweenIdFor(target))
                 .SetLink(target);

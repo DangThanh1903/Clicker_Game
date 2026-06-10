@@ -26,6 +26,11 @@ public class Toast : MonoBehaviour
     private bool useRainbowRuntime;
     private RectTransform iconRt;
     private Vector2 iconBaseSize;
+    private Vector2 iconBaseAnchorMin;
+    private Vector2 iconBaseAnchorMax;
+    private Vector2 iconBasePivot;
+    private Vector2 iconBaseAnchoredPosition;
+    private bool messageTextBaseEnabled = true;
 
     [Header("Rainbow Text")]
     [SerializeField] private bool useRainbowText = false;
@@ -37,42 +42,38 @@ public class Toast : MonoBehaviour
 
     [Header("Icon Size")]
     [SerializeField] [Range(0.1f, 1f)] private float iconScaleWithSprite = 0.7f;
+    [SerializeField] [Range(0.3f, 4f)] private float pickupIconScale = 2.6f;
 
     void Awake()
     {
         cg = GetComponent<CanvasGroup>();
         rt = GetComponent<RectTransform>();
-        if (messageText != null) baseTextColor = messageText.color;
+        if (messageText != null)
+        {
+            baseTextColor = messageText.color;
+            messageTextBaseEnabled = messageText.enabled;
+        }
         if (icon != null)
         {
             iconRt = icon.rectTransform;
             iconBaseSize = iconRt.sizeDelta;
+            iconBaseAnchorMin = iconRt.anchorMin;
+            iconBaseAnchorMax = iconRt.anchorMax;
+            iconBasePivot = iconRt.pivot;
+            iconBaseAnchoredPosition = iconRt.anchoredPosition;
         }
     }
 
     void OnDisable()
     {
         currentTween?.Kill();
-        if (messageText != null) messageText.color = baseTextColor;
+        RestoreNormalLayout();
         useRainbowRuntime = false;
     }
 
     public void Play(string msg, Sprite sprite = null, float? durationOverride = null, bool? rainbowOverride = null)
     {
-        // text + icon
-        if (messageText) messageText.text = msg;
-        if (icon)
-        {
-            icon.enabled = sprite != null;
-            icon.sprite = sprite;
-            if (iconRt != null)
-                iconRt.sizeDelta = sprite != null ? iconBaseSize * iconScaleWithSprite : iconBaseSize;
-        }
-
-        useRainbowRuntime = rainbowOverride ?? useRainbowText;
-        if (messageText != null && !useRainbowRuntime)
-            messageText.color = baseTextColor;
-        nextRainbowUpdateAt = 0f;
+        ApplyContent(msg, sprite, rainbowOverride);
 
         // reset starting state
         currentTween?.Kill();
@@ -95,6 +96,99 @@ public class Toast : MonoBehaviour
                 // return to pool
                 LeanPool.Despawn(gameObject);
             });
+    }
+
+    public void PlayPickupIcon(Sprite sprite, float duration = 1f, float riseDistance = 90f)
+    {
+        ApplyIconOnlyContent(sprite);
+        PlayPickupTween(duration, riseDistance);
+    }
+
+    private void PlayPickupTween(float duration, float riseDistance)
+    {
+        if (rt == null || cg == null)
+            return;
+
+        currentTween?.Kill();
+        cg.alpha = 0f;
+
+        Vector2 startPos = rt.anchoredPosition;
+        float safeDuration = Mathf.Max(0.15f, duration);
+        float safeRiseDistance = Mathf.Max(0f, riseDistance);
+        float fadeInDuration = Mathf.Min(0.06f, safeDuration * 0.15f);
+        float fadeOutDuration = Mathf.Max(0.05f, safeDuration - fadeInDuration);
+
+        currentTween = DOTween.Sequence()
+            .Append(cg.DOFade(1f, fadeInDuration).SetEase(inEase))
+            .Append(cg.DOFade(0f, fadeOutDuration).SetEase(Ease.InQuad))
+            .Join(rt.DOAnchorPos(startPos + new Vector2(0f, safeRiseDistance), safeDuration).SetEase(Ease.OutCubic))
+            .OnComplete(() =>
+            {
+                LeanPool.Despawn(gameObject);
+            });
+    }
+
+    private void ApplyContent(string msg, Sprite sprite, bool? rainbowOverride)
+    {
+        RestoreNormalLayout();
+
+        if (messageText) messageText.text = msg;
+        if (icon)
+        {
+            icon.enabled = sprite != null;
+            icon.sprite = sprite;
+            if (iconRt != null)
+                iconRt.sizeDelta = sprite != null ? iconBaseSize * iconScaleWithSprite : iconBaseSize;
+        }
+
+        useRainbowRuntime = rainbowOverride ?? useRainbowText;
+        if (messageText != null && !useRainbowRuntime)
+            messageText.color = baseTextColor;
+        nextRainbowUpdateAt = 0f;
+    }
+
+    private void ApplyIconOnlyContent(Sprite sprite)
+    {
+        RestoreNormalLayout();
+
+        if (messageText != null)
+            messageText.enabled = false;
+
+        if (icon != null)
+        {
+            icon.enabled = sprite != null;
+            icon.sprite = sprite;
+
+            if (iconRt != null)
+            {
+                iconRt.anchorMin = new Vector2(0.5f, 0.5f);
+                iconRt.anchorMax = new Vector2(0.5f, 0.5f);
+                iconRt.pivot = new Vector2(0.5f, 0.5f);
+                iconRt.anchoredPosition = Vector2.zero;
+                iconRt.sizeDelta = iconBaseSize * pickupIconScale;
+            }
+        }
+
+        useRainbowRuntime = false;
+        nextRainbowUpdateAt = 0f;
+    }
+
+    private void RestoreNormalLayout()
+    {
+        if (messageText != null)
+        {
+            messageText.enabled = messageTextBaseEnabled;
+            messageText.color = baseTextColor;
+        }
+
+        if (iconRt != null)
+        {
+            iconRt.anchorMin = iconBaseAnchorMin;
+            iconRt.anchorMax = iconBaseAnchorMax;
+            iconRt.pivot = iconBasePivot;
+            iconRt.anchoredPosition = iconBaseAnchoredPosition;
+            iconRt.sizeDelta = iconBaseSize;
+        }
     }
 
     void Update()

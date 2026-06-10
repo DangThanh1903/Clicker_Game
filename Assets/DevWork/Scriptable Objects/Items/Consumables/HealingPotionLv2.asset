@@ -15,4 +15,7 @@ MonoBehaviour:
   itemName: HealingPotionLv2
   description: 
   icon: {fileID: 21300000, guid: 65a2be2fc9333c94d9f87280aa266aa2, type: 3}
+  worldMesh: {fileID: 4300000, guid: 63722067e86e2a948a1bfbdaecc82ee9, type: 2}
+  worldFrontMaterial: {fileID: 2100000, guid: 531e16d5afb518f40afc5224165563d4, type: 2}
+  worldSideMaterial: {fileID: 2100000, guid: a096fef99b056c34cbafa205fec6b727, type: 2}
   buffToApply: {fileID: 11400000, guid: ae642414dcfcdfc49818fa8a92e6ac70, type: 2}

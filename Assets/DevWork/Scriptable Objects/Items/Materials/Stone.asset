@@ -15,3 +15,6 @@ MonoBehaviour:
   itemName: Stone
   description: 
   icon: {fileID: 21300000, guid: fab5b41d71b35f647929bf2ee7a0cdfd, type: 3}
+  worldMesh: {fileID: 4300000, guid: 5f01b54e00e4b38478eb66f656c173b9, type: 2}
+  worldFrontMaterial: {fileID: 2100000, guid: 320538612f6a4a74da1249a2fb3cd9a8, type: 2}
+  worldSideMaterial: {fileID: 2100000, guid: a096fef99b056c34cbafa205fec6b727, type: 2}

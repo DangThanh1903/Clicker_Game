@@ -15,6 +15,9 @@ MonoBehaviour:
   itemName: StarWand
   description: StarWand
   icon: {fileID: 21300000, guid: 7af662603de22de469a4737d2f467a86, type: 3}
+  worldMesh: {fileID: 4300000, guid: 9aa7bb02ea24e5046beaec154ca00acd, type: 2}
+  worldFrontMaterial: {fileID: 2100000, guid: 0acaed4da388e224083b1a9a46f479a0, type: 2}
+  worldSideMaterial: {fileID: 2100000, guid: a096fef99b056c34cbafa205fec6b727, type: 2}
   rarity: 0
   modifiers:
   - statType: 4

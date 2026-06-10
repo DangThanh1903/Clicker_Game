@@ -1,18 +1,18 @@
 using System;
-using UnityEngine.Localization;
 
 public static class EnumLocalization
 {
-    /// <summary>
-    /// Convert any enum value to a LocalizedString, 
-    /// using pattern: {tableName}/{enumType}_{enumValue}
-    /// Example: WeatherType.Rain -> "Enums", key "weather_rain"
-    /// </summary>
-    public static LocalizedString ToLocalized<TEnum>(this TEnum value, string tableName = "Enums")
+    public static string ToLocalizationKey<TEnum>(this TEnum value, string keyPrefix = "Enums")
         where TEnum : Enum
     {
-        string enumType = typeof(TEnum).Name.ToLower();  // "weathertype" -> maybe shorten if you want
+        string enumType = typeof(TEnum).Name.ToLower();
         string key = $"{enumType}_{value.ToString().ToLower()}";
-        return new LocalizedString(tableName, key);
+        return string.IsNullOrWhiteSpace(keyPrefix) ? key : $"{keyPrefix}/{key}";
+    }
+
+    public static string ToLocalizedText<TEnum>(this TEnum value, string keyPrefix = "Enums")
+        where TEnum : Enum
+    {
+        return LocalizedTextUtility.GetLocalizedString(value.ToLocalizationKey(keyPrefix), value.ToString());
     }
 }

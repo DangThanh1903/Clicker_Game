@@ -15,3 +15,6 @@ MonoBehaviour:
   itemName: SnowBall
   description: 
   icon: {fileID: 21300000, guid: c58bbc4eefc53af4e924e2b7639ade71, type: 3}
+  worldMesh: {fileID: 4300000, guid: fa0a0e81a1039924ead00a6b95487e83, type: 2}
+  worldFrontMaterial: {fileID: 2100000, guid: 0c93ccce7e982e548b9d4986cf720305, type: 2}
+  worldSideMaterial: {fileID: 2100000, guid: a096fef99b056c34cbafa205fec6b727, type: 2}

@@ -15,6 +15,9 @@ MonoBehaviour:
   itemName: BarkBracelet
   description: BarkBracelet
   icon: {fileID: 21300000, guid: d90f291f0c6e12c458ae09e7886cfba2, type: 3}
+  worldMesh: {fileID: 4300000, guid: 6eef8767a069817448553dda16400e2e, type: 2}
+  worldFrontMaterial: {fileID: 2100000, guid: a39fc21bedb6ddd4489a3706b42ffd1a, type: 2}
+  worldSideMaterial: {fileID: 2100000, guid: a096fef99b056c34cbafa205fec6b727, type: 2}
   modifiers:
   - statType: 12
     value: 10

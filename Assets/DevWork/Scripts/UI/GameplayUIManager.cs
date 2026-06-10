@@ -10,6 +10,7 @@ public class GameplayUIManager : MonoBehaviour
     [SerializeField] private TMP_Text clickPerTickUI;
     [SerializeField] private TMP_Text diamondUI;
     [SerializeField] private TMP_Text blockNameUI;
+    [SerializeField] private TMP_Text blockHealthUI;
     [SerializeField] private TMP_Text runTimerUI;
     [SerializeField] private Image HpUI;
     [SerializeField] private Image ManaUI;
@@ -29,13 +30,18 @@ public class GameplayUIManager : MonoBehaviour
 
     private string lastShownBlockName = string.Empty;
     private readonly CompositeDisposable blockNameObserverDisposables = new CompositeDisposable();
+    private readonly CompositeDisposable blockHealthObserverDisposables = new CompositeDisposable();
 
     void OnEnable()
     {
         if (StatsManager.Ins != null)
             StatsManager.Ins.OnStatsRecalculated += RefreshBars;
 
+        if (BlockManager.Ins != null)
+            BlockManager.Ins.CurrentBlockChanged += OnCurrentBlockChanged;
+
         BindBlockNameObserver();
+        BindBlockHealthObserver();
         RefreshBars();
         RefreshBlockName();
     }
@@ -45,7 +51,11 @@ public class GameplayUIManager : MonoBehaviour
         if (StatsManager.Ins != null)
             StatsManager.Ins.OnStatsRecalculated -= RefreshBars;
 
+        if (BlockManager.Ins != null)
+            BlockManager.Ins.CurrentBlockChanged -= OnCurrentBlockChanged;
+
         blockNameObserverDisposables.Clear();
+        blockHealthObserverDisposables.Clear();
     }
 
     void Start()
@@ -54,6 +64,7 @@ public class GameplayUIManager : MonoBehaviour
         ApplyResourceModeVisual(ResolveResourceMode());
         RefreshBars();
         RefreshBlockName();
+        BindBlockHealthObserver();
     }
 
     void AddReactToUI()
@@ -276,6 +287,61 @@ public class GameplayUIManager : MonoBehaviour
 
         lastShownBlockName = safeName;
         blockNameUI.SetText(safeName);
+    }
+
+    private void OnCurrentBlockChanged(string _)
+    {
+        BindBlockHealthObserver();
+    }
+
+    private void BindBlockHealthObserver()
+    {
+        blockHealthObserverDisposables.Clear();
+
+        if (blockHealthUI == null)
+            return;
+
+        if (!TryGetVisibleBlock(out ClickableObject block) || block.CurrentHealth == null)
+        {
+            HideBlockHealthText();
+            return;
+        }
+
+        blockHealthUI.gameObject.SetActive(true);
+        block.CurrentHealth
+            .DistinctUntilChanged()
+            .Subscribe(currentHealth => SetBlockHealthText(currentHealth, block.MaxHealth))
+            .AddTo(blockHealthObserverDisposables);
+    }
+
+    private bool TryGetVisibleBlock(out ClickableObject block)
+    {
+        block = null;
+
+        if (BlockManager.Ins == null)
+            return false;
+
+        if (BlockManager.Ins.MonsterSpawner != null && BlockManager.Ins.MonsterSpawner.HasActiveEncounter)
+            return false;
+
+        block = BlockManager.Ins.CurrentBlock;
+        return block != null && block.gameObject.activeInHierarchy && block.MaxHealth > 0f;
+    }
+
+    private void SetBlockHealthText(float currentHealth, float maxHealth)
+    {
+        if (blockHealthUI == null)
+            return;
+
+        int shownCurrent = Mathf.CeilToInt(Mathf.Clamp(currentHealth, 0f, maxHealth));
+        int shownMax = Mathf.CeilToInt(Mathf.Max(0f, maxHealth));
+        blockHealthUI.SetText("{0} / {1}", shownCurrent, shownMax);
+    }
+
+    private void HideBlockHealthText()
+    {
+        if (blockHealthUI != null && blockHealthUI.gameObject.activeSelf)
+            blockHealthUI.gameObject.SetActive(false);
     }
 
 }

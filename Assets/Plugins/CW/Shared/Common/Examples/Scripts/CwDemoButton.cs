@@ -191,10 +191,19 @@ namespace CW.Common
 
 			if (index >= 0)
 			{
-				if (UnityEngine.SceneManagement.SceneManager.GetSceneByBuildIndex(index).handle != scene.handle)
-				{
-					return -1;
-				}
+				#if UNITY_EDITOR
+					var scenes = UnityEditor.EditorBuildSettings.scenes;
+					
+					if (scenes.Length >= index || scenes[index].path != scene.path)
+					{
+						return -1;
+					}
+				#else
+					if (UnityEngine.SceneManagement.SceneManager.GetSceneByBuildIndex(index).handle != scene.handle)
+					{
+						return -1;
+					}
+				#endif
 			}
 
 			return index;
@@ -202,7 +211,11 @@ namespace CW.Common
 
 		private static int GetLevelCount()
 		{
-			return UnityEngine.SceneManagement.SceneManager.sceneCountInBuildSettings;
+			#if UNITY_EDITOR
+				return UnityEditor.EditorBuildSettings.scenes.Length;
+			#else
+				return UnityEngine.SceneManagement.SceneManager.sceneCountInBuildSettings;
+			#endif
 		}
 
 		private static void LoadLevel(int index)

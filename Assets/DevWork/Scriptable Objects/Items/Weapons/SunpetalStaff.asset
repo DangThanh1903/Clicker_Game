@@ -15,6 +15,9 @@ MonoBehaviour:
   itemName: SunpetalStaff
   description: 
   icon: {fileID: 21300000, guid: 8b0acac8cc9d9954f92ffe010522ea9a, type: 3}
+  worldMesh: {fileID: 4300000, guid: 5a7e943b78bd61e4fab7216947b16cd6, type: 2}
+  worldFrontMaterial: {fileID: 2100000, guid: 0922f203aa657e54bbf7ca4ac21c79e8, type: 2}
+  worldSideMaterial: {fileID: 2100000, guid: a096fef99b056c34cbafa205fec6b727, type: 2}
   rarity: 5
   modifiers:
   - statType: 4

@@ -83,7 +83,12 @@ namespace CW.Common
 
 					if (cachedLightData != null)
 					{
-						cachedLightData.SetIntensity(intensity * multiplier, UnityEngine.Rendering.HighDefinition.LightUnit.Lux);
+						#if UNITY_6000_0_OR_NEWER
+							cachedLight.lightUnit = UnityEngine.Rendering.LightUnit.Lux;
+							cachedLight.intensity = intensity * multiplier;
+						#else
+							cachedLightData.SetIntensity(intensity * multiplier, UnityEngine.Rendering.HighDefinition.LightUnit.Lux);
+						#endif
 					}
 				#else
 					cachedLight.intensity = intensity * multiplier;

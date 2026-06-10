@@ -16,8 +16,6 @@ public class NormalClickAnim : BlockAnimationAsset
     [Header("Random Rotation")]
     public bool enableRandomRotation = true;
     public Vector3 randomRotationDegrees = new(8f, 12f, 12f);
-    public Ease rotateOutEase = Ease.OutQuad;
-    public Ease rotateBackEase = Ease.OutBack;
 
     [Header("Pointer Hit Momentum")]
     public bool rotateByMouseDirection = true;

@@ -15,3 +15,6 @@ MonoBehaviour:
   itemName: Cherry
   description: 
   icon: {fileID: 21300000, guid: 7f3e8dfbeaa578f4c9441f2f50ccc24b, type: 3}
+  worldMesh: {fileID: 4300000, guid: 5acf168cf40e1254997582a075526336, type: 2}
+  worldFrontMaterial: {fileID: 2100000, guid: 0c3085b3c6d503945bb383cb5a31e433, type: 2}
+  worldSideMaterial: {fileID: 2100000, guid: a096fef99b056c34cbafa205fec6b727, type: 2}

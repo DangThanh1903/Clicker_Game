@@ -15,4 +15,7 @@ MonoBehaviour:
   itemName: NatureEssence
   description: 
   icon: {fileID: 21300000, guid: 33da19019cf6a9f47b8af511e3d81853, type: 3}
+  worldMesh: {fileID: 4300000, guid: e1414079ac47e034ab37b073d85d9c8a, type: 2}
+  worldFrontMaterial: {fileID: 2100000, guid: c175b5e02ea39744e815d004a47b1f61, type: 2}
+  worldSideMaterial: {fileID: 2100000, guid: a096fef99b056c34cbafa205fec6b727, type: 2}
   rarity: 0

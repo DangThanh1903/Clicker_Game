@@ -99,9 +99,7 @@ public static class DropGrantService
             hasGrantedAny = true;
             QuestSignals.CollectItem(item.itemName, added);
 
-            Vector2 pos = Toaster.GetRandomAnchoredPosition();
-            bool rainbow = item.rarity == Rarity.Exclusive;
-            Toaster.Show($"x{added}", item.icon, 1.6f, pos, rainbow);
+            Toaster.ShowPickupItems(item.icon, added);
             BiomeProgressionService.NotifyItemEarned(item, added);
 
             if (summaryBuilder.Length > 0)

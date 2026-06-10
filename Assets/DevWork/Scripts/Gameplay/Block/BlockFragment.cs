@@ -37,7 +37,7 @@ public class BlockFragment : MonoBehaviour
 
     [Header("Render Optimization")]
     [SerializeField] bool optimizeRendererSettings = true;
-    [SerializeField] ShadowCastingMode shadowCastingMode = ShadowCastingMode.Off;
+    [SerializeField] ShadowCastingMode shadowCastingMode = ShadowCastingMode.On;
     [SerializeField] bool receiveShadows = false;
     [SerializeField] LightProbeUsage lightProbeUsage = LightProbeUsage.Off;
     [SerializeField] ReflectionProbeUsage reflectionProbeUsage = ReflectionProbeUsage.Off;

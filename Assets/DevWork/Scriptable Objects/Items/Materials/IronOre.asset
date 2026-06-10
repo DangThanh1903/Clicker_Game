@@ -15,3 +15,6 @@ MonoBehaviour:
   itemName: IronOre
   description: 
   icon: {fileID: 21300000, guid: fd4bcd473c13b324784dbc6c7bac309c, type: 3}
+  worldMesh: {fileID: 4300000, guid: 4ad80cbc37937d04aadf95da1b828740, type: 2}
+  worldFrontMaterial: {fileID: 2100000, guid: e8ad2c345cfcf1a46ba4150a2b7ad973, type: 2}
+  worldSideMaterial: {fileID: 2100000, guid: a096fef99b056c34cbafa205fec6b727, type: 2}

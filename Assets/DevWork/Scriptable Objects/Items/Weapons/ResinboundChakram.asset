@@ -15,6 +15,9 @@ MonoBehaviour:
   itemName: ResinboundChakram
   description: 
   icon: {fileID: 21300000, guid: c3b9e2ace7716b445bd315c07a20fb04, type: 3}
+  worldMesh: {fileID: 4300000, guid: 325650f55c64db646bf6ce2a56464d5b, type: 2}
+  worldFrontMaterial: {fileID: 2100000, guid: 68c6f415b5deb434f9b5918b6963e978, type: 2}
+  worldSideMaterial: {fileID: 2100000, guid: a096fef99b056c34cbafa205fec6b727, type: 2}
   rarity: 5
   modifiers: []
   currentState: 0
