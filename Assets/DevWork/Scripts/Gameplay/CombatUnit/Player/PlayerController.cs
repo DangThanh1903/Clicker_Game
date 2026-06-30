@@ -3,6 +3,7 @@ using UnityEngine.EventSystems;
 
 public class PlayerController : MonoBehaviour, ICombatResourceReadModel, ICombatFeedbackSink, IRunFailNotifier
 {
+    // Legacy global path: input still enters here, but new systems should prefer narrow service seams.
     private static PlayerController _instance;
     public static PlayerController Instance => _instance;
     private readonly GameplayInputGatePolicyService inputGatePolicyService = new GameplayInputGatePolicyService();

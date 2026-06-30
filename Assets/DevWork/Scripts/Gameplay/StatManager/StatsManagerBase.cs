@@ -12,6 +12,18 @@ public abstract class StatsManagerBase : MonoBehaviour
     protected Dictionary<StatType, ReactiveStat> baseStatsDict;
     public event Action OnStatsRecalculated;
 
+    // Runtime-owned counters. BaseStat is never the source of truth for these values.
+    private static readonly StatType[] RuntimeProgressStatTypes =
+    {
+        StatType.Clicks,
+        StatType.ClickPerTick,
+        StatType.Diamond,
+        StatType.HoldedTime,
+        StatType.TotalBlockBreaked,
+        StatType.TotalDamageDealed,
+        StatType.TotalTimePlayed
+    };
+
     public IReadOnlyList<BuffInstance> ActiveBuffs    => buffManager?.GetActiveBuffs();
     public IReadOnlyList<BuffInstance> ConditionBuffs => buffManager?.GetConditionBuffs();
 
@@ -49,6 +61,10 @@ public abstract class StatsManagerBase : MonoBehaviour
                 .DistinctUntilChanged()
                 .Subscribe(newValue =>
                 {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                    if (statType == StatType.TotalBlockBreaked)
+                        Debug.Log($"[QuestDebug] QuestSignals.StatChanged {statType}={newValue}");
+#endif
                     QuestSignals.StatChanged(statType.ToString(), newValue);
                 })
                 .AddTo(_cd);
@@ -101,41 +117,27 @@ public abstract class StatsManagerBase : MonoBehaviour
             Set(mul.Key, Get(mul.Key) * mul.Value);
     }
 
-    private static bool ShouldPreserveAcrossRecalculate(StatType type)
+    protected virtual bool ShouldPreserveAcrossRecalculate(StatType type)
     {
         switch (type)
         {
-            case StatType.CurrentHP:
             case StatType.CurrentMana:
             case StatType.CurrentStamina:
-            case StatType.Clicks:
-            case StatType.ClickPerTick:
-            case StatType.Diamond:
-            case StatType.HoldedTime:
-            case StatType.TotalBlockBreaked:
-            case StatType.TotalDamageDealed:
-            case StatType.TotalTimePlayed:
                 return true;
             default:
-                return false;
+                return IsRuntimeProgressStat(type);
         }
     }
 
     private static bool IsRuntimeProgressStat(StatType type)
     {
-        switch (type)
+        for (int i = 0; i < RuntimeProgressStatTypes.Length; i++)
         {
-            case StatType.Clicks:
-            case StatType.ClickPerTick:
-            case StatType.Diamond:
-            case StatType.HoldedTime:
-            case StatType.TotalBlockBreaked:
-            case StatType.TotalDamageDealed:
-            case StatType.TotalTimePlayed:
+            if (RuntimeProgressStatTypes[i] == type)
                 return true;
-            default:
-                return false;
         }
+
+        return false;
     }
 
     public void ClearAll()
@@ -216,7 +218,7 @@ public abstract class StatsManagerBase : MonoBehaviour
         CollectBuffModifiers(accumulator);
         ApplyAccumulatedModifiers(accumulator);
 
-        ReCalculateHPAndMP();
+        RecalculateResourceCaps();
 
         RaiseStatsRecalculated();
     }
@@ -241,14 +243,8 @@ public abstract class StatsManagerBase : MonoBehaviour
         }
     }
 
-    protected virtual void ReCalculateHPAndMP()
+    protected virtual void RecalculateResourceCaps()
     {
-        if (HasStat(StatType.CurrentHP) && HasStat(StatType.HP))
-        {
-            if (Get(StatType.CurrentHP) > Get(StatType.HP))
-                Set(StatType.CurrentHP, Get(StatType.HP));
-        }
-
         if (HasStat(StatType.CurrentMana) && HasStat(StatType.Mana))
         {
             if (Get(StatType.CurrentMana) > Get(StatType.Mana))
@@ -262,7 +258,7 @@ public abstract class StatsManagerBase : MonoBehaviour
         }
     }
 
-    private bool HasStat(StatType type) => stats != null && stats.ContainsKey(type);
+    protected bool HasStat(StatType type) => stats != null && stats.ContainsKey(type);
 
     private void EnsureInitialized()
     {
@@ -292,7 +288,11 @@ public abstract class StatsManagerBase : MonoBehaviour
         else
             baseStatsDict.Clear();
 
-        if (baseStat == null) return;
+        if (baseStat == null)
+        {
+            EnsureRuntimeProgressStats();
+            return;
+        }
 
         HashSet<StatType> activeTypes = overwriteValues ? new HashSet<StatType>() : null;
 
@@ -345,6 +345,20 @@ public abstract class StatsManagerBase : MonoBehaviour
                 if (!activeTypes.Contains(kvp.Key) && !ShouldPreserveAcrossRecalculate(kvp.Key))
                     kvp.Value.Set(0f);
             }
+        }
+
+        EnsureRuntimeProgressStats();
+    }
+
+    private void EnsureRuntimeProgressStats()
+    {
+        if (stats == null)
+            stats = new Dictionary<StatType, ReactiveStat>();
+
+        foreach (var type in RuntimeProgressStatTypes)
+        {
+            if (!stats.ContainsKey(type))
+                stats[type] = CreateRuntimeStat(type, 0f);
         }
     }
 

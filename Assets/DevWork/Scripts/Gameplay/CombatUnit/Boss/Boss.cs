@@ -141,7 +141,7 @@ public class Boss : MonoBehaviour, IDamageReceiver
     {
         if (hasDied) return;
         hasDied = true;
-        StatsManager.Ins.Add(StatType.TotalBlockBreaked, 1);
+        DamageStatsRecorder.RecordBlockBreak();
         string id = string.IsNullOrEmpty(bossId) ? gameObject.name : bossId;
         AnalyticsManager.Ins?.TrackBossKill(id, Mathf.Max(0f, BossNow - spawnTime));
         HandleItemDrop();
@@ -155,14 +155,7 @@ public class Boss : MonoBehaviour, IDamageReceiver
 
         float luck = StatsManager.Ins != null ? StatsManager.Ins.Get(StatType.Lucky) : 0f;
         var drops = rewardEntry.GetDroppedItems(luck);
-        if (drops == null || drops.Count == 0)
-            return;
-
-        var grantEntries = new List<DropGrantEntry>(drops.Count);
-        foreach (var result in drops)
-            grantEntries.Add(new DropGrantEntry(result.item, result.amount));
-
-        DropGrantService.TryGrantDrops(grantEntries, out _, logContext: "[BossDrop]");
+        DropGrantService.TryGrantRolledDrops(drops, out _, logContext: "[BossDrop]");
     }
 
     public void SetSpawnContext(BossEntry entry)

@@ -2,49 +2,41 @@
 using System.Collections.Generic;
 using System.Collections;
 using System.Linq;
-using Firebase.Firestore;
 using UniRx;
 using UnityEngine;
 
 public class QuestManager : MonoBehaviour
 {
+    // Legacy global path: keep existing callers for now, but do not add new singleton dependencies here.
     public static QuestManager Ins { get; private set; }
     public bool IsReady { get; private set; }
 
     [Header("Database")]
     public QuestSO questDB;
 
-    [Header("Storage")]
-    [SerializeField] private bool usePlayerPrefsStorage = true;
+    [Header("Local Storage")]
     private IQuestStorage storage;
-
-    [Header("Cloud Sync")]
-    [SerializeField] private bool useCloudStorage = true;
-    [SerializeField] private float cloudInitWaitSeconds = 5f;
-    [SerializeField] private float cloudLoadTimeoutSeconds = 8f;
 
     [Header("Save Throttle")]
     [SerializeField] private float saveThrottleSeconds = 0.5f;
     private readonly Subject<QuestType> _saveRequests = new();
 
-    private FirebaseFirestore db;
-    private string uid;
-    private bool cloudReady;
-    private bool cloudInitInProgress;
-    private CompositeDisposable _progressTrackersCd = new();
-    private CompositeDisposable _dailyTrackersCd = new();
+    private readonly Dictionary<QuestType, QuestBucket> bucketsByType = new();
+    private readonly List<QuestBucket> bucketOrder = new();
 
     [Header("Daily Reset")]
     [SerializeField] private float dailyCheckIntervalSeconds = 60f;
     private Coroutine dailyWatchRoutine;
 
-    // Runtime trackers
-    private readonly Dictionary<string, QuestTracker> progressTrackers = new();
-    private readonly Dictionary<string, QuestTracker> dailyTrackers = new();
     private readonly HashSet<string> dailySelectedIds = new();
+    private bool loggedMissingQuestDb;
 
     private string todayKey;
     private CompositeDisposable _cd = new();
+
+    public event Action<QuestType> QuestListChanged;
+    public event Action<QuestRuntimeEntry> QuestChanged;
+    public event Action<QuestRuntimeEntry> QuestCompleted;
 
     // UI events
     public IObservable<Unit> OnAnyQuestListChanged => _onListChanged; 
@@ -53,15 +45,63 @@ public class QuestManager : MonoBehaviour
     private readonly Subject<string> _onQuestUpdated = new();
     public IObservable<QuestDef> OnQuestCompleted => _onQuestCompleted;
     private readonly Subject<QuestDef> _onQuestCompleted = new();
-    public IObservable<QuestDef> OnAchievementCompleted => _onAchievementCompleted;
-    private readonly Subject<QuestDef> _onAchievementCompleted = new();
+
+    private sealed class QuestBucket
+    {
+        private readonly Func<List<QuestDef>> defsGetter;
+        private readonly Func<List<QuestState>> statesLoader;
+        private readonly Action<List<QuestState>> statesSaver;
+
+        public QuestBucket(
+            QuestType type,
+            Func<List<QuestDef>> defsGetter,
+            Func<List<QuestState>> statesLoader,
+            Action<List<QuestState>> statesSaver)
+        {
+            Type = type;
+            this.defsGetter = defsGetter;
+            this.statesLoader = statesLoader;
+            this.statesSaver = statesSaver;
+        }
+
+        public QuestType Type { get; }
+        public readonly Dictionary<string, QuestTracker> Trackers = new();
+        public CompositeDisposable TrackerSubscriptions { get; private set; } = new();
+
+        public List<QuestDef> GetDefs()
+        {
+            return defsGetter != null ? defsGetter.Invoke() : new List<QuestDef>();
+        }
+
+        public List<QuestState> LoadStates()
+        {
+            return statesLoader != null ? statesLoader.Invoke() : new List<QuestState>();
+        }
+
+        public void SaveStates(List<QuestState> states)
+        {
+            statesSaver?.Invoke(states ?? new List<QuestState>());
+        }
+
+        public void ResetTrackers()
+        {
+            TrackerSubscriptions.Dispose();
+            TrackerSubscriptions = new CompositeDisposable();
+
+            foreach (var tracker in Trackers.Values)
+                tracker.Dispose();
+
+            Trackers.Clear();
+        }
+    }
 
     void Awake()
     {
         if (Ins != null && Ins != this) { Destroy(gameObject); return; }
         Ins = this;
         DontDestroyOnLoad(gameObject);
-        storage = usePlayerPrefsStorage ? new PlayerPrefsQuestStorage() : null;
+        storage = new JsonQuestStorage();
+        EnsureBuckets();
     }
 
     void Start()
@@ -75,52 +115,40 @@ public class QuestManager : MonoBehaviour
         _cd?.Dispose();
         _cd = new CompositeDisposable();
 
-        storage = usePlayerPrefsStorage ? new PlayerPrefsQuestStorage() : new PlayerPrefsQuestStorage();
+        if (questDB == null)
+        {
+            if (!loggedMissingQuestDb)
+            {
+                loggedMissingQuestDb = true;
+                Debug.LogError("[QuestDebug] QuestManager has no questDB assigned.", this);
+            }
+
+            yield break;
+        }
+
+        if (storage == null)
+            storage = new JsonQuestStorage();
+
+        EnsureBuckets();
+
+        QuestBucket progressBucket = GetBucket(QuestType.Progress);
+        QuestBucket achievementBucket = GetBucket(QuestType.Achievement);
+        QuestBucket dailyBucket = GetBucket(QuestType.Daily);
 
         // 1) LOAD STATE
-        var progressStates = new List<QuestState>();
-        var dailyStates = new List<QuestState>();
-        var savedDailyKey = string.Empty;
-        var savedDailyIds = new List<string>();
-        bool loadedFromCloud = false;
+        var progressStates = progressBucket.LoadStates();
+        var achievementStates = achievementBucket.LoadStates();
+        var dailyStates = dailyBucket.LoadStates();
+        var savedDailyKey = storage.LoadDailyKey();
+        var savedDailyIds = storage.LoadDailySelectedIds();
 
-        if (useCloudStorage)
-        {
-            yield return TryLoadFromCloud((ok, p, d, key, ids) =>
-            {
-                loadedFromCloud = ok;
-                if (p != null) progressStates = p;
-                if (d != null) dailyStates = d;
-                if (!string.IsNullOrEmpty(key)) savedDailyKey = key;
-                if (ids != null) savedDailyIds = ids;
-            });
-        }
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        Debug.Log($"[QuestDebug] Quest load source=local progressStates={progressStates.Count} achievementStates={achievementStates.Count} dailyStates={dailyStates.Count}");
+#endif
 
-        if (!loadedFromCloud)
-        {
-            progressStates = storage.LoadProgressStates();
-            dailyStates = storage.LoadDailyStates();
-            savedDailyKey = storage.LoadDailyKey();
-            savedDailyIds = storage.LoadDailySelectedIds();
-        }
-        else
-        {
-            // Merge with local to avoid cloud overwriting newer claimed states
-            var localProgress = storage.LoadProgressStates();
-            var localDaily = storage.LoadDailyStates();
-            var localDailyKey = storage.LoadDailyKey();
-            var localDailyIds = storage.LoadDailySelectedIds();
-
-            progressStates = MergeStates(progressStates, localProgress);
-            dailyStates = MergeStates(dailyStates, localDaily);
-            if (string.IsNullOrEmpty(savedDailyKey)) savedDailyKey = localDailyKey;
-            if (savedDailyIds == null || savedDailyIds.Count == 0) savedDailyIds = localDailyIds;
-
-            storage.SaveProgressStates(progressStates);
-            storage.SaveDailyStates(dailyStates);
-            storage.SaveDailyKey(savedDailyKey ?? "");
-            storage.SaveDailySelectedIds(savedDailyIds ?? new List<string>());
-        }
+        MoveLegacyAchievementStates(ref progressStates, ref achievementStates);
+        progressBucket.SaveStates(progressStates);
+        achievementBucket.SaveStates(achievementStates);
 
         todayKey = GetBangkokDateKey(DateTime.UtcNow);
 
@@ -158,46 +186,58 @@ public class QuestManager : MonoBehaviour
         }
 
         // 2) BUILD TRACKERS (UniRx)
-        _progressTrackersCd = BuildTrackers(progressTrackers, questDB.progressQuests, progressStates, _progressTrackersCd);
-        _dailyTrackersCd = BuildTrackers(dailyTrackers, GetActiveDailyDefs(), dailyStates, _dailyTrackersCd);
+        BuildTrackers(progressBucket, progressStates);
+        BuildTrackers(achievementBucket, achievementStates);
+        BuildTrackers(dailyBucket, dailyStates);
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        Debug.Log($"[QuestDebug] Quest trackers ready progress={progressBucket.Trackers.Count} achievements={achievementBucket.Trackers.Count} daily={dailyBucket.Trackers.Count}");
+#endif
 
         BindSaveThrottle();
         RefreshUnlockStates();
+        SaveRuntimeQuestStatesToLocal();
         _onQuestUpdated.Subscribe(_ => RefreshUnlockStates()).AddTo(_cd);
 
-        _onListChanged.OnNext(Unit.Default);
-
-        if (cloudReady)
-            SaveCloudSnapshot();
+        NotifyQuestListChanged(QuestType.Progress);
+        NotifyQuestListChanged(QuestType.Achievement);
+        NotifyQuestListChanged(QuestType.Daily);
 
         StartDailyWatch();
         IsReady = true;
     }
 
-    private CompositeDisposable BuildTrackers(
-        Dictionary<string, QuestTracker> dict,
-        List<QuestDef> defs,
-        List<QuestState> states,
-        CompositeDisposable trackerCd)
+    private void BuildTrackers(QuestBucket bucket, List<QuestState> states)
     {
-        trackerCd?.Dispose();
-        trackerCd = new CompositeDisposable();
-
-        foreach (var tr in dict.Values)
-            tr.Dispose();
-        dict.Clear();
+        bucket.ResetTrackers();
+        List<QuestDef> defs = bucket.GetDefs();
+        Dictionary<string, QuestState> stateMap = BuildStateMap(states);
         foreach (var def in defs)
         {
-            var saved = states.FirstOrDefault(s => s.questId == def.id) ?? NewQuestStateFromDef(def);
+            if (def == null || string.IsNullOrEmpty(def.id))
+                continue;
+
+            stateMap.TryGetValue(def.id, out var saved);
+            saved ??= NewQuestStateFromDef(def);
+
             var tracker = new QuestTracker(def, saved);
-            dict[def.id] = tracker;
+            bucket.Trackers[def.id] = tracker;
+            var entry = new QuestRuntimeEntry(bucket.Type, def, tracker);
             bool completionPopupDispatched = tracker.Completed.Value;
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            string stepText = string.Join(", ", tracker.Steps.Select(s => $"{s.StepId}:{s.Current.Value}/{s.Required.Value}"));
+            Debug.Log($"[QuestDebug] Tracker built type={bucket.Type} id={def.id} achievement={def.IsAchievement} completed={tracker.Completed.Value} claimed={tracker.RewardClaimed.Value} steps=[{stepText}]");
+#endif
 
             // Auto-save when progress changes (light throttle to reduce I/O)
             tracker.OnStepProgressChanged += t =>
             {
-                RequestSave(def.type);
-                _onQuestUpdated.OnNext(t.QuestId);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                Debug.Log($"[QuestDebug] Quest step changed type={bucket.Type} id={t.QuestId}");
+#endif
+                RequestSave(bucket.Type);
+                NotifyQuestChanged(entry);
             };
 
             // Auto-complete -> save
@@ -206,83 +246,128 @@ public class QuestManager : MonoBehaviour
                 .Where(done => done)
                 .Subscribe(_ =>
                 {
-                    RequestSave(def.type);
-                    _onQuestUpdated.OnNext(def.id);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                    Debug.Log($"[QuestDebug] Quest completed signal type={bucket.Type} id={def.id} achievement={def.IsAchievement} alreadyDispatched={completionPopupDispatched}");
+#endif
+                    RequestSave(bucket.Type);
+                    NotifyQuestChanged(entry);
 
                     if (!completionPopupDispatched)
                     {
-                        _onQuestCompleted.OnNext(def);
-                        if (def.isAchievement)
-                            _onAchievementCompleted.OnNext(def);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                        Debug.Log($"[QuestDebug] Emitting OnQuestCompleted id={def.id}");
+#endif
+                        NotifyQuestCompleted(entry);
                     }
 
                     completionPopupDispatched = true;
                 })
-                .AddTo(trackerCd);
+                .AddTo(bucket.TrackerSubscriptions);
         }
-
-        return trackerCd;
     }
 
     // ---- Public getters cho UI ----
     public IEnumerable<(QuestDef def, QuestTracker tr)> GetAllProgress()
-        => questDB.progressQuests.Select(def => (def, progressTrackers[def.id]));
+        => GetQuests(QuestType.Progress);
+
+    public IEnumerable<(QuestDef def, QuestTracker tr)> GetAchievements()
+        => GetQuests(QuestType.Achievement);
 
     public IEnumerable<(QuestDef def, QuestTracker tr)> GetActiveDaily()
-        => questDB.dailyQuests
-            .Where(def => dailySelectedIds.Contains(def.id))
-            .Select(def => (def, dailyTrackers[def.id]));
+        => GetQuests(QuestType.Daily);
 
-    public void ClaimReward(string questId)
+    public IEnumerable<(QuestDef def, QuestTracker tr)> GetQuests(QuestType type)
     {
-        if (progressTrackers.TryGetValue(questId, out var p))
+        foreach (var entry in GetEntries(type))
         {
-            var def = questDB.progressQuests.FirstOrDefault(q => q.id == questId);
-            if (def == null) { Debug.LogWarning($"QuestDef not found: {questId}"); return; }
-            if (!IsQuestUnlocked(def)) { Debug.LogWarning($"Quest locked: {questId}"); return; }
+            if (entry.Def == null || entry.Tracker == null)
+                continue;
 
-            if (p.Completed.Value && !p.RewardClaimed.Value)
-            {
-                if (!TryGrantRewards(def))
-                {
-                    Debug.LogWarning($"[QuestManager] Cannot claim reward for '{questId}' because inventory does not have enough space.");
-                    return;
-                }
-                p.RewardClaimed.Value = true;
-                SaveDict(progressTrackers, questDB.progressQuests, QuestType.Progress);
-                _onQuestUpdated.OnNext(questId);
-            }
-            return;
-        }
-        if (dailyTrackers.TryGetValue(questId, out var d))
-        {
-            var def = questDB.dailyQuests.FirstOrDefault(q => q.id == questId);
-            if (def == null) { Debug.LogWarning($"Daily QuestDef not found: {questId}"); return; }
-            if (!IsQuestUnlocked(def)) { Debug.LogWarning($"Daily quest locked: {questId}"); return; }
-
-            if (d.Completed.Value && !d.RewardClaimed.Value)
-            {
-                if (!TryGrantRewards(def))
-                {
-                    Debug.LogWarning($"[QuestManager] Cannot claim daily reward for '{questId}' because inventory does not have enough space.");
-                    return;
-                }
-                d.RewardClaimed.Value = true;
-                SaveDict(dailyTrackers,
-                questDB.dailyQuests.Where(q => dailySelectedIds.Contains(q.id)).ToList(),
-                    QuestType.Daily);
-                _onQuestUpdated.OnNext(questId);
-            }
+            yield return (entry.Def, entry.Tracker);
         }
     }
 
-    // ---- Save/Load helpers ----
-    private void SaveDict(Dictionary<string, QuestTracker> dict, List<QuestDef> defs, QuestType type)
-    {
-        var states = BuildStates(dict, defs);
+    public IEnumerable<QuestRuntimeEntry> GetProgressEntries()
+        => GetEntries(QuestType.Progress);
 
-        if (type == QuestType.Progress) storage.SaveProgressStates(states);
-        else storage.SaveDailyStates(states);
+    public IEnumerable<QuestRuntimeEntry> GetAchievementEntries()
+        => GetEntries(QuestType.Achievement);
+
+    public IEnumerable<QuestRuntimeEntry> GetDailyEntries()
+        => GetEntries(QuestType.Daily);
+
+    public IEnumerable<QuestRuntimeEntry> GetEntries(QuestType type)
+    {
+        var dict = GetTrackerDict(type);
+        foreach (var def in GetDefs(type))
+        {
+            if (def == null || string.IsNullOrEmpty(def.id))
+                continue;
+            if (!dict.TryGetValue(def.id, out var tracker))
+                continue;
+
+            yield return new QuestRuntimeEntry(type, def, tracker);
+        }
+    }
+
+    public IEnumerable<QuestRuntimeView> GetViews(QuestType type)
+    {
+        foreach (var entry in GetEntries(type))
+            yield return entry.ToView();
+    }
+
+    public void ClaimReward(string questId)
+    {
+        foreach (var bucket in bucketOrder)
+        {
+            if (TryClaimReward(questId, bucket))
+                return;
+        }
+
+        Debug.LogWarning($"QuestDef not found: {questId}");
+    }
+
+    private bool TryClaimReward(string questId, QuestBucket bucket)
+    {
+        var dict = bucket.Trackers;
+        if (!dict.TryGetValue(questId, out var tracker))
+            return false;
+
+        var def = bucket.GetDefs().FirstOrDefault(q => q.id == questId);
+        if (def == null)
+        {
+            Debug.LogWarning($"{bucket.Type} QuestDef not found: {questId}");
+            return true;
+        }
+
+        if (!IsQuestUnlocked(def))
+        {
+            Debug.LogWarning($"{bucket.Type} quest locked: {questId}");
+            return true;
+        }
+
+        if (!tracker.Completed.Value || tracker.RewardClaimed.Value)
+            return true;
+
+        if (!TryGrantRewards(def))
+        {
+            Debug.LogWarning($"[QuestManager] Cannot claim {bucket.Type} reward for '{questId}' because inventory does not have enough space.");
+            return true;
+        }
+
+        tracker.RewardClaimed.Value = true;
+        SaveBucket(bucket);
+        NotifyQuestChanged(new QuestRuntimeEntry(bucket.Type, def, tracker));
+        return true;
+    }
+
+    // ---- Save/Load helpers ----
+    private void SaveBucket(QuestBucket bucket)
+    {
+        if (bucket == null)
+            return;
+
+        bucket.SaveStates(BuildStates(bucket.Trackers, bucket.GetDefs()));
     }
 
     private void BindSaveThrottle()
@@ -301,17 +386,88 @@ public class QuestManager : MonoBehaviour
 
     private void SaveByType(QuestType type)
     {
-        if (type == QuestType.Progress)
-            SaveDict(progressTrackers, questDB.progressQuests, QuestType.Progress);
-        else
-            SaveDict(dailyTrackers, GetActiveDailyDefs(), QuestType.Daily);
+        SaveBucket(GetBucket(type));
+    }
 
-        SaveCloudSnapshot();
+    private void SaveRuntimeQuestStatesToLocal()
+    {
+        foreach (var bucket in bucketOrder)
+            SaveBucket(bucket);
+    }
+
+    private Dictionary<string, QuestTracker> GetTrackerDict(QuestType type)
+    {
+        return GetBucket(type).Trackers;
+    }
+
+    private List<QuestDef> GetDefs(QuestType type)
+    {
+        return GetBucket(type).GetDefs();
+    }
+
+    private List<QuestDef> GetProgressDefs()
+    {
+        if (questDB == null || questDB.progressQuests == null)
+            return new List<QuestDef>();
+
+        return questDB.progressQuests
+            .Where(def => def != null && !IsAchievementDef(def))
+            .ToList();
+    }
+
+    private List<QuestDef> GetAchievementDefs()
+    {
+        var defs = new List<QuestDef>();
+
+        if (questDB?.achievementQuests != null)
+            AddUniqueQuestDefs(defs, questDB.achievementQuests);
+
+        AddLegacyAchievementDefs(defs);
+
+        return defs;
+    }
+
+    private void AddLegacyAchievementDefs(List<QuestDef> target)
+    {
+        if (questDB?.progressQuests == null)
+            return;
+
+        AddUniqueQuestDefs(target, questDB.progressQuests.Where(IsAchievementDef));
     }
 
     private List<QuestDef> GetActiveDailyDefs()
     {
-        return questDB.dailyQuests.Where(q => dailySelectedIds.Contains(q.id)).ToList();
+        if (questDB == null || questDB.dailyQuests == null)
+            return new List<QuestDef>();
+
+        return questDB.dailyQuests
+            .Where(q => q != null && dailySelectedIds.Contains(q.id))
+            .ToList();
+    }
+
+    private static bool IsAchievementDef(QuestDef def)
+    {
+        return def != null && def.IsAchievement;
+    }
+
+    private static void AddUniqueQuestDefs(List<QuestDef> target, IEnumerable<QuestDef> source)
+    {
+        if (target == null || source == null)
+            return;
+
+        var knownIds = new HashSet<string>(target
+            .Where(def => def != null && !string.IsNullOrEmpty(def.id))
+            .Select(def => def.id));
+
+        foreach (var def in source)
+        {
+            if (def == null || string.IsNullOrEmpty(def.id))
+                continue;
+            if (!knownIds.Add(def.id))
+                continue;
+
+            target.Add(def);
+        }
     }
 
     private List<QuestState> BuildStates(Dictionary<string, QuestTracker> dict, List<QuestDef> defs)
@@ -320,7 +476,15 @@ public class QuestManager : MonoBehaviour
 
         foreach (var def in defs)
         {
-            if (!dict.TryGetValue(def.id, out var tr)) continue;
+            if (def == null || string.IsNullOrEmpty(def.id))
+                continue;
+            if (!dict.TryGetValue(def.id, out var tr))
+                continue;
+
+            Dictionary<string, StepTracker> stepMap = tr.Steps
+                .Where(step => step != null && !string.IsNullOrEmpty(step.StepId))
+                .GroupBy(step => step.StepId)
+                .ToDictionary(group => group.Key, group => group.First());
 
             var st = new QuestState
             {
@@ -329,12 +493,12 @@ public class QuestManager : MonoBehaviour
                 rewardClaimed = tr.RewardClaimed.Value,
                 steps = def.steps.Select(sdef =>
                 {
-                    var t = tr.Steps.First(x => x.StepId == sdef.stepId);
+                    stepMap.TryGetValue(sdef.stepId, out var stepTracker);
                     return new QuestStepState
                     {
                         stepId = sdef.stepId,
-                        currentAmount = t.Current.Value,
-                        completed = t.Completed.Value
+                        currentAmount = stepTracker != null ? stepTracker.Current.Value : 0,
+                        completed = stepTracker != null && stepTracker.Completed.Value
                     };
                 }).ToList()
             };
@@ -386,24 +550,69 @@ public class QuestManager : MonoBehaviour
         return map.Values.ToList();
     }
 
-    private void RefreshUnlockStates()
+    private static Dictionary<string, QuestState> BuildStateMap(List<QuestState> states)
     {
-        foreach (var def in questDB.progressQuests)
+        var result = new Dictionary<string, QuestState>(StringComparer.Ordinal);
+        if (states == null)
+            return result;
+
+        foreach (var state in states)
         {
-            if (progressTrackers.TryGetValue(def.id, out var tr))
-                tr.SetUnlocked(IsQuestUnlocked(def));
+            if (state == null || string.IsNullOrEmpty(state.questId) || result.ContainsKey(state.questId))
+                continue;
+
+            result[state.questId] = state;
         }
 
-        foreach (var def in questDB.dailyQuests)
+        return result;
+    }
+
+    private void MoveLegacyAchievementStates(ref List<QuestState> progressStates, ref List<QuestState> achievementStates)
+    {
+        var achievementIds = new HashSet<string>(GetAchievementDefs()
+            .Where(def => def != null && !string.IsNullOrEmpty(def.id))
+            .Select(def => def.id));
+
+        if (achievementIds.Count == 0 || progressStates == null || progressStates.Count == 0)
+            return;
+
+        var legacyStates = progressStates
+            .Where(state => state != null && achievementIds.Contains(state.questId))
+            .ToList();
+
+        if (legacyStates.Count == 0)
+            return;
+
+        achievementStates = MergeStates(achievementStates, legacyStates);
+        progressStates = progressStates
+            .Where(state => state == null || !achievementIds.Contains(state.questId))
+            .ToList();
+    }
+
+    private void RefreshUnlockStates()
+    {
+        foreach (var bucket in bucketOrder)
+            RefreshUnlockStates(bucket.Type);
+    }
+
+    private void RefreshUnlockStates(QuestType type)
+    {
+        var dict = GetTrackerDict(type);
+        foreach (var def in GetDefs(type))
         {
-            if (dailyTrackers.TryGetValue(def.id, out var tr))
-                tr.SetUnlocked(IsQuestUnlocked(def));
+            if (def != null && dict.TryGetValue(def.id, out var tr))
+                tr.SetUnlocked(IsQuestUnlocked(def, type));
         }
     }
 
     private bool IsQuestUnlocked(QuestDef def)
     {
-        if (def != null && def.type == QuestType.Daily)
+        return IsQuestUnlocked(def, def != null && IsAchievementDef(def) ? QuestType.Achievement : def?.type ?? QuestType.Progress);
+    }
+
+    private bool IsQuestUnlocked(QuestDef def, QuestType type)
+    {
+        if (def != null && type == QuestType.Daily)
             return true;
         if (def == null || string.IsNullOrEmpty(def.requiredQuestId))
             return true;
@@ -412,11 +621,15 @@ public class QuestManager : MonoBehaviour
 
     private bool IsQuestCompleted(string questId)
     {
-        if (string.IsNullOrEmpty(questId)) return true;
-        if (progressTrackers.TryGetValue(questId, out var p))
-            return p.Completed.Value;
-        if (dailyTrackers.TryGetValue(questId, out var d))
-            return d.Completed.Value;
+        if (string.IsNullOrEmpty(questId))
+            return true;
+
+        foreach (var bucket in bucketOrder)
+        {
+            if (bucket.Trackers.TryGetValue(questId, out var tracker))
+                return tracker.Completed.Value;
+        }
+
         return false;
     }
 
@@ -464,164 +677,50 @@ public class QuestManager : MonoBehaviour
             .ToList();
         storage.SaveDailyStates(dailyStates);
 
-        _dailyTrackersCd = BuildTrackers(dailyTrackers, GetActiveDailyDefs(), dailyStates, _dailyTrackersCd);
+        BuildTrackers(GetBucket(QuestType.Daily), dailyStates);
         RefreshUnlockStates();
-        _onListChanged.OnNext(Unit.Default);
+        NotifyQuestListChanged(QuestType.Daily);
         RequestSave(QuestType.Daily);
     }
 
-    private IEnumerator TryInitCloud()
+    private void EnsureBuckets()
     {
-        cloudReady = false;
-        db = null;
-        uid = null;
-
-        if (!useCloudStorage)
-            yield break;
-
-        float t = 0f;
-        while (FirebaseBootstrap.Ins == null && t < cloudInitWaitSeconds)
-        {
-            t += Time.unscaledDeltaTime;
-            yield return null;
-        }
-
-        if (FirebaseBootstrap.Ins == null)
-            yield break;
-
-        t = 0f;
-        while (!FirebaseBootstrap.Ins.IsReady && !FirebaseBootstrap.Ins.IsFailed && t < cloudInitWaitSeconds)
-        {
-            t += Time.unscaledDeltaTime;
-            yield return null;
-        }
-
-        if (!FirebaseBootstrap.Ins.IsReady)
-            yield break;
-
-        db = FirebaseBootstrap.Ins.Db;
-        uid = FirebaseBootstrap.Ins.Uid;
-        cloudReady = db != null && !string.IsNullOrEmpty(uid);
-    }
-
-    private IEnumerator TryLoadFromCloud(Action<bool, List<QuestState>, List<QuestState>, string, List<string>> onDone)
-    {
-        yield return TryInitCloud();
-        if (!cloudReady)
-        {
-            onDone?.Invoke(false, null, null, null, null);
-            yield break;
-        }
-
-        var docRef = db.Collection("users").Document(uid).Collection("quests").Document("state");
-        var task = FirebaseTaskTracker.Track(docRef.GetSnapshotAsync());
-
-        float t = 0f;
-        while (!task.IsCompleted && t < cloudLoadTimeoutSeconds)
-        {
-            t += Time.unscaledDeltaTime;
-            yield return null;
-        }
-
-        if (!task.IsCompleted || task.Exception != null || task.Result == null || !task.Result.Exists)
-        {
-            onDone?.Invoke(false, null, null, null, null);
-            yield break;
-        }
-
-        var snap = task.Result;
-        snap.TryGetValue("progressJson", out string progressJson);
-        snap.TryGetValue("dailyJson", out string dailyJson);
-        snap.TryGetValue("dailyKey", out string dailyKey);
-        snap.TryGetValue("dailyIdsJson", out string dailyIdsJson);
-
-        var progressStates = ParseStateList(progressJson);
-        var dailyStates = ParseStateList(dailyJson);
-        var dailyIds = ParseStringList(dailyIdsJson);
-
-        onDone?.Invoke(true, progressStates, dailyStates, dailyKey, dailyIds);
-    }
-
-    private void SaveCloudSnapshot()
-    {
-        if (!useCloudStorage) return;
-        if (!cloudReady)
-        {
-            if (!cloudInitInProgress)
-                StartCoroutine(CoInitCloudAndSave());
+        if (bucketsByType.Count > 0)
             return;
-        }
 
-        SaveCloudSnapshotInternal();
+        RegisterBucket(new QuestBucket(
+            QuestType.Progress,
+            GetProgressDefs,
+            () => storage.LoadProgressStates(),
+            states => storage.SaveProgressStates(states)));
+
+        RegisterBucket(new QuestBucket(
+            QuestType.Achievement,
+            GetAchievementDefs,
+            () => storage.LoadAchievementStates(),
+            states => storage.SaveAchievementStates(states)));
+
+        RegisterBucket(new QuestBucket(
+            QuestType.Daily,
+            GetActiveDailyDefs,
+            () => storage.LoadDailyStates(),
+            states => storage.SaveDailyStates(states)));
     }
 
-    private void SaveCloudSnapshotInternal()
+    private void RegisterBucket(QuestBucket bucket)
     {
-        if (!cloudReady) return;
+        if (bucket == null)
+            return;
 
-        var progressStates = BuildStates(progressTrackers, questDB.progressQuests);
-        var dailyStates = BuildStates(dailyTrackers, GetActiveDailyDefs());
-
-        var payload = new Dictionary<string, object>
-        {
-            ["progressJson"] = ToJsonStateList(progressStates),
-            ["dailyJson"] = ToJsonStateList(dailyStates),
-            ["dailyKey"] = todayKey,
-            ["dailyIdsJson"] = ToJsonStringList(dailySelectedIds.ToList()),
-            ["updatedAt"] = Timestamp.GetCurrentTimestamp()
-        };
-
-        var docRef = db.Collection("users").Document(uid).Collection("quests").Document("state");
-        FirebaseTaskTracker.Track(docRef.SetAsync(payload, SetOptions.MergeAll));
+        bucketsByType[bucket.Type] = bucket;
+        bucketOrder.Add(bucket);
     }
 
-    private IEnumerator CoInitCloudAndSave()
+    private QuestBucket GetBucket(QuestType type)
     {
-        cloudInitInProgress = true;
-        yield return TryInitCloud();
-        cloudInitInProgress = false;
-        if (cloudReady)
-            SaveCloudSnapshotInternal();
+        EnsureBuckets();
+        return bucketsByType[type];
     }
-
-    [Serializable]
-    private class QuestStateListWrapper
-    {
-        public List<QuestState> states = new List<QuestState>();
-    }
-
-    [Serializable]
-    private class StringListWrapper
-    {
-        public List<string> items = new List<string>();
-    }
-
-    private string ToJsonStateList(List<QuestState> states)
-    {
-        var wrapper = new QuestStateListWrapper { states = states ?? new List<QuestState>() };
-        return JsonUtility.ToJson(wrapper, false);
-    }
-
-    private List<QuestState> ParseStateList(string json)
-    {
-        if (string.IsNullOrEmpty(json)) return new List<QuestState>();
-        var wrapper = JsonUtility.FromJson<QuestStateListWrapper>(json);
-        return wrapper?.states ?? new List<QuestState>();
-    }
-
-    private string ToJsonStringList(List<string> items)
-    {
-        var wrapper = new StringListWrapper { items = items ?? new List<string>() };
-        return JsonUtility.ToJson(wrapper, false);
-    }
-
-    private List<string> ParseStringList(string json)
-    {
-        if (string.IsNullOrEmpty(json)) return new List<string>();
-        var wrapper = JsonUtility.FromJson<StringListWrapper>(json);
-        return wrapper?.items ?? new List<string>();
-    }
-
 
     private QuestState NewQuestStateFromDef(QuestDef def) => new QuestState
     {
@@ -726,6 +825,24 @@ public class QuestManager : MonoBehaviour
         }
 
         return true;
+    }
+
+    private void NotifyQuestListChanged(QuestType type)
+    {
+        QuestListChanged?.Invoke(type);
+        _onListChanged.OnNext(Unit.Default);
+    }
+
+    private void NotifyQuestChanged(QuestRuntimeEntry entry)
+    {
+        _onQuestUpdated.OnNext(entry.Id);
+        QuestChanged?.Invoke(entry);
+    }
+
+    private void NotifyQuestCompleted(QuestRuntimeEntry entry)
+    {
+        QuestCompleted?.Invoke(entry);
+        _onQuestCompleted.OnNext(entry.Def);
     }
 
 }

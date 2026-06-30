@@ -17,7 +17,6 @@ public class ConditionalBuffSO : BuffSO
 
         return conditionType switch
         {
-            BuffConditionType.HPBelow50Percent => stats.Get(StatType.CurrentHP) < stats.Get(StatType.HP) * 0.5f,
             BuffConditionType.ManaBelow50Percent => stats.Get(StatType.CurrentMana) < stats.Get(StatType.Mana) * 0.5f,
             BuffConditionType.ClickPerTick20 => stats.Get(StatType.ClickPerTick) > 20f,
             BuffConditionType.DayTime => TimeSystem.Instance != null && TimeSystem.Instance.CurrentTimeState.Value == TimeState.Day,
@@ -56,17 +55,16 @@ public class ConditionalBuffSO : BuffSO
 
 public enum BuffConditionType
 {
-    None,
-    HPBelow50Percent,
-    ManaBelow50Percent,
-    ClickPerTick20,
-    DayTime,
-    NightTime,
-    Every5Click,
-    Every8Click,
-    Holded3Sec,
-    Holded6Sec,
+    None = 0,
+    ManaBelow50Percent = 2,
+    ClickPerTick20 = 3,
+    DayTime = 4,
+    NightTime = 5,
+    Every5Click = 6,
+    Every8Click = 7,
+    Holded3Sec = 8,
+    Holded6Sec = 9,
     // Area
-    IsInPlain,
-    IsBossOutOfCondition,
+    IsInPlain = 10,
+    IsBossOutOfCondition = 11,
 }

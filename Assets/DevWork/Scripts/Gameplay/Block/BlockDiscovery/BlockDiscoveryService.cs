@@ -12,10 +12,12 @@ namespace Game.Discovery
     {
         public static BlockDiscoveryService Ins { get; private set; }
 
-        [SerializeField] private string prefsKey = "BLOCK_DISCOVERY_V1";
+        private const string LegacyPrefsKey = "BLOCK_DISCOVERY_V1";
+        private const string SaveFileName = "block_discovery.json";
 
         private readonly HashSet<string> _blocks = new();
         private readonly HashSet<string> _drops  = new();
+        private readonly SaveCoordinator saveCoordinator = SaveCoordinator.Ins;
 
         public event Action<string> OnBlockDiscovered;              // blockName
         public event Action<string, string> OnDropDiscovered;       // blockName, itemId
@@ -76,8 +78,7 @@ namespace Game.Discovery
                 discoveredDrops  = new List<string>(_drops),
             };
 
-            PlayerPrefs.SetString(prefsKey, JsonUtility.ToJson(data));
-            PlayerPrefs.Save();
+            saveCoordinator.TrySaveJson(SaveFileName, data, "Discovery");
         }
 
         public void Load()
@@ -85,24 +86,21 @@ namespace Game.Discovery
             _blocks.Clear();
             _drops.Clear();
 
-            if (!PlayerPrefs.HasKey(prefsKey)) return;
-
-            string json = PlayerPrefs.GetString(prefsKey, "");
-            if (string.IsNullOrEmpty(json)) return;
-
-            try
+            if (!saveCoordinator.Exists(SaveFileName))
             {
-                var data = JsonUtility.FromJson<BlockDiscoverySaveData>(json);
-                if (data?.discoveredBlocks != null)
-                    foreach (var b in data.discoveredBlocks) _blocks.Add(b);
+                if (TryLoadLegacyPlayerPrefs())
+                {
+                    Save();
+                    DeleteLegacyPlayerPrefs();
+                }
 
-                if (data?.discoveredDrops != null)
-                    foreach (var d in data.discoveredDrops) _drops.Add(d);
+                return;
             }
-            catch (Exception e)
-            {
-                Debug.LogWarning($"[Discovery] Load failed: {e.Message}");
-            }
+
+            if (!saveCoordinator.TryLoadJson(SaveFileName, out BlockDiscoverySaveData data, "Discovery"))
+                return;
+
+            ApplyData(data);
         }
 
         // Dev helper
@@ -110,7 +108,50 @@ namespace Game.Discovery
         {
             _blocks.Clear();
             _drops.Clear();
-            PlayerPrefs.DeleteKey(prefsKey);
+
+            saveCoordinator.Delete(SaveFileName, "Discovery");
+
+            DeleteLegacyPlayerPrefs();
+        }
+
+        private bool TryLoadLegacyPlayerPrefs()
+        {
+            if (!PlayerPrefs.HasKey(LegacyPrefsKey))
+                return false;
+
+            string json = PlayerPrefs.GetString(LegacyPrefsKey, "");
+            if (string.IsNullOrEmpty(json))
+                return false;
+
+            try
+            {
+                var data = JsonUtility.FromJson<BlockDiscoverySaveData>(json);
+                ApplyData(data);
+                return true;
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[Discovery] Legacy PlayerPrefs migration failed: {e.Message}");
+                return false;
+            }
+        }
+
+        private void ApplyData(BlockDiscoverySaveData data)
+        {
+            if (data?.discoveredBlocks != null)
+                foreach (var b in data.discoveredBlocks) _blocks.Add(b);
+
+            if (data?.discoveredDrops != null)
+                foreach (var d in data.discoveredDrops) _drops.Add(d);
+        }
+
+        private static void DeleteLegacyPlayerPrefs()
+        {
+            if (!PlayerPrefs.HasKey(LegacyPrefsKey))
+                return;
+
+            PlayerPrefs.DeleteKey(LegacyPrefsKey);
+            PlayerPrefs.Save();
         }
     }
 }

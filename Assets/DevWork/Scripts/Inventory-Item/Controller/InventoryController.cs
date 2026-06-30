@@ -12,6 +12,7 @@ using UnityEngine.ResourceManagement.AsyncOperations;
 
 public class InventoryController : MonoBehaviour
 {
+    // Legacy global path: inventory access is still global in older flows, but new code should avoid extending it.
     public static InventoryController Instance;
     [SerializeField] private InventoryUIManager inventoryUiManager;
     [SerializeField] private InventorySlider inventorySlider;
@@ -476,27 +477,30 @@ public class InventoryController : MonoBehaviour
     {
         if (statTexts == null || statTexts.Count == 0) return;
 
-        // Order: HP, Mana, Damage, Crit, Def (matching current UI)
-        var hp   = StatsManager.Ins.Get(StatType.HP);
         var mana = StatsManager.Ins.Get(StatType.Mana);
         var dmg  = GetDamageByState();
         var crit = StatsManager.Ins.Get(StatType.CritChance);
-        var def  = StatsManager.Ins.Get(StatType.Def);
         var luck = StatsManager.Ins.Get(StatType.Lucky);
 
-        // Ensure text list has enough entries
-        void Set(int idx, string value)
+        void Set(int idx, string value, bool visible = true)
         {
-            if (idx >= 0 && idx < statTexts.Count && statTexts[idx] != null)
+            if (idx < 0 || idx >= statTexts.Count || statTexts[idx] == null)
+                return;
+
+            if (statTexts[idx].transform.parent != null)
+                statTexts[idx].transform.parent.gameObject.SetActive(visible);
+
+            statTexts[idx].gameObject.SetActive(visible);
+            if (visible)
                 statTexts[idx].text = value;
         }
 
-        Set(0, $"{hp:F0}");
-        Set(1, $"{mana:F0}");
-        Set(2, $"{dmg:F0}");
-        Set(3, $"{crit:F0}%");
-        Set(4, $"{def:F0}");
-        Set(5, $"{luck:F0}%");
+        Set(0, $"{mana:F0}");
+        Set(1, $"{dmg:F0}");
+        Set(2, $"{crit:F0}%");
+        Set(3, $"{luck:F0}%");
+        Set(4, string.Empty, false);
+        Set(5, string.Empty, false);
     }
 
     string GetBuffOnlyDescription(List<BuffInstance> buffs, List<BuffInstance> conditionBuffs)

@@ -6,15 +6,29 @@ using UnityEngine;
 
 public enum ItemPrefix
 {
-    None,
-    Lucky,      // +Luck
-    Tanky,      // +HP +Def
-    Sharp,      // +Damage
-    Cursed      // -Luck or -something
+    None = 0,
+    Lucky = 1,
+    Sharp = 3,
+    Cursed = 4
 }
 
 public static class ItemPrefixConfig
 {
+    public static bool TryGetDisplayName(ItemPrefix prefix, out string displayName)
+    {
+        switch (prefix)
+        {
+            case ItemPrefix.Lucky:
+            case ItemPrefix.Sharp:
+            case ItemPrefix.Cursed:
+                displayName = prefix.ToString();
+                return true;
+            default:
+                displayName = string.Empty;
+                return false;
+        }
+    }
+
     public static IReadOnlyList<StatModifier> GetFlatMods(ItemPrefix prefix)
     {
         switch (prefix)
@@ -23,13 +37,6 @@ public static class ItemPrefixConfig
                 return new[]
                 {
                     new StatModifier { statType = StatType.Lucky, value = 5f },
-                };
-
-            case ItemPrefix.Tanky:
-                return new[]
-                {
-                    new StatModifier { statType = StatType.HP,  value = 20f },
-                    new StatModifier { statType = StatType.Def, value = 5f  },
                 };
 
             case ItemPrefix.Sharp:
@@ -49,7 +56,7 @@ public static class ItemPrefixConfig
         }
     }
 
-    // Optional: roll rules based on item type (so pickaxes can't get "Tanky", etc.)
+    // Optional: roll rules based on item type.
     public static ItemPrefix GetRandomFor(Item item)
     {
         if (item == null) return ItemPrefix.None;
@@ -59,7 +66,7 @@ public static class ItemPrefixConfig
             return RandomFrom(ItemPrefix.None, ItemPrefix.Lucky, ItemPrefix.Sharp, ItemPrefix.Cursed);
 
         if (item.Type == ItemType.Accessory)
-            return RandomFrom(ItemPrefix.None, ItemPrefix.Lucky, ItemPrefix.Tanky, ItemPrefix.Cursed);
+            return RandomFrom(ItemPrefix.None, ItemPrefix.Lucky, ItemPrefix.Cursed);
 
         return ItemPrefix.None;
     }

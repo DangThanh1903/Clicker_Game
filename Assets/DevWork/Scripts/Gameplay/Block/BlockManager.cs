@@ -5,6 +5,7 @@ using UnityEngine;
 
 public class BlockManager : MonoBehaviour
 {
+    // Legacy global path: scene orchestration still routes here, but avoid adding new singleton coupling.
     public static BlockManager Ins;
     [SerializeField] private ClickableObject currentBlock;
     [SerializeField] private LocationLoader locationLoader;
@@ -14,6 +15,7 @@ public class BlockManager : MonoBehaviour
     [SerializeField] Transform  spawnPos;
     public float rareWeightCap = 10;
     public ClickableObject CurrentBlock => currentBlock;
+    public BossSO BossDatabase => bossSO;
     public MonsterSpawner MonsterSpawner => enableMonsterEncounters ? monsterSpawner : null;
     public event Action<string> CurrentBlockChanged;
     public event Action<int, int> MonsterSpawnProgressChanged;

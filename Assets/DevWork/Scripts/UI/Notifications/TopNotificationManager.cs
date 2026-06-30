@@ -36,10 +36,12 @@ public struct TopNotificationVisualProfile
 
 public sealed class TopNotificationManager : MonoBehaviour
 {
+    // Allowed global owner: top notification presentation queue.
     public static TopNotificationManager Ins { get; private set; }
 
     [Header("References")]
-    [SerializeField] private TopNotificationView view;
+    [SerializeField] private TopNotificationView viewPrefab;
+    [SerializeField] private RectTransform viewContainer;
 
     [Header("Timing")]
     [SerializeField, Min(0.2f)] private float defaultDuration = 1.35f;
@@ -57,10 +59,13 @@ public sealed class TopNotificationManager : MonoBehaviour
 
     private readonly Queue<TopNotificationRequest> queue = new Queue<TopNotificationRequest>();
     private readonly Dictionary<TopNotificationType, TopNotificationVisualProfile> visualMap = new Dictionary<TopNotificationType, TopNotificationVisualProfile>();
+    private TopNotificationView activeView;
     private Coroutine processCo;
     private string lastSignature;
     private float lastEnqueueRealtime;
-    private bool loggedMissingView;
+    private bool loggedMissingReferences;
+    private bool isReady;
+    private bool isInitializing;
 
     private void Awake()
     {
@@ -71,11 +76,14 @@ public sealed class TopNotificationManager : MonoBehaviour
         }
 
         Ins = this;
-        BuildVisualMap();
+        EnsureReady();
     }
 
     private void OnValidate()
     {
+        if (viewContainer == null)
+            viewContainer = transform as RectTransform;
+
         BuildVisualMap();
     }
 
@@ -115,9 +123,14 @@ public sealed class TopNotificationManager : MonoBehaviour
 
     public void Enqueue(TopNotificationRequest request)
     {
+        EnsureReady();
+
         if (string.IsNullOrWhiteSpace(request.message))
             return;
 
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        Debug.Log($"[QuestDebug] TopNotification enqueue type={request.type} message={request.message}");
+#endif
         string signature = $"{(int)request.type}:{request.message}";
         float now = Time.unscaledTime;
         if (signature == lastSignature && now - lastEnqueueRealtime <= duplicateSuppressWindow)
@@ -135,9 +148,9 @@ public sealed class TopNotificationManager : MonoBehaviour
     {
         while (queue.Count > 0)
         {
-            if (view == null)
+            if (activeView == null && !CreateView())
             {
-                LogMissingView();
+                LogMissingReferences();
                 queue.Clear();
                 break;
             }
@@ -146,7 +159,7 @@ public sealed class TopNotificationManager : MonoBehaviour
             var visual = ResolveVisual(request.type);
             float duration = request.duration > 0f ? request.duration : defaultDuration;
 
-            yield return view.Play(request.message, duration, visual);
+            yield return activeView.Play(request.message, duration, visual);
         }
 
         processCo = null;
@@ -160,6 +173,23 @@ public sealed class TopNotificationManager : MonoBehaviour
         return defaultVisual;
     }
 
+    private bool CreateView()
+    {
+        if (activeView != null)
+            return true;
+
+        if (viewPrefab == null || viewContainer == null)
+            return false;
+
+        activeView = Instantiate(viewPrefab, viewContainer, false);
+        activeView.name = viewPrefab.name;
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        Debug.Log($"[QuestDebug] TopNotification view instantiated: {activeView.name}", this);
+#endif
+        return true;
+    }
+
     private void BuildVisualMap()
     {
         visualMap.Clear();
@@ -170,13 +200,34 @@ public sealed class TopNotificationManager : MonoBehaviour
         }
     }
 
-    [System.Diagnostics.Conditional("UNITY_EDITOR"), System.Diagnostics.Conditional("DEVELOPMENT_BUILD")]
-    private void LogMissingView()
+    private void EnsureReady()
     {
-        if (loggedMissingView)
+        if (isReady || isInitializing)
             return;
 
-        loggedMissingView = true;
-        Debug.LogWarning("[TopNotificationManager] Missing TopNotificationView reference.", this);
+        isInitializing = true;
+        try
+        {
+            if (viewContainer == null)
+                viewContainer = transform as RectTransform;
+
+            BuildVisualMap();
+            CreateView();
+            isReady = true;
+        }
+        finally
+        {
+            isInitializing = false;
+        }
+    }
+
+    [System.Diagnostics.Conditional("UNITY_EDITOR"), System.Diagnostics.Conditional("DEVELOPMENT_BUILD")]
+    private void LogMissingReferences()
+    {
+        if (loggedMissingReferences)
+            return;
+
+        loggedMissingReferences = true;
+        Debug.LogWarning("[TopNotificationManager] Missing viewPrefab or viewContainer reference.", this);
     }
 }

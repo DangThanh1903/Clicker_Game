@@ -32,8 +32,6 @@ public class Login : MonoBehaviour
     [SerializeField] private float waitFirebaseTimeout = 10f;
     [SerializeField] private float waitFirebaseHardTimeout = 30f;
     [SerializeField] private float loadDataTimeout = 10f;
-    [SerializeField] private float retryLoadDelaySeconds = 3f;
-    [SerializeField] private int maxCloudLoadAttempts = 3;
 
     [Header("Quest Load")]
     [SerializeField] private bool requireQuestReady = true;
@@ -60,12 +58,6 @@ public class Login : MonoBehaviour
     private bool stepInventory;
     private bool stepQuest;
 
-    private sealed class CoroutineRunState
-    {
-        public bool IsComplete;
-        public Exception Exception;
-    }
-
     void Awake()
     {
         if (Ins != null && Ins != this)
@@ -80,9 +72,9 @@ public class Login : MonoBehaviour
     void Start()
     {
         DevLog.Log("Login.Start");
-        totalSteps = 5 +
+        totalSteps = 3 +
                      (requireInternetToPlay ? 1 : 0) +
-                     (requireVersionGate ? 1 : 0) +
+                     (requireVersionGate ? 3 : 0) +
                      (requireQuestReady ? 1 : 0);
 
         UpdateProgress(0f, "Loading");
@@ -97,36 +89,32 @@ public class Login : MonoBehaviour
             MarkStep(ref stepInternetGate, "Internet");
         }
 
-        // 1) Wait FirebaseBootstrap instance
-        DevLog.Log("Waiting FirebaseBootstrap...");
-        yield return WaitUntilOrTimeout(
-            () => FirebaseBootstrap.Ins != null,
-            waitBootstrapTimeout,
-            "FirebaseBootstrap missing (timeout)");
-
-        if (FirebaseBootstrap.Ins == null)
-        {
-            yield return RecoverToLocalAndLoadScene("FirebaseBootstrap missing.");
-            yield break;
-        }
-
-        MarkStep(ref stepBootstrap, "Firebase bootstrap");
-
-        bool firebaseReady = false;
-        yield return WaitForFirebaseReadyOrTimeout(ok => firebaseReady = ok);
-        if (!firebaseReady)
-        {
-            yield return RecoverToLocalAndLoadScene("Firebase not ready.");
-            yield break;
-        }
-
-        MarkStep(ref stepFirebase, "Firebase ready");
-
-        string uid = FirebaseBootstrap.Ins.Auth.CurrentUser.UserId;
-        DevLog.Log($"Firebase ready. uid={uid}");
-
         if (requireVersionGate)
         {
+            DevLog.Log("Waiting FirebaseBootstrap for version gate...");
+            yield return WaitUntilOrTimeout(
+                () => FirebaseBootstrap.Ins != null,
+                waitBootstrapTimeout,
+                "FirebaseBootstrap missing (timeout)");
+
+            if (FirebaseBootstrap.Ins == null)
+            {
+                yield return RecoverToLocalAndLoadScene("FirebaseBootstrap missing.");
+                yield break;
+            }
+
+            MarkStep(ref stepBootstrap, "Firebase bootstrap");
+
+            bool firebaseReady = false;
+            yield return WaitForFirebaseReadyOrTimeout(ok => firebaseReady = ok);
+            if (!firebaseReady)
+            {
+                yield return RecoverToLocalAndLoadScene("Firebase not ready.");
+                yield break;
+            }
+
+            MarkStep(ref stepFirebase, "Firebase ready");
+
             bool versionOk = false;
             yield return CheckVersionGateBlocking(ok => versionOk = ok);
             if (!versionOk)
@@ -147,48 +135,25 @@ public class Login : MonoBehaviour
 
         if (DataSaver.Ins == null)
         {
-            Debug.LogError("DataSaver missing. Cannot load cloud data.");
+            Debug.LogError("DataSaver missing. Cannot load local data.");
+            yield break;
+        }
+
+        yield return WaitUntilOrTimeout(
+            () => DataSaver.Ins.IsReady,
+            loadDataTimeout,
+            "DataSaver local load timeout");
+
+        if (!DataSaver.Ins.IsReady)
+        {
+            Debug.LogError("DataSaver is not ready. Cannot continue startup.");
             yield break;
         }
 
         MarkStep(ref stepDataSaver, "Data saver");
-
-        // 3) Load gameplay + inventories (prefer cloud, fallback local if needed)
-        int attempts = Mathf.Max(1, maxCloudLoadAttempts);
-        for (int i = 1; i <= attempts; i++)
-        {
-            DevLog.Log("Loading gameplay...");
-            bool gameplayOk = false;
-            yield return RunCoroutineWithTimeout(
-                DataSaver.Ins.LoadGameplay(uid, ok => gameplayOk = ok),
-                loadDataTimeout,
-                "LoadGameplay timeout");
-
-            DevLog.Log("Loading inventories...");
-            bool inventoryOk = false;
-            yield return RunCoroutineWithTimeout(
-                DataSaver.Ins.LoadAllInventories(uid, ok => inventoryOk = ok),
-                loadDataTimeout,
-                "LoadAllInventories timeout");
-
-            if (gameplayOk && inventoryOk)
-            {
-                DataSaver.Ins.MarkInitialLoadComplete(true);
-                MarkStep(ref stepGameplay, "Gameplay");
-                MarkStep(ref stepInventory, "Inventory");
-                yield return FinishStartupAfterDataLoad();
-                yield break;
-            }
-
-            Debug.LogWarning($"Cloud load incomplete (attempt {i}/{attempts}).");
-            if (i < attempts)
-            {
-                float wait = Mathf.Max(0.1f, retryLoadDelaySeconds);
-                yield return new WaitForSecondsRealtime(wait);
-            }
-        }
-
-        yield return RecoverToLocalAndLoadScene("Cloud load failed.");
+        MarkStep(ref stepGameplay, "Gameplay");
+        MarkStep(ref stepInventory, "Inventory");
+        yield return FinishStartupAfterDataLoad();
     }
 
     IEnumerator WaitForInternet()
@@ -430,82 +395,20 @@ public class Login : MonoBehaviour
             yield break;
         }
 
-        bool localOk = false;
-        yield return RunCoroutineWithTimeout(
-            DataSaver.Ins.LoadFromLocalCache(ok => localOk = ok),
+        yield return WaitUntilOrTimeout(
+            () => DataSaver.Ins.IsReady,
             loadDataTimeout,
-            "LoadLocalCache timeout");
+            "DataSaver local load timeout");
 
-        if (!localOk)
-            Debug.LogWarning("Local cache unavailable. Continue with default startup state.");
-
-        DataSaver.Ins.MarkInitialLoadComplete(true);
-        if (localOk)
+        if (!DataSaver.Ins.IsReady)
         {
-            MarkStep(ref stepGameplay, "Gameplay (local)");
-            MarkStep(ref stepInventory, "Inventory (local)");
-        }
-        else
-        {
-            MarkStep(ref stepGameplay, "Gameplay (default)");
-            MarkStep(ref stepInventory, "Inventory (default)");
-        }
-    }
-
-    IEnumerator RunCoroutineWithTimeout(IEnumerator routine, float timeout, string timeoutMsg)
-    {
-        if (routine == null)
-        {
-            Debug.LogWarning($"{timeoutMsg} (routine missing)");
+            Debug.LogError("DataSaver is not ready. Cannot load local data.");
             yield break;
         }
 
-        var state = new CoroutineRunState();
-        Coroutine nested = StartCoroutine(RunNestedCoroutine(routine, state));
-        float t = 0f;
-        while (!state.IsComplete)
-        {
-            if (timeout > 0f)
-            {
-                t += Time.unscaledDeltaTime;
-                if (t >= timeout)
-                {
-                    if (nested != null)
-                        StopCoroutine(nested);
-                    Debug.LogWarning(timeoutMsg);
-                    yield break;
-                }
-            }
-
-            yield return null;
-        }
-
-        if (state.Exception != null)
-            Debug.LogError(state.Exception);
-    }
-
-    IEnumerator RunNestedCoroutine(IEnumerator routine, CoroutineRunState state)
-    {
-        while (true)
-        {
-            object current;
-            try
-            {
-                if (!routine.MoveNext())
-                    break;
-
-                current = routine.Current;
-            }
-            catch (Exception ex)
-            {
-                state.Exception = ex;
-                break;
-            }
-
-            yield return current;
-        }
-
-        state.IsComplete = true;
+        MarkStep(ref stepDataSaver, "Data saver");
+        MarkStep(ref stepGameplay, "Gameplay");
+        MarkStep(ref stepInventory, "Inventory");
     }
 
     IEnumerator RecoverToLocalAndLoadScene(string reason)

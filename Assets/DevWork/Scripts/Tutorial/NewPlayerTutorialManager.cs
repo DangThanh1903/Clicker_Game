@@ -1,4 +1,6 @@
 using System.Collections;
+using System;
+using System.Collections.Generic;
 using UniRx;
 using UnityEngine;
 using UnityEngine.UI;
@@ -8,6 +10,9 @@ using UnityEngine.Serialization;
 public class NewPlayerTutorialManager : MonoBehaviour
 {
     private const float AutoStepDelay = 7f;
+    private const string TutorialProgressFileName = "tutorial_progress.json";
+    private static readonly SaveCoordinator saveCoordinator = SaveCoordinator.Ins;
+    private static TutorialProgressData tutorialProgressData;
 
     [Header("Overlay Source (Scene or Prefab)")]
     [SerializeField, FormerlySerializedAs("tutorialOverlayMiddle"), FormerlySerializedAs("tutorialOverlayTopHalf")]
@@ -797,32 +802,109 @@ public class NewPlayerTutorialManager : MonoBehaviour
 
     private bool ShouldRunOnboarding()
     {
-        return !runOnlyFirstTime || PlayerPrefs.GetInt(onboardingDoneKey, 0) == 0;
+        return !runOnlyFirstTime || !IsTutorialDone(onboardingDoneKey);
     }
 
     private bool ShouldRunRecipeTutorial()
     {
-        return !runOnlyFirstTime || PlayerPrefs.GetInt(recipeDoneKey, 0) == 0;
+        return !runOnlyFirstTime || !IsTutorialDone(recipeDoneKey);
     }
 
     private void MarkOnboardingDone()
     {
-        PlayerPrefs.SetInt(onboardingDoneKey, 1);
-        PlayerPrefs.Save();
+        MarkTutorialDone(onboardingDoneKey);
     }
 
     private void MarkRecipeTutorialDone()
     {
-        PlayerPrefs.SetInt(recipeDoneKey, 1);
-        PlayerPrefs.Save();
+        MarkTutorialDone(recipeDoneKey);
     }
 
     [ContextMenu("Reset Tutorial Progress")]
     private void ResetTutorialProgress()
     {
-        PlayerPrefs.DeleteKey(onboardingDoneKey);
-        PlayerPrefs.DeleteKey(recipeDoneKey);
+        ResetTutorialKey(onboardingDoneKey);
+        ResetTutorialKey(recipeDoneKey);
+    }
+
+    private static bool IsTutorialDone(string key)
+    {
+        if (string.IsNullOrWhiteSpace(key))
+            return false;
+
+        EnsureTutorialProgressLoaded();
+        if (tutorialProgressData.completedKeys.Contains(key))
+            return true;
+
+        if (!PlayerPrefs.HasKey(key) || PlayerPrefs.GetInt(key, 0) != 1)
+            return false;
+
+        tutorialProgressData.completedKeys.Add(key);
+        SaveTutorialProgress();
+        PlayerPrefs.DeleteKey(key);
         PlayerPrefs.Save();
+        return true;
+    }
+
+    private static void MarkTutorialDone(string key)
+    {
+        if (string.IsNullOrWhiteSpace(key))
+            return;
+
+        EnsureTutorialProgressLoaded();
+        if (!tutorialProgressData.completedKeys.Contains(key))
+        {
+            tutorialProgressData.completedKeys.Add(key);
+            SaveTutorialProgress();
+        }
+
+        if (PlayerPrefs.HasKey(key))
+        {
+            PlayerPrefs.DeleteKey(key);
+            PlayerPrefs.Save();
+        }
+    }
+
+    private static void ResetTutorialKey(string key)
+    {
+        if (string.IsNullOrWhiteSpace(key))
+            return;
+
+        EnsureTutorialProgressLoaded();
+        tutorialProgressData.completedKeys.Remove(key);
+        SaveTutorialProgress();
+
+        if (PlayerPrefs.HasKey(key))
+        {
+            PlayerPrefs.DeleteKey(key);
+            PlayerPrefs.Save();
+        }
+    }
+
+    private static void EnsureTutorialProgressLoaded()
+    {
+        if (tutorialProgressData != null)
+            return;
+
+        tutorialProgressData = new TutorialProgressData();
+        if (!saveCoordinator.TryLoadJson(TutorialProgressFileName, out tutorialProgressData, "Tutorial"))
+        {
+            tutorialProgressData = new TutorialProgressData();
+            return;
+        }
+
+        tutorialProgressData.completedKeys ??= new List<string>();
+    }
+
+    private static void SaveTutorialProgress()
+    {
+        saveCoordinator.TrySaveJson(TutorialProgressFileName, tutorialProgressData ?? new TutorialProgressData(), "Tutorial");
+    }
+
+    [Serializable]
+    private class TutorialProgressData
+    {
+        public List<string> completedKeys = new List<string>();
     }
 
     private TutorialOverlayView BindOrInstantiateOverlay(TutorialOverlayView source, string runtimeName)

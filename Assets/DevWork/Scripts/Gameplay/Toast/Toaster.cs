@@ -24,24 +24,42 @@ public class Toaster : MonoBehaviour
     [SerializeField, Min(0.15f)] private float pickupDuration = 0.85f;
     [SerializeField, Min(0f)] private float pickupRiseDistance = 86f;
     [SerializeField, Min(0f)] private float pickupSpawnInterval = 0.25f;
+    [SerializeField, Min(1)] private int maxPickupToastPerItem = 4;
     [SerializeField, Min(0f)] private float pickupStackSpacing = 10f;
 
     private int pickupSequence;
     private readonly Queue<Sprite> pickupQueue = new Queue<Sprite>();
     private Coroutine pickupQueueRoutine;
+    private bool prewarmed;
 
     void Awake()
     {
         if (Ins != null && Ins != this) { Destroy(gameObject); return; }
         Ins = this;
+        EnsureReady();
+    }
 
-        if (toastPrefab && preloadCount > 0)
+    void OnEnable()
+    {
+        EnsureReady();
+    }
+
+    private void EnsureReady()
+    {
+        if (canvas == null)
+            canvas = GetComponentInParent<Canvas>();
+
+        if (canvas == null)
+            canvas = FindFirstObjectByType<Canvas>(FindObjectsInactive.Include);
+
+        if (prewarmed || toastPrefab == null || canvas == null || preloadCount <= 0)
+            return;
+
+        prewarmed = true;
+        for (int i = 0; i < preloadCount; i++)
         {
-            for (int i = 0; i < preloadCount; i++)
-            {
-                var t = LeanPool.Spawn(toastPrefab, canvas.transform);
-                LeanPool.Despawn(t);
-            }
+            var t = LeanPool.Spawn(toastPrefab, canvas.transform);
+            LeanPool.Despawn(t);
         }
     }
 
@@ -74,6 +92,7 @@ public class Toaster : MonoBehaviour
 
     private void InternalShow(string message, Sprite icon, float duration, Vector2? anchoredPos, bool rainbow)
     {
+        EnsureReady();
         if (!toastPrefab || !canvas)
         {
             Debug.LogWarning("[Toaster] Missing prefab or canvas.");
@@ -94,13 +113,14 @@ public class Toaster : MonoBehaviour
 
     private void InternalShowPickupItems(Sprite icon, int amount)
     {
+        EnsureReady();
         if (!toastPrefab || !canvas)
         {
             Debug.LogWarning("[Toaster] Missing prefab or canvas.");
             return;
         }
 
-        int safeAmount = Mathf.Max(0, amount);
+        int safeAmount = Mathf.Min(Mathf.Max(0, amount), Mathf.Max(1, maxPickupToastPerItem));
         if (safeAmount <= 0)
             return;
 
@@ -227,5 +247,11 @@ public class Toaster : MonoBehaviour
     }
 
     public Canvas Canvas => canvas; // expose if needed for conversions
+
+    private void OnValidate()
+    {
+        if (canvas == null)
+            canvas = GetComponentInParent<Canvas>();
+    }
 }
 

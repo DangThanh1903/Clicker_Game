@@ -8,6 +8,7 @@ using UnityEngine;
 [RequireComponent(typeof(LeanLocalization))]
 public class LocalizationManager : MonoBehaviour
 {
+    // Allowed global owner: current language and LeanLocalization sync.
     public static LocalizationManager Ins { get; private set; }
 
     public static event Action<GameLanguage> OnLanguageChanged;

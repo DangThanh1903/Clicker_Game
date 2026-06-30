@@ -6,6 +6,7 @@ using System;
 
 public class CraftNodeManager : MonoBehaviour
 {
+    // Runtime owner: current crafting tree state for the active biome.
     [Header("All nodes in this crafting tree")]
     public List<CraftNode> allNodes = new List<CraftNode>();
 
@@ -25,7 +26,7 @@ public class CraftNodeManager : MonoBehaviour
 
     private const string SaveKeyPrefix = "CraftNodeStates";
     private const string RecipeUnlockPopupName = "RecipeUnlockPopUp";
-    private bool suppressCloudSave;
+    private bool suppressDataSaverSave;
     private bool hasWarnedMissingUnlockPopup;
     private bool hasWarnedMissingUnlockPopupView;
     private bool hasWarnedMissingTopNotificationManager;
@@ -47,10 +48,9 @@ public class CraftNodeManager : MonoBehaviour
     {
         if (!useTopNotificationForUnlock)
             TryResolveRecipeUnlockPopup();
-        LoadNodeStates();
 
         if (DataSaver.Ins != null)
-            DataSaver.Ins.RegisterCraftNodeManager(this);
+            DataSaver.Ins.BindCraftNodeManager(this);
 
         foreach (var node in allNodes)
         {
@@ -104,12 +104,8 @@ public class CraftNodeManager : MonoBehaviour
         if (!reload)
             return;
 
-        LoadNodeStates();
-        foreach (var node in allNodes)
-        {
-            node?.RecheckState(true);
-            node?.UpdateVisual();
-        }
+        if (DataSaver.Ins != null)
+            DataSaver.Ins.BindCraftNodeManager(this);
     }
 
     public void FinishNode(CraftNode node)
@@ -232,43 +228,50 @@ public class CraftNodeManager : MonoBehaviour
     [System.Serializable]
     private class IntArrayWrapper
     {
-        public int[] array;
+        public int[] array = Array.Empty<int>();
     }
 
     public void SaveNodeStates()
     {
-        SaveNodeStates(saveCloud: true);
+        SaveNodeStates(queueDataSaverSave: true);
     }
 
-    public void SaveNodeStates(bool saveCloud)
+    public void SaveNodeStates(bool queueDataSaverSave)
     {
-        var states = allNodes.Select(n => n != null ? (int)n.State : (int)CraftNodeState.Locked).ToArray();
-        string json = JsonUtility.ToJson(new IntArrayWrapper { array = states });
-        PlayerPrefs.SetString(SaveKey, json);
-        PlayerPrefs.Save();
-
-        if (saveCloud && !suppressCloudSave && DataSaver.Ins != null)
+        if (queueDataSaverSave && !suppressDataSaverSave && DataSaver.Ins != null)
             DataSaver.Ins.SaveDataFn();
     }
 
-    public void LoadNodeStates()
+    public bool TryLoadLegacyPlayerPrefsStates(out List<int> states)
     {
-        if (!PlayerPrefs.HasKey(SaveKey)) return;
+        states = null;
+        if (!PlayerPrefs.HasKey(SaveKey))
+            return false;
 
         string json = PlayerPrefs.GetString(SaveKey);
-        var wrapper = JsonUtility.FromJson<IntArrayWrapper>(json);
-        if (wrapper == null || wrapper.array == null)
+        try
+        {
+            var wrapper = JsonUtility.FromJson<IntArrayWrapper>(json);
+            if (wrapper == null || wrapper.array == null)
+                return false;
+
+            states = wrapper.array.ToList();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Debug.LogWarning($"CraftNodeManager: failed to migrate legacy PlayerPrefs states for scope '{CurrentSaveScope}': {ex.Message}");
+            return false;
+        }
+    }
+
+    public void DeleteLegacyPlayerPrefsStates()
+    {
+        if (!PlayerPrefs.HasKey(SaveKey))
             return;
 
-        for (int i = 0; i < wrapper.array.Length && i < allNodes.Count; i++)
-        {
-            var node = allNodes[i];
-            if (node == null)
-                continue;
-
-            node.State = (CraftNodeState)wrapper.array[i];
-            node.UpdateVisual();
-        }
+        PlayerPrefs.DeleteKey(SaveKey);
+        PlayerPrefs.Save();
     }
 
     public List<int> GetStates()
@@ -279,30 +282,62 @@ public class CraftNodeManager : MonoBehaviour
     public void ApplyStates(List<int> states, bool saveLocal = true)
     {
         if (states == null || states.Count == 0)
+        {
+            ResetStates(saveLocal);
             return;
+        }
 
-        suppressCloudSave = true;
+        suppressDataSaverSave = true;
+        try
+        {
+            SetStates(states);
+            RecheckAllNodes();
 
-        for (int i = 0; i < states.Count && i < allNodes.Count; i++)
+            if (saveLocal)
+                SaveNodeStates(queueDataSaverSave: false);
+        }
+        finally
+        {
+            suppressDataSaverSave = false;
+        }
+    }
+
+    public void ResetStates(bool saveLocal = true)
+    {
+        suppressDataSaverSave = true;
+        try
+        {
+            SetStates(null);
+            RecheckAllNodes();
+
+            if (saveLocal)
+                SaveNodeStates(queueDataSaverSave: false);
+        }
+        finally
+        {
+            suppressDataSaverSave = false;
+        }
+    }
+
+    private void SetStates(List<int> states)
+    {
+        for (int i = 0; i < allNodes.Count; i++)
         {
             var node = allNodes[i];
             if (node == null)
                 continue;
 
-            node.State = (CraftNodeState)states[i];
+            node.State = states != null && i < states.Count
+                ? (CraftNodeState)states[i]
+                : CraftNodeState.Locked;
             node.UpdateVisual();
         }
+    }
 
-        // Re-evaluate unlocks based on newly applied finished nodes
+    private void RecheckAllNodes()
+    {
         foreach (var node in allNodes)
-        {
             node?.RecheckState(true);
-        }
-
-        if (saveLocal)
-            SaveNodeStates(saveCloud: false);
-
-        suppressCloudSave = false;
     }
     #endregion
 }

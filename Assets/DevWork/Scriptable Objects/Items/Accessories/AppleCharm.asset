@@ -18,8 +18,6 @@ MonoBehaviour:
   worldMesh: {fileID: 4300000, guid: 15967263301fe854eb4102b06f6079a2, type: 2}
   worldFrontMaterial: {fileID: 2100000, guid: 44f1954c0df894849ba42649aeab2c36, type: 2}
   worldSideMaterial: {fileID: 2100000, guid: a096fef99b056c34cbafa205fec6b727, type: 2}
-  modifiers:
-  - statType: 6
-    value: 40
+  modifiers: []
   passiveBuffs:
   - {fileID: 11400000, guid: 590c5b0a4f24f204c81a5878186fecdd, type: 2}

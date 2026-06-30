@@ -14,13 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   buffName: Test
   modifiers:
-  - statType: 6
-    value: 200
-    modType: 0
   - statType: 9
-    value: 200
-    modType: 0
-  - statType: 7
     value: 200
     modType: 0
   - statType: 10

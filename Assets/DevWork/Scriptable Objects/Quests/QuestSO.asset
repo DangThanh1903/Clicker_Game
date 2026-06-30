@@ -18,6 +18,7 @@ MonoBehaviour:
     title: Plain Beginner
     description: Mine some dirt and grass in the Plains biome
     icon: {fileID: 0}
+    isAchievement: 0
     steps:
     - stepId: break_dirt_plain_10
       goalType: 2
@@ -33,15 +34,18 @@ MonoBehaviour:
       - _itemData: {fileID: 11400000, guid: b58c152454d354b47b2cd8650bf8bf45, type: 2}
         quantity:
           value: 20
+        prefix: 0
       - _itemData: {fileID: 11400000, guid: 0a4d8afb43ac54745a959c89d524b0cd, type: 2}
         quantity:
           value: 10
-    requiredQuestId: 
+        prefix: 0
+    requiredQuestId:
   - id: prog_plain_wood_1
     type: 0
     title: Woodworker Apprentice
     description: 
     icon: {fileID: 0}
+    isAchievement: 0
     steps:
     - stepId: break_log_plain_15
       goalType: 2
@@ -61,6 +65,21 @@ MonoBehaviour:
       - _itemData: {fileID: 11400000, guid: 0476db4275c0dfa4aacb7a319b146ac6, type: 2}
         quantity:
           value: 1
+        prefix: 0
     requiredQuestId: prog_plain_miner_1
+  achievementQuests:
+  - id: ach_first_block
+    type: 2
+    title: First Block
+    description: Break your first block
+    icon: {fileID: 0}
+    isAchievement: 1
+    steps:
+    - stepId: total_block_breaked_1
+      goalType: 3
+      targetId: TotalBlockBreaked
+      requiredAmount: 1
+    rewards: []
+    requiredQuestId:
   dailyQuests: []
   dailyPickCount: 3

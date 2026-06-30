@@ -4,6 +4,8 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Net;
+using System.Text;
 using UnityEditor;
 using UnityEditor.AddressableAssets;
 using UnityEditor.AddressableAssets.Settings;
@@ -13,6 +15,10 @@ using UnityEngine;
 public class RecipeCsvAddressableImporter : Editor
 {
     private const int ExpectedColumns = 10; // Result,ResultQty,Ing0,Qty0,Ing1,Qty1,Ing2,Qty2,Ing3,Qty3
+    private const string RecipeSheetId = "1MS8PZC-8mWTw9KHIdOyyE7x8BtiaHfdgqY3KOXAbJRM";
+    private const string RecipeSheetGid = "1490325417";
+    private const string RecipeSheetName = "Recipe";
+    private const string ToolMenuPath = "Tools/ARealClickerGame/Load Recipes From Google Sheet (Recipe)";
 
     public override void OnInspectorGUI()
     {
@@ -21,25 +27,101 @@ public class RecipeCsvAddressableImporter : Editor
         RecipeDatabase db = (RecipeDatabase)target;
 
         EditorGUILayout.Space();
+        if (GUILayout.Button("Load Recipes from Google Sheet (Recipe)"))
+        {
+            LoadFromGoogleSheet(db);
+        }
+
         if (GUILayout.Button("Load Recipes from CSV (Addressables)"))
         {
             string path = EditorUtility.OpenFilePanel("Select Recipes CSV", "", "csv");
             if (!string.IsNullOrEmpty(path))
             {
-                LoadFromCsvAddressables(db, path);
+                LoadFromCsvFile(db, path);
             }
         }
     }
 
-    private static void LoadFromCsvAddressables(RecipeDatabase db, string path)
+    [MenuItem(ToolMenuPath)]
+    private static void LoadSelectedOrProjectRecipeDatabaseFromGoogleSheet()
     {
-        List<string> lines = File.ReadAllLines(path)
+        RecipeDatabase db = ResolveTargetDatabase();
+        if (db == null)
+        {
+            EditorUtility.DisplayDialog(
+                "Load Recipes",
+                "No RecipeDatabase asset found. Select one in Project view or create a Recipe Database asset first.",
+                "OK");
+            return;
+        }
+
+        LoadFromGoogleSheet(db);
+    }
+
+    [MenuItem(ToolMenuPath, true)]
+    private static bool ValidateLoadSelectedOrProjectRecipeDatabaseFromGoogleSheet()
+    {
+        return ResolveTargetDatabase(showWarnings: false) != null;
+    }
+
+    private static RecipeDatabase ResolveTargetDatabase(bool showWarnings = true)
+    {
+        if (Selection.activeObject is RecipeDatabase selectedDb)
+        {
+            return selectedDb;
+        }
+
+        string[] guids = AssetDatabase.FindAssets("t:RecipeDatabase");
+        if (guids == null || guids.Length == 0)
+        {
+            return null;
+        }
+
+        if (guids.Length > 1 && showWarnings)
+        {
+            Debug.LogWarning(
+                $"[RecipeCsvAddressableImporter] Multiple RecipeDatabase assets found. Using first result: {AssetDatabase.GUIDToAssetPath(guids[0])}. Select a specific database asset before running the tool to choose another.");
+        }
+
+        string path = AssetDatabase.GUIDToAssetPath(guids[0]);
+        return AssetDatabase.LoadAssetAtPath<RecipeDatabase>(path);
+    }
+
+    private static void LoadFromGoogleSheet(RecipeDatabase db)
+    {
+        string url = BuildGoogleSheetCsvUrl();
+        try
+        {
+            using WebClient client = new WebClient { Encoding = Encoding.UTF8 };
+            string csv = client.DownloadString(url);
+            ImportFromCsvText(db, csv, $"Google Sheet tab '{RecipeSheetName}'");
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"[RecipeCsvAddressableImporter] Failed to load Google Sheet tab '{RecipeSheetName}'.\nURL: {url}\n{ex}");
+        }
+    }
+
+    private static string BuildGoogleSheetCsvUrl()
+    {
+        return $"https://docs.google.com/spreadsheets/d/{RecipeSheetId}/export?format=csv&gid={RecipeSheetGid}";
+    }
+
+    private static void LoadFromCsvFile(RecipeDatabase db, string path)
+    {
+        string csv = File.ReadAllText(path);
+        ImportFromCsvText(db, csv, Path.GetFileName(path));
+    }
+
+    private static void ImportFromCsvText(RecipeDatabase db, string csv, string sourceName)
+    {
+        List<string> lines = SplitCsvLines(csv)
             .Where(l => !string.IsNullOrWhiteSpace(l) && !l.TrimStart().StartsWith("#"))
             .ToList();
 
         if (lines.Count == 0)
         {
-            EditorUtility.DisplayDialog("Import Recipes", "CSV is empty.", "OK");
+            EditorUtility.DisplayDialog("Import Recipes", $"{sourceName} is empty.", "OK");
             return;
         }
 
@@ -50,7 +132,7 @@ public class RecipeCsvAddressableImporter : Editor
         {
             EditorUtility.DisplayDialog(
                 "Import Recipes",
-                "Header must start with: Result,ResultQty,... (10 columns total).",
+                $"{sourceName} header must start with: Result,ResultQty,... (10 columns total).",
                 "OK");
             return;
         }
@@ -93,13 +175,18 @@ public class RecipeCsvAddressableImporter : Editor
         {
             string raw = lines[rowIndex];
             List<string> cols = ParseCsvLine(raw);
-            if (cols.Count == 0)
+            if (cols.Count == 0 || IsBlankRow(cols))
             {
                 continue;
             }
 
             if (cols.Count < ExpectedColumns)
             {
+                if (IsPlaceholderRow(cols))
+                {
+                    continue;
+                }
+
                 Debug.LogWarning($"[RecipeCsvAddressableImporter] Skipping line {rowIndex + 1}: expected {ExpectedColumns} columns, got {cols.Count}.");
                 continue;
             }
@@ -107,6 +194,11 @@ public class RecipeCsvAddressableImporter : Editor
             try
             {
                 string resultKey = cols[0].Trim();
+                if (IsHeaderLikeRow(cols) || IsPlaceholderRow(cols))
+                {
+                    continue;
+                }
+
                 int resultQty = ParseInt(cols[1], 1, rowIndex + 1, "ResultQty");
 
                 if (string.IsNullOrEmpty(resultKey))
@@ -167,7 +259,7 @@ public class RecipeCsvAddressableImporter : Editor
         AssetDatabase.SaveAssets();
         db.Initialize();
 
-        DevLog.Log($"[RecipeCsvAddressableImporter] Imported {created} recipe(s) from CSV.");
+        DevLog.Log($"[RecipeCsvAddressableImporter] Imported {created} recipe(s) from {sourceName}.");
     }
 
     private static void BuildItemLookup(
@@ -278,6 +370,80 @@ public class RecipeCsvAddressableImporter : Editor
         }
 
         throw new FormatException($"Line {lineNo}: '{field}' must be an integer (got '{s}').");
+    }
+
+    private static bool IsBlankRow(List<string> cols)
+    {
+        return cols == null || cols.All(string.IsNullOrWhiteSpace);
+    }
+
+    private static bool IsHeaderLikeRow(List<string> cols)
+    {
+        return cols.Count > 1 &&
+               cols[0].Trim().Equals("Result", StringComparison.OrdinalIgnoreCase) &&
+               cols[1].Trim().Equals("ResultQty", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsPlaceholderRow(List<string> cols)
+    {
+        if (cols == null || cols.Count == 0)
+        {
+            return false;
+        }
+
+        return cols[0].Trim().Equals("Result", StringComparison.OrdinalIgnoreCase) &&
+               cols.Skip(1).All(string.IsNullOrWhiteSpace);
+    }
+
+    private static List<string> SplitCsvLines(string csv)
+    {
+        List<string> lines = new List<string>();
+        if (string.IsNullOrEmpty(csv))
+        {
+            return lines;
+        }
+
+        StringBuilder line = new StringBuilder();
+        bool inQuotes = false;
+
+        for (int i = 0; i < csv.Length; i++)
+        {
+            char c = csv[i];
+            if (c == '"')
+            {
+                if (inQuotes && i + 1 < csv.Length && csv[i + 1] == '"')
+                {
+                    line.Append(c);
+                    i++;
+                    continue;
+                }
+
+                inQuotes = !inQuotes;
+                line.Append(c);
+                continue;
+            }
+
+            if (!inQuotes && (c == '\n' || c == '\r'))
+            {
+                if (c == '\r' && i + 1 < csv.Length && csv[i + 1] == '\n')
+                {
+                    i++;
+                }
+
+                lines.Add(line.ToString());
+                line.Clear();
+                continue;
+            }
+
+            line.Append(c);
+        }
+
+        if (line.Length > 0)
+        {
+            lines.Add(line.ToString());
+        }
+
+        return lines;
     }
 
     private static List<string> ParseCsvLine(string line)

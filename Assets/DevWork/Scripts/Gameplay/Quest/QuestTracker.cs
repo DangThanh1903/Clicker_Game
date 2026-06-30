@@ -21,7 +21,7 @@ public class QuestTracker : IDisposable
         foreach (var sdef in def.steps)
         {
             var sstate = saved?.steps?.FirstOrDefault(s => s.stepId == sdef.stepId);
-            var tracker = new StepTracker(sdef, sstate?.currentAmount ?? 0, () => Unlocked.Value);
+            var tracker = new StepTracker(sdef, sstate?.currentAmount ?? 0, () => Unlocked.Value, def.id);
             Steps.Add(tracker);
 
             // Đồng bộ ngược lại state saved (nếu dùng)

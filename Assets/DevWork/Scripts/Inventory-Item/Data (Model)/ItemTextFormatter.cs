@@ -10,8 +10,8 @@ public static class ItemTextFormatter
         // ----- Name with prefix -----
         string name = item.itemName;
 
-        if (invItem.prefix != ItemPrefix.None)
-            name = $"{invItem.prefix} {name}";
+        if (ItemPrefixConfig.TryGetDisplayName(invItem.prefix, out string prefixName))
+            name = $"{prefixName} {name}";
 
         string colorHex = RarityColors.GetColorHex(item.rarity);
         string header = $"<size=120%><color={colorHex}>{name}</color></size>";

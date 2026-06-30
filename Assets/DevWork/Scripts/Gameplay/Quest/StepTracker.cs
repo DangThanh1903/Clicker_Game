@@ -13,51 +13,100 @@ public class StepTracker : IDisposable
 
     private readonly Func<bool> isUnlocked;
     private readonly string targetId;
+    private readonly string questId;
     private readonly StringComparer comparer = StringComparer.OrdinalIgnoreCase;
 
-    public StepTracker(QuestStepDef def, int initialProgress, Func<bool> isUnlocked = null)
+    public StepTracker(QuestStepDef def, int initialProgress, Func<bool> isUnlocked = null, string questId = null)
     {
         this.isUnlocked = isUnlocked;
+        this.questId = questId;
         StepId = def.stepId;
         targetId = def.targetId ?? string.Empty;
         Required.Value = Mathf.Max(1, def.requiredAmount);
-        Current.Value  = Mathf.Clamp(initialProgress, 0, Required.Value);
+        Current.Value = Mathf.Clamp(initialProgress, 0, Required.Value);
 
-        // completed khi Current >= Required (distinct để không spam)
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        Debug.Log($"[QuestDebug] Step init quest={this.questId} step={StepId} goal={def.goalType} target={targetId} progress={Current.Value}/{Required.Value}");
+#endif
+
         Current
             .Select(cur => cur >= Required.Value)
             .DistinctUntilChanged()
             .Subscribe(done => Completed.Value = done)
             .AddTo(_cd);
 
-        // Ghép stream theo goal
         IObservable<int> incStream = BuildIncrementStream(def);
         if (incStream != null)
         {
             incStream
-                .Where(_ => !Completed.Value) // dừng cộng khi đã xong
+                .Where(_ => !Completed.Value)
                 .Where(_ => this.isUnlocked == null || this.isUnlocked())
                 .Subscribe(inc =>
                 {
+                    int before = Current.Value;
                     Current.Value = Mathf.Clamp(Current.Value + inc, 0, Required.Value);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                    Debug.Log($"[QuestDebug] Step progress quest={this.questId} step={StepId} target={targetId} +{inc}: {before} -> {Current.Value}/{Required.Value}");
+#endif
                 })
                 .AddTo(_cd);
         }
 
-        // Với ReachStat kiểu “>= threshold” – không cộng dồn mà check trực tiếp:
         if (def.goalType == GoalType.ReachStat)
         {
             QuestSignals.OnStatChanged
                 .Where(t => comparer.Equals(t.statKey, targetId))
-                .Select(t => t.value >= def.requiredAmount) // dùng requiredAmount làm ngưỡng
-                .DistinctUntilChanged()
-                .Where(ok => ok && !Completed.Value)
-                .Where(_ => this.isUnlocked == null || this.isUnlocked())
-                .Subscribe(_ =>
+                .Subscribe(t =>
                 {
-                    Current.Value = Required.Value;
+                    bool unlocked = this.isUnlocked == null || this.isUnlocked();
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                    Debug.Log($"[QuestDebug] ReachStat signal quest={this.questId} step={StepId} target={targetId} value={t.value} completed={Completed.Value} unlocked={unlocked}");
+#endif
+                    if (Completed.Value || !unlocked)
+                        return;
+
+                    ApplyReachStatProgress(t.value);
                 })
                 .AddTo(_cd);
+
+            TryApplyCurrentStatValue();
+        }
+    }
+
+    private void TryApplyCurrentStatValue()
+    {
+        if (StatsManager.Ins == null)
+        {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            Debug.Log($"[QuestDebug] ReachStat initial check skipped: StatsManager missing. quest={questId} step={StepId} target={targetId}");
+#endif
+            return;
+        }
+        if (!Enum.TryParse(targetId, true, out StatType statType))
+        {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            Debug.LogWarning($"[QuestDebug] ReachStat initial check skipped: targetId is not a StatType. quest={questId} step={StepId} target={targetId}");
+#endif
+            return;
+        }
+
+        float value = StatsManager.Ins.Get(statType);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        Debug.Log($"[QuestDebug] ReachStat initial check quest={questId} step={StepId} target={targetId} value={value}");
+#endif
+        ApplyReachStatProgress(value);
+    }
+
+    private void ApplyReachStatProgress(double value)
+    {
+        int progress = Mathf.Clamp(Mathf.FloorToInt((float)value), 0, Required.Value);
+        if (progress > Current.Value)
+        {
+            int before = Current.Value;
+            Current.Value = progress;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            Debug.Log($"[QuestDebug] ReachStat progress quest={questId} step={StepId} target={targetId}: {before} -> {Current.Value}/{Required.Value}");
+#endif
         }
     }
 
@@ -81,7 +130,6 @@ public class StepTracker : IDisposable
                     .Select(t => t.amount);
 
             case GoalType.Custom:
-                // Bạn có thể map Custom sang một Subject khác nếu cần
                 return null;
 
             default:
@@ -91,4 +139,3 @@ public class StepTracker : IDisposable
 
     public void Dispose() => _cd.Dispose();
 }
-

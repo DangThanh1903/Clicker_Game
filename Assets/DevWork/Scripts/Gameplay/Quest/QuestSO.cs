@@ -8,6 +8,9 @@ public class QuestSO : ScriptableObject
     [Header("Progress Quests (one-time, long-term)")]
     public List<QuestDef> progressQuests = new();
 
+    [Header("Achievement Quests (lifetime milestones)")]
+    public List<QuestDef> achievementQuests = new();
+
     [Header("Daily Quests (rotates/reset each day)")]
     public List<QuestDef> dailyQuests = new();
 
@@ -16,7 +19,7 @@ public class QuestSO : ScriptableObject
     public int dailyPickCount = 3;
 }
 
-public enum QuestType { Progress, Daily }
+public enum QuestType { Progress, Daily, Achievement }
 
 public enum GoalType
 {
@@ -36,7 +39,9 @@ public class QuestDef
     [TextArea] public string description;
     public Sprite icon;
     [Header("Achievement")]
+    [Tooltip("Legacy flag. Prefer QuestType.Achievement and QuestSO.achievementQuests.")]
     public bool isAchievement;
+    public bool IsAchievement => type == QuestType.Achievement || isAchievement;
 
     public List<QuestStepDef> steps = new();
     public List<RewardDef> rewards = new();

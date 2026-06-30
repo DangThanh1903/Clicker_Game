@@ -1,24 +1,18 @@
 ﻿using UnityEngine;
-using Firebase.Firestore;
 using System.Collections.Generic;
 using UnityEngine.AddressableAssets;
 using UnityEngine.ResourceManagement.AsyncOperations;
 using System.Collections;
 using System;
-using System.IO;
-using System.Threading.Tasks;
 using System.Text;
 using UniRx;
 
-public enum CloudSyncMode
-{
-    PeriodicAndLifecycle,
-    LifecycleOnly
-}
-
 public class DataSaver : MonoBehaviour
 {
+    // Allowed global owner: persisted player save data and craft state by biome.
     public static DataSaver Ins { get; private set; }
+    public bool IsReady => isReady;
+    public bool HasLoadedData => hasLoadedData;
 
     [Header("Gameplay")]
     public string currentBlock;
@@ -45,23 +39,8 @@ public class DataSaver : MonoBehaviour
     [Header("Local Save")]
     [SerializeField, Min(0.1f)] private float localSaveCooldown = 2f;
 
-    // Firestore
-    private FirebaseFirestore db;
-
-    // Throttle to avoid save spam (clicker)
-    [Header("Cloud Sync Policy")]
-    [SerializeField] private CloudSyncMode cloudSyncMode = CloudSyncMode.PeriodicAndLifecycle;
-    [SerializeField] private bool forceCloudSyncOnLifecycle = true;
-    [SerializeField, Min(30f)] private float cloudSaveCooldown = 900f;
-    private float nextCloudSaveTime = 0f;
     private float nextLocalSaveTime = 0f;
     private bool pendingLocalSave;
-
-    [Header("Cloud Save Retry")]
-    [SerializeField] private int maxSaveAttempts = 3;
-    [SerializeField] private float retryBaseDelaySeconds = 0.5f;
-    [SerializeField] private float cloudSaveTimeoutSeconds = 20f;
-    [SerializeField] private float cloudCommitTimeoutSeconds = 8f;
 
     [Header("Debug")]
     [SerializeField] private bool verboseSaveLogs = false;
@@ -69,21 +48,15 @@ public class DataSaver : MonoBehaviour
     // Ready flag
     private bool isReady = false;
     private bool isQuitting = false;
-    private Task ongoingSave;
-    private float ongoingSaveStartTime;
-    private bool pendingSave;
-    private bool pendingForce;
     private bool allowSaves;
-    private bool allowCloudSave;
     private bool hasLoadedData;
     private bool playtimeActive;
-    private float cachedClicks;
-    private float cachedDiamonds;
-    private bool hasCachedGameplayStats;
-    private bool pendingRuntimeStatApply;
-    private long lastCloudUpdatedUtcTicks;
+    // Runtime owner is StatsManager. DataSaver only caches and persists the lifetime snapshot.
+    private readonly LifetimeStats cachedLifetimeStats = new LifetimeStats();
+    private readonly PlayerProfileRepository playerProfileRepository = new PlayerProfileRepository();
+    private bool hasCachedLifetimeStats;
+    private bool pendingStatApply;
     private long lastLocalUpdatedUtcTicks;
-    private const string LocalCacheFileName = "local_save.json";
     private const int MaxDisplayNameLength = 16;
     private const int MaxAvatarIdLength = 32;
     private const string DefaultCraftScope = "Default";
@@ -101,85 +74,29 @@ public class DataSaver : MonoBehaviour
 
     private void Start()
     {
-        // Delay init until FirebaseBootstrap is ready
-        StartCoroutine(InitWhenReady());
+        StartCoroutine(InitLocalSave());
     }
 
-    private IEnumerator InitWhenReady()
+    private IEnumerator InitLocalSave()
     {
-        // Wait FirebaseBootstrap singleton exists
-        yield return new WaitUntil(() => FirebaseBootstrap.Ins != null);
+        bool loadedLocal = false;
+        yield return LoadFromLocalCache(ok => loadedLocal = ok);
+        EnsureDefaultGameplayData();
+        if (!loadedLocal)
+            MarkDataLoaded();
 
-        // Wait Firebase ready or failed
-        yield return new WaitUntil(() => FirebaseBootstrap.Ins.IsReady || FirebaseBootstrap.Ins.IsFailed);
-        if (FirebaseBootstrap.Ins.IsFailed)
-        {
-            Debug.LogError($"[Error] DataSaver init aborted: {FirebaseBootstrap.Ins.InitError}");
-            yield break;
-        }
-
-        db = FirebaseBootstrap.Ins.Db;
-
-        // Subscribe once, only when ready
         blockBreakCounter
             .Where(count => count >= SaveThreshold)
             .Subscribe(_ => SaveDataFn())
             .AddTo(this);
 
+        allowSaves = true;
         isReady = true;
-        DevLog.Log($"[OK] DataSaver ready. uid={GetUid()}");
+        if (!loadedLocal)
+            QueueLocalSave(forceImmediate: true);
+
+        DevLog.Log($"[OK] DataSaver ready (local). loadedLocal={loadedLocal}");
         AnalyticsManager.Ins?.UpdateUserProperties(this);
-    }
-
-    private string GetUid()
-    {
-        if (FirebaseBootstrap.Ins == null) return null;
-        if (FirebaseBootstrap.Ins.Auth == null) return null;
-        if (FirebaseBootstrap.Ins.Auth.CurrentUser == null) return null;
-        return FirebaseBootstrap.Ins.Auth.CurrentUser.UserId;
-    }
-
-    private bool CanCloudSaveNow(out string uid, bool force, out string reason)
-    {
-        uid = null;
-        reason = null;
-
-        if (isQuitting && !force) { reason = "quitting"; return false; }
-        if (!isReady) { reason = "not ready"; return false; }
-        if (db == null) { reason = "db null"; return false; }
-        if (!allowCloudSave) { reason = "data not loaded"; return false; }
-
-        uid = GetUid();
-        if (string.IsNullOrEmpty(uid)) { reason = "uid missing"; return false; }
-
-        if (lastLocalUpdatedUtcTicks <= 0)
-        {
-            reason = "local updatedAt missing";
-            return false;
-        }
-        if (lastCloudUpdatedUtcTicks > 0 && lastLocalUpdatedUtcTicks <= lastCloudUpdatedUtcTicks)
-        {
-            reason = "local not newer than cloud";
-            return false;
-        }
-        if (!force && cloudSyncMode == CloudSyncMode.LifecycleOnly)
-        {
-            reason = "lifecycle-only cloud sync mode";
-            return false;
-        }
-
-        // Cooldown to avoid write spam
-        if (!force)
-        {
-            if (Time.unscaledTime < nextCloudSaveTime)
-            {
-                reason = $"cooldown ({(nextCloudSaveTime - Time.unscaledTime):F1}s)";
-                return false;
-            }
-            nextCloudSaveTime = Time.unscaledTime + cloudSaveCooldown;
-        }
-
-        return true;
     }
 
     // Call this on break block/click depending on your game flow.
@@ -259,30 +176,10 @@ public class DataSaver : MonoBehaviour
             return;
         }
 
-        TryApplyCachedGameplayStatsToRuntime();
+        TryApplyCachedStats();
         QueueLocalSave(forceLocalWrite || force);
 
-        // Reset counter only when we actually save.
-        if (!CanCloudSaveNow(out var uid, force, out var reason))
-        {
-            if (verboseSaveLogs)
-                DevLog.Log($"SaveDataFn blocked: {reason ?? "unknown"}");
-            return;
-        }
-
         blockBreakCounter.Value = 0;
-
-        if (ongoingSave != null && !ongoingSave.IsCompleted)
-        {
-            pendingSave = true;
-            pendingForce |= force;
-            if (verboseSaveLogs)
-                DevLog.Log("SaveDataFn skipped: previous save still running.");
-            return;
-        }
-
-        ongoingSaveStartTime = Time.unscaledTime;
-        ongoingSave = FirebaseTaskTracker.Track(SaveCloudAsync(uid));
     }
 
     [ContextMenu("Debug/Force Save Now")]
@@ -293,165 +190,25 @@ public class DataSaver : MonoBehaviour
 
     void Update()
     {
-        TryApplyCachedGameplayStatsToRuntime();
+        TryApplyCachedStats();
 
         if (playtimeActive)
             TotalPlaytime += Time.unscaledDeltaTime;
 
         if (pendingLocalSave && Time.unscaledTime >= nextLocalSaveTime)
             QueueLocalSave(forceImmediate: true);
-
-        if (ongoingSave != null && !ongoingSave.IsCompleted)
-        {
-            float timeout = Mathf.Max(0f, cloudSaveTimeoutSeconds);
-            if (timeout > 0f && Time.unscaledTime - ongoingSaveStartTime >= timeout)
-            {
-                if (verboseSaveLogs)
-                    Debug.LogWarning($"SaveDataFn timeout after {timeout:F1}s, allowing next save.");
-                ongoingSave = null;
-            }
-        }
-
-        if (pendingSave && (ongoingSave == null || ongoingSave.IsCompleted))
-        {
-            bool force = pendingForce;
-            pendingSave = false;
-            pendingForce = false;
-            SaveDataFn(force);
-        }
-    }
-
-    private async Task SaveCloudAsync(string uid)
-    {
-        if (db == null || string.IsNullOrEmpty(uid)) return;
-
-        var gameplay = BuildGameplaySaveData();
-        var profile = BuildProfileSaveData();
-        var inventories = BuildAllInventorySaveData();
-
-        if (verboseSaveLogs)
-            DevLog.Log($"SaveCloudAsync start (uid={uid}).");
-
-        long updateTicks = lastLocalUpdatedUtcTicks > 0 ? lastLocalUpdatedUtcTicks : DateTime.UtcNow.Ticks;
-        var updatedAt = Timestamp.FromDateTime(new DateTime(updateTicks, DateTimeKind.Utc));
-        var leaderboard = BuildLeaderboardPublicData(gameplay, profile, updatedAt);
-
-        bool saveSucceeded = await ExecuteWithRetry(async () =>
-        {
-            var batch = db.StartBatch();
-            var userDoc = db.Collection("users").Document(uid);
-
-            var payload = new Dictionary<string, object>
-            {
-                ["gameplay"] = gameplay,
-                ["profile"] = profile,
-                ["meta.updatedAt"] = updatedAt,
-                ["meta.rev"] = FieldValue.Increment(1),
-                ["meta.saveVersion"] = 1
-            };
-
-            batch.Set(userDoc, payload, SetOptions.MergeAll);
-
-            var leaderboardDoc = db.Collection("leaderboards").Document(uid);
-            batch.Set(leaderboardDoc, leaderboard, SetOptions.MergeAll);
-
-            foreach (var entry in inventories)
-            {
-                var invDoc = userDoc.Collection("inventories").Document(entry.Key);
-                batch.Set(invDoc, entry.Value);
-            }
-
-            await AwaitWithTimeout(batch.CommitAsync(), cloudCommitTimeoutSeconds, "Firestore commit");
-        }, maxSaveAttempts, retryBaseDelaySeconds, "SaveCloudAsync");
-
-        if (!saveSucceeded)
-        {
-            if (verboseSaveLogs)
-                Debug.LogWarning("SaveCloudAsync failed. Cloud updatedAt was not advanced.");
-            return;
-        }
-
-        lastCloudUpdatedUtcTicks = updateTicks;
-        if (verboseSaveLogs)
-            DevLog.Log("SaveCloudAsync completed.");
-    }
-
-    private async Task<bool> ExecuteWithRetry(Func<Task> action, int maxAttempts, float baseDelaySeconds, string opName)
-    {
-        int attempts = Mathf.Max(1, maxAttempts);
-        float delay = Mathf.Max(0.05f, baseDelaySeconds);
-
-        for (int i = 1; i <= attempts; i++)
-        {
-            try
-            {
-                await action();
-                return true;
-            }
-            catch (Exception ex)
-            {
-                if (i >= attempts)
-                {
-                    Debug.LogError($"[Error] {opName} failed after {attempts} attempts: {ex}");
-                    return false;
-                }
-
-                if (verboseSaveLogs)
-                    Debug.LogWarning($"{opName} attempt {i} failed: {ex.Message}");
-
-                float wait = delay * Mathf.Pow(2f, i - 1);
-                await Task.Delay(TimeSpan.FromSeconds(wait));
-            }
-        }
-
-        return false;
-    }
-
-    private async Task AwaitWithTimeout(Task task, float timeoutSeconds, string opName)
-    {
-        if (timeoutSeconds <= 0f)
-        {
-            await task;
-            return;
-        }
-
-        var delay = Task.Delay(TimeSpan.FromSeconds(timeoutSeconds));
-        var completed = await Task.WhenAny(task, delay);
-        if (completed == delay)
-            throw new TimeoutException($"{opName} timed out after {timeoutSeconds:F1}s");
-
-        await task;
     }
 
     private GameplaySaveData BuildGameplaySaveData()
     {
-        TryApplyCachedGameplayStatsToRuntime();
+        TryApplyCachedStats();
+        EnsureDefaultGameplayData();
 
         string blockValue = string.IsNullOrEmpty(currentBlock) ? "Dirt" : currentBlock;
         string locationValue = currentLocation?.ToString();
         string peakValue = PeakLocation?.ToString();
 
-        float clicks = 0f;
-        float diamonds = 0f;
-        if (pendingRuntimeStatApply && hasCachedGameplayStats)
-        {
-            clicks = cachedClicks;
-            diamonds = cachedDiamonds;
-        }
-        else if (StatsManager.Ins != null)
-        {
-            clicks = StatsManager.Ins.Get(StatType.Clicks);
-            diamonds = StatsManager.Ins.Get(StatType.Diamond);
-            cachedClicks = clicks;
-            cachedDiamonds = diamonds;
-            hasCachedGameplayStats = true;
-            pendingRuntimeStatApply = false;
-        }
-        else if (hasCachedGameplayStats)
-        {
-            clicks = cachedClicks;
-            diamonds = cachedDiamonds;
-        }
+        LifetimeStats lifetimeStats = ResolveLifetimeStatsForSave();
 
         float timeValue = CurrentTime;
         if (TimeSystem.Instance != null)
@@ -460,21 +217,17 @@ public class DataSaver : MonoBehaviour
         SyncCraftNodeStateToCache(craftNodeManager);
         List<int> currentScopeStates = craftNodeManager != null ? craftNodeManager.GetStates() : null;
 
-        return new GameplaySaveData
+        var gameplay = new GameplaySaveData
         {
             currentBlock = blockValue,
             currentLocation = locationValue,
             peakLocation = peakValue,
-            clicks = clicks,
-            diamonds = diamonds,
-            currentTime = timeValue,
-            totalPlaytime = TotalPlaytime,
-            craftNodeStatesByBiome = BuildCraftNodeStatesByBiomePayload(),
-            // Keep legacy field for backward compatibility/migration safety.
-            craftNodeStates = currentScopeStates,
-            biomeEssenceEarned = BuildBiomeEssenceEarnedPayload(),
-            biomeProgressClaims = BuildBiomeProgressClaimPayload()
+            currentTime = timeValue
         };
+        LifetimeStatsSection.Write(gameplay, lifetimeStats);
+        CraftSection.Write(gameplay, BuildCraftNodeStatesByBiomePayload(), currentScopeStates);
+        BiomeProgressSection.Write(gameplay, BuildBiomeEssenceEarnedPayload(), BuildBiomeProgressClaimPayload());
+        return gameplay;
     }
 
     private UserProfileData BuildProfileSaveData()
@@ -486,99 +239,29 @@ public class DataSaver : MonoBehaviour
         };
     }
 
-    private LeaderboardPublicData BuildLeaderboardPublicData(GameplaySaveData gameplay, UserProfileData profile, Timestamp updatedAt)
-    {
-        return new LeaderboardPublicData
-        {
-            displayName = SanitizeDisplayName(profile?.displayName),
-            avatarId = SanitizeAvatarId(profile?.avatarId),
-            clicks = gameplay != null ? gameplay.clicks : 0f,
-            totalPlaytime = gameplay != null ? gameplay.totalPlaytime : 0f,
-            updatedAt = updatedAt
-        };
-    }
-
-    private Dictionary<string, InventorySaveData> BuildAllInventorySaveData()
-    {
-        var dict = new Dictionary<string, InventorySaveData>();
-        foreach (var inv in inventoryDatas)
-        {
-            if (inv == null) continue;
-            dict[inv.inventoryType.ToString()] = BuildInventorySaveData(inv);
-        }
-        return dict;
-    }
-
-    private InventorySaveData BuildInventorySaveData(InventoryData inv)
-    {
-        var saveData = new InventorySaveData { items = new List<InventoryItemSave>() };
-
-        foreach (var invItem in inv.Items)
-        {
-            var item = invItem?.itemData != null ? invItem.itemData : inv.NullItem;
-            saveData.items.Add(new InventoryItemSave
-            {
-                itemName = item != null ? item.name : "",
-                quantity = invItem?.quantity?.Value ?? 0
-            });
-        }
-
-        return saveData;
-    }
-
     private void SaveLocalCache()
     {
         if (!allowSaves)
             return;
 
-        try
-        {
-            var local = BuildLocalSaveData();
-            string json = JsonUtility.ToJson(local, false);
-            File.WriteAllText(GetLocalCachePath(), json);
-        }
-        catch (Exception ex)
-        {
-            Debug.LogWarning($"[Warn] Failed to write local cache: {ex}");
-        }
-    }
-
-    private string GetLocalCachePath()
-    {
-        return Path.Combine(Application.persistentDataPath, LocalCacheFileName);
-    }
-
-    private bool TryLoadLocalCache(out LocalSaveData data)
-    {
-        data = null;
-        string path = GetLocalCachePath();
-        if (!File.Exists(path)) return false;
-
-        try
-        {
-            string json = File.ReadAllText(path);
-            data = JsonUtility.FromJson<LocalSaveData>(json);
-            return data != null;
-        }
-        catch (Exception ex)
-        {
-            Debug.LogWarning($"[Warn] Failed to read local cache: {ex}");
-            return false;
-        }
+        if (!playerProfileRepository.Save(BuildLocalSaveData()))
+            Debug.LogWarning("[Warn] Failed to write local cache.");
     }
 
     public IEnumerator LoadFromLocalCache(Action<bool> onComplete = null)
     {
-        if (!TryLoadLocalCache(out var local) || local.gameplay == null)
+        if (!playerProfileRepository.TryLoad(out var local) || local.gameplay == null)
         {
-            Debug.LogWarning("[Warn] Local cache missing or invalid.");
+            if (playerProfileRepository.Exists())
+                Debug.LogWarning("[Warn] Local cache invalid.");
+            else if (verboseSaveLogs)
+                DevLog.Log("Local cache missing. Starting with default data.");
+
             onComplete?.Invoke(false);
             yield break;
         }
 
         lastLocalUpdatedUtcTicks = local.savedAtUtcTicks;
-        if (lastCloudUpdatedUtcTicks <= 0)
-            lastCloudUpdatedUtcTicks = lastLocalUpdatedUtcTicks;
         ApplyGameplayData(local.gameplay.ToGameplaySaveData());
         if (local.profile != null)
             ApplyProfileData(local.profile.ToProfileSaveData());
@@ -593,6 +276,7 @@ public class DataSaver : MonoBehaviour
             }
         }
 
+        EnsureDefaultGameplayData();
         DevLog.Log("[OK] Loaded from local cache.");
         MarkDataLoaded();
         onComplete?.Invoke(true);
@@ -607,146 +291,11 @@ public class DataSaver : MonoBehaviour
         {
             savedAtUtcTicks = lastLocalUpdatedUtcTicks,
             gameplay = new LocalGameplayData(BuildGameplaySaveData()),
-            profile = new LocalProfileData(BuildProfileSaveData())
+            profile = new LocalProfileData(BuildProfileSaveData()),
+            inventories = InventorySaveSection.Build(inventoryDatas)
         };
 
-        foreach (var inv in inventoryDatas)
-        {
-            if (inv == null) continue;
-
-            var invSave = new LocalInventorySave
-            {
-                inventoryType = inv.inventoryType.ToString()
-            };
-
-            foreach (var invItem in inv.Items)
-            {
-                var item = invItem?.itemData != null ? invItem.itemData : inv.NullItem;
-                invSave.items.Add(new LocalInventoryItem
-                {
-                    itemName = item != null ? item.name : "",
-                    quantity = invItem?.quantity?.Value ?? 0
-                });
-            }
-
-            local.inventories.Add(invSave);
-        }
-
         return local;
-    }
-
-    // ===== LOAD =====
-
-    public IEnumerator LoadAllInventories(string uid, Action<bool> onComplete = null)
-    {
-        if (db == null || string.IsNullOrEmpty(uid))
-        {
-            Debug.LogWarning("LoadAllInventories skipped: Firebase DB or uid is unavailable.");
-            onComplete?.Invoke(false);
-            yield break;
-        }
-
-        bool ok = true;
-        foreach (var inv in inventoryDatas)
-        {
-            bool invOk = false;
-            yield return StartCoroutine(LoadOneInventory(uid, inv, success => invOk = success));
-            if (!invOk) ok = false;
-        }
-
-        if (ok)
-            MarkDataLoaded();
-        if (ok) SaveLocalCache();
-        DevLog.Log("[OK] All inventories loaded (Firestore)");
-        onComplete?.Invoke(ok);
-    }
-
-    private IEnumerator LoadOneInventory(string uid, InventoryData inv, Action<bool> onComplete)
-    {
-        if (inv == null)
-        {
-            onComplete?.Invoke(false);
-            yield break;
-        }
-
-        var task = FirebaseTaskTracker.Track(
-            db.Collection("users").Document(uid)
-                .Collection("inventories").Document(inv.inventoryType.ToString())
-                .GetSnapshotAsync());
-
-        yield return new WaitUntil(() => task.IsCompleted);
-
-        if (task.Exception != null)
-        {
-            Debug.LogError($"[Error] Failed to load {inv.inventoryType}: {task.Exception}");
-            onComplete?.Invoke(false);
-            yield break;
-        }
-
-        var snap = task.Result;
-
-        // No data -> default size
-        if (!snap.Exists)
-        {
-            Debug.LogWarning($"[Warn] No data for {inv.inventoryType}, create default size = {inv.GetSize()}");
-            inv.Items.Clear();
-            EnsureInventorySize(inv);
-            onComplete?.Invoke(true);
-            yield break;
-        }
-
-        var loadedData = snap.ConvertTo<InventorySaveData>() ?? new InventorySaveData();
-        yield return ApplyInventoryData(inv, loadedData);
-        onComplete?.Invoke(true);
-    }
-
-    public IEnumerator LoadGameplay(string uid, Action<bool> onComplete = null)
-    {
-        if (db == null || string.IsNullOrEmpty(uid))
-        {
-            Debug.LogWarning("LoadGameplay skipped: Firebase DB or uid is unavailable.");
-            onComplete?.Invoke(false);
-            yield break;
-        }
-
-        var task = FirebaseTaskTracker.Track(db.Collection("users").Document(uid).GetSnapshotAsync());
-        yield return new WaitUntil(() => task.IsCompleted);
-
-        if (task.Exception != null)
-        {
-            Debug.LogError($"[Error] Failed to load gameplay doc: {task.Exception}");
-            onComplete?.Invoke(false);
-            yield break;
-        }
-
-        var snap = task.Result;
-        if (!snap.Exists)
-        {
-            Debug.LogWarning("[Warn] No user doc, keep defaults.");
-            MarkDataLoaded();
-            onComplete?.Invoke(true);
-            yield break;
-        }
-
-        if (TryGetCloudUpdatedTicks(snap, out var cloudTicks))
-        {
-            lastCloudUpdatedUtcTicks = cloudTicks;
-            lastLocalUpdatedUtcTicks = cloudTicks;
-        }
-
-        if (!snap.TryGetValue("gameplay", out GameplaySaveData gameplay) || gameplay == null)
-        {
-            Debug.LogWarning("[Warn] No gameplay field.");
-            onComplete?.Invoke(false);
-            yield break;
-        }
-
-        ApplyGameplayData(gameplay);
-        if (snap.TryGetValue("profile", out UserProfileData profile) && profile != null)
-            ApplyProfileData(profile);
-        DevLog.Log("[OK] Loaded gameplay (Firestore)");
-        MarkDataLoaded();
-        onComplete?.Invoke(true);
     }
 
     private void ApplyGameplayData(GameplaySaveData gameplay)
@@ -764,27 +313,57 @@ public class DataSaver : MonoBehaviour
         else
             PeakLocation = null;
 
-        CacheGameplayStats(gameplay.clicks, gameplay.diamonds);
-        TryApplyCachedGameplayStatsToRuntime();
-
         CurrentTime = gameplay.currentTime;
-        TotalPlaytime = Mathf.Max(0f, gameplay.totalPlaytime);
+        LifetimeStats lifetimeStats = LifetimeStatsSection.Read(gameplay);
+        TotalPlaytime = lifetimeStats.totalTimePlayed;
+        CacheLifetimeStats(
+            lifetimeStats.clicks,
+            lifetimeStats.diamonds,
+            lifetimeStats.totalBlockBreaked,
+            lifetimeStats.totalDamageDealed,
+            lifetimeStats.totalTimePlayed);
+        TryApplyCachedStats();
+
         AnalyticsManager.Ins?.UpdateUserProperties(this);
         LoadCraftNodeStates(gameplay);
         LoadBiomeProgressData(gameplay);
     }
 
-    private void CacheGameplayStats(float clicks, float diamonds)
+    private void EnsureDefaultGameplayData()
     {
-        cachedClicks = clicks;
-        cachedDiamonds = diamonds;
-        hasCachedGameplayStats = true;
-        pendingRuntimeStatApply = true;
+        if (string.IsNullOrEmpty(currentBlock))
+            currentBlock = "Dirt";
+
+        if (!currentLocation.HasValue || currentLocation.Value == BlockSpawnLocation.Any)
+            currentLocation = BlockSpawnLocation.Plain;
+
+        if (!PeakLocation.HasValue || PeakLocation.Value == BlockSpawnLocation.Any || PeakLocation.Value < BlockSpawnLocation.Plain)
+            PeakLocation = BlockSpawnLocation.Plain;
+
+        if (currentLocation.HasValue && PeakLocation.Value < currentLocation.Value)
+            PeakLocation = currentLocation.Value;
     }
 
-    private void TryApplyCachedGameplayStatsToRuntime()
+    private void CacheLifetimeStats(
+        float clicks,
+        float diamonds,
+        float totalBlockBreaked,
+        float totalDamageDealed,
+        float totalTimePlayed)
     {
-        if (!pendingRuntimeStatApply || !hasCachedGameplayStats)
+        cachedLifetimeStats.Set(
+            clicks,
+            diamonds,
+            totalBlockBreaked,
+            totalDamageDealed,
+            totalTimePlayed);
+        hasCachedLifetimeStats = true;
+        pendingStatApply = true;
+    }
+
+    private void TryApplyCachedStats()
+    {
+        if (!pendingStatApply || !hasCachedLifetimeStats)
             return;
 
         if (StatsManager.Ins == null)
@@ -792,9 +371,9 @@ public class DataSaver : MonoBehaviour
         if (PlayerController.Instance == null)
             return;
 
-        StatsManager.Ins.Set(StatType.Clicks, cachedClicks);
-        StatsManager.Ins.Set(StatType.Diamond, cachedDiamonds);
-        pendingRuntimeStatApply = false;
+        cachedLifetimeStats.ApplyToRuntime(StatsManager.Ins, TotalPlaytime);
+        TotalPlaytime = cachedLifetimeStats.totalTimePlayed;
+        pendingStatApply = false;
     }
 
     private void ApplyProfileData(UserProfileData profile)
@@ -804,7 +383,7 @@ public class DataSaver : MonoBehaviour
         AvatarId = SanitizeAvatarId(profile.avatarId);
     }
 
-    public void RegisterCraftNodeManager(CraftNodeManager manager)
+    public void BindCraftNodeManager(CraftNodeManager manager)
     {
         if (manager == null) return;
 
@@ -812,10 +391,10 @@ public class DataSaver : MonoBehaviour
             SyncCraftNodeStateToCache(craftNodeManager);
 
         craftNodeManager = manager;
-        TryApplyCraftNodeStates();
+        ApplyCraftNodeStates();
     }
 
-    private void TryApplyCraftNodeStates()
+    private void ApplyCraftNodeStates()
     {
         if (craftNodeManager == null)
             return;
@@ -826,12 +405,25 @@ public class DataSaver : MonoBehaviour
             scopedStates.Count > 0)
         {
             craftNodeManager.ApplyStates(scopedStates, saveLocal: true);
+            craftNodeManager.DeleteLegacyPlayerPrefsStates();
             return;
         }
 
         if (pendingLegacyCraftNodeStates == null || pendingLegacyCraftNodeStates.Count == 0)
         {
-            // No cloud state for this scope yet: seed cache from current local tree state.
+            if (craftNodeManager.TryLoadLegacyPlayerPrefsStates(out var legacyStates) &&
+                legacyStates != null &&
+                legacyStates.Count > 0)
+            {
+                craftNodeManager.ApplyStates(legacyStates, saveLocal: false);
+                craftNodeStatesByBiomeCache[scope] = new List<int>(legacyStates);
+                craftNodeManager.DeleteLegacyPlayerPrefsStates();
+                SaveDataFn(force: true, forceLocalWrite: true);
+                return;
+            }
+
+            // New scopes must start from a clean tree, not whatever biome was bound before.
+            craftNodeManager.ResetStates(saveLocal: false);
             SyncCraftNodeStateToCache(craftNodeManager);
             return;
         }
@@ -839,6 +431,7 @@ public class DataSaver : MonoBehaviour
         craftNodeManager.ApplyStates(pendingLegacyCraftNodeStates, saveLocal: true);
         craftNodeStatesByBiomeCache[scope] = new List<int>(pendingLegacyCraftNodeStates);
         pendingLegacyCraftNodeStates = null;
+        craftNodeManager.DeleteLegacyPlayerPrefsStates();
     }
 
     private void LoadCraftNodeStates(GameplaySaveData gameplay)
@@ -846,9 +439,10 @@ public class DataSaver : MonoBehaviour
         craftNodeStatesByBiomeCache.Clear();
         pendingLegacyCraftNodeStates = null;
 
-        if (gameplay.craftNodeStatesByBiome != null)
+        var scopedStates = CraftSection.ReadScopedStates(gameplay);
+        if (scopedStates != null)
         {
-            foreach (var scopedState in gameplay.craftNodeStatesByBiome)
+            foreach (var scopedState in scopedStates)
             {
                 if (scopedState == null || scopedState.states == null)
                     continue;
@@ -858,14 +452,15 @@ public class DataSaver : MonoBehaviour
             }
         }
 
+        var legacyScopeStates = CraftSection.ReadLegacyScopeStates(gameplay);
         if (craftNodeStatesByBiomeCache.Count == 0 &&
-            gameplay.craftNodeStates != null &&
-            gameplay.craftNodeStates.Count > 0)
+            legacyScopeStates != null &&
+            legacyScopeStates.Count > 0)
         {
-            pendingLegacyCraftNodeStates = new List<int>(gameplay.craftNodeStates);
+            pendingLegacyCraftNodeStates = new List<int>(legacyScopeStates);
         }
 
-        TryApplyCraftNodeStates();
+        ApplyCraftNodeStates();
     }
 
     private List<BiomeCraftNodeState> BuildCraftNodeStatesByBiomePayload()
@@ -936,9 +531,10 @@ public class DataSaver : MonoBehaviour
         if (gameplay == null)
             return;
 
-        if (gameplay.biomeEssenceEarned != null)
+        var essenceStates = BiomeProgressSection.ReadEssence(gameplay);
+        if (essenceStates != null)
         {
-            foreach (var state in gameplay.biomeEssenceEarned)
+            foreach (var state in essenceStates)
             {
                 if (state == null)
                     continue;
@@ -948,9 +544,10 @@ public class DataSaver : MonoBehaviour
             }
         }
 
-        if (gameplay.biomeProgressClaims != null)
+        var claimStates = BiomeProgressSection.ReadClaims(gameplay);
+        if (claimStates != null)
         {
-            foreach (var state in gameplay.biomeProgressClaims)
+            foreach (var state in claimStates)
             {
                 if (state == null)
                     continue;
@@ -984,6 +581,34 @@ public class DataSaver : MonoBehaviour
     private string NormalizeCraftScope(string scope)
     {
         return string.IsNullOrWhiteSpace(scope) ? DefaultCraftScope : scope.Trim();
+    }
+
+    private LifetimeStats ResolveLifetimeStatsForSave()
+    {
+        float totalTimePlayed = Mathf.Max(0f, TotalPlaytime);
+
+        if (pendingStatApply && hasCachedLifetimeStats)
+        {
+            cachedLifetimeStats.ClampPlaytime(totalTimePlayed);
+        }
+        else if (StatsManager.Ins != null)
+        {
+            cachedLifetimeStats.SyncFromRuntime(StatsManager.Ins, totalTimePlayed);
+            hasCachedLifetimeStats = true;
+            pendingStatApply = false;
+        }
+        else if (hasCachedLifetimeStats)
+        {
+            cachedLifetimeStats.ClampPlaytime(totalTimePlayed);
+        }
+        else
+        {
+            cachedLifetimeStats.Set(0f, 0f, 0f, 0f, totalTimePlayed);
+            hasCachedLifetimeStats = true;
+        }
+
+        TotalPlaytime = cachedLifetimeStats.totalTimePlayed;
+        return cachedLifetimeStats;
     }
 
     private static string NormalizeBiomeProgressKey(BlockSpawnLocation biome)
@@ -1023,20 +648,11 @@ public class DataSaver : MonoBehaviour
         allowSaves = true;
         if (hasData)
             MarkDataLoaded();
-
-        if (pendingSave && (ongoingSave == null || ongoingSave.IsCompleted))
-        {
-            bool force = pendingForce;
-            pendingSave = false;
-            pendingForce = false;
-            SaveDataFn(force);
-        }
     }
 
     private void MarkDataLoaded()
     {
         hasLoadedData = true;
-        allowCloudSave = true;
         playtimeActive = true;
     }
 
@@ -1045,20 +661,6 @@ public class DataSaver : MonoBehaviour
         if (!hasLoadedData)
             return;
         lastLocalUpdatedUtcTicks = DateTime.UtcNow.Ticks;
-    }
-
-    private bool TryGetCloudUpdatedTicks(DocumentSnapshot snap, out long utcTicks)
-    {
-        utcTicks = 0;
-        if (snap == null) return false;
-
-        if (snap.TryGetValue("meta.updatedAt", out Timestamp updatedAt))
-        {
-            utcTicks = updatedAt.ToDateTime().ToUniversalTime().Ticks;
-            return utcTicks > 0;
-        }
-
-        return false;
     }
 
     private IEnumerator ApplyInventoryData(InventoryData inv, InventorySaveData loadedData)
@@ -1138,7 +740,7 @@ public class DataSaver : MonoBehaviour
             playtimeActive = true;
         if (isQuitting) return;
         if (paused)
-            SaveDataFn(forceCloudSyncOnLifecycle, forceLocalWrite: true);
+            SaveDataFn(force: true, forceLocalWrite: true);
     }
 
     void OnApplicationFocus(bool hasFocus)
@@ -1149,7 +751,7 @@ public class DataSaver : MonoBehaviour
             playtimeActive = true;
         if (isQuitting) return;
         if (!hasFocus)
-            SaveDataFn(forceCloudSyncOnLifecycle, forceLocalWrite: true);
+            SaveDataFn(force: true, forceLocalWrite: true);
     }
 
     void OnApplicationQuit()
@@ -1159,7 +761,7 @@ public class DataSaver : MonoBehaviour
         if (!allowSaves)
             return;
 
-        SaveDataFn(forceCloudSyncOnLifecycle, forceLocalWrite: true);
+        SaveDataFn(force: true, forceLocalWrite: true);
     }
 
     private string SanitizeDisplayName(string raw)

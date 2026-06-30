@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 69d6b459005d1e743ab2b3eeb396c63e, type: 3}
   m_Name: passiveTest
   m_EditorClassIdentifier: 
-  buffName: Hp regen
+  buffName: Boss condition
   modifiers: []
   buffIcon: {fileID: 0}
   duration: 0

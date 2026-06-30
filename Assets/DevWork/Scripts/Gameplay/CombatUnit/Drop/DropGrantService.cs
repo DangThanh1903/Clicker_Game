@@ -20,6 +20,33 @@ public readonly struct DropGrantEntry
 
 public static class DropGrantService
 {
+    public static bool TryGrantRolledDrops(
+        IReadOnlyList<(Item item, int amount)> drops,
+        out string grantedSummary,
+        Action<Item, int> onItemGranted = null,
+        string logContext = "[DropGrant]")
+    {
+        grantedSummary = string.Empty;
+        if (drops == null || drops.Count == 0)
+            return false;
+
+        var grantEntries = new List<DropGrantEntry>(drops.Count);
+        for (int i = 0; i < drops.Count; i++)
+        {
+            (Item item, int amount) result = drops[i];
+            if (result.item == null || result.item.Type == ItemType.None)
+                continue;
+
+            int safeAmount = Mathf.Max(0, result.amount);
+            if (safeAmount <= 0)
+                continue;
+
+            grantEntries.Add(new DropGrantEntry(result.item, safeAmount));
+        }
+
+        return TryGrantDrops(grantEntries, out grantedSummary, onItemGranted, logContext);
+    }
+
     public static IEnumerator ResolveItemFromDrop_Co(ItemDrop drop, string sourceContext, Action<Item> onResolved)
     {
         if (drop == null)

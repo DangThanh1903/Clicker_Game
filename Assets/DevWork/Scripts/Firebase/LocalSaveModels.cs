@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using UnityEngine;
 
 [Serializable]
 public class LocalSaveData
@@ -43,6 +44,9 @@ public class LocalGameplayData
     public string peakLocation;
     public float clicks;
     public float diamonds;
+    public float totalBlockBreaked;
+    public float totalDamageDealed;
+    public float totalTimePlayed;
     public float currentTime;
     public float totalPlaytime;
     public List<LocalBiomeCraftNodeState> craftNodeStatesByBiome;
@@ -60,6 +64,9 @@ public class LocalGameplayData
         peakLocation = src.peakLocation;
         clicks = src.clicks;
         diamonds = src.diamonds;
+        totalBlockBreaked = src.totalBlockBreaked;
+        totalDamageDealed = src.totalDamageDealed;
+        totalTimePlayed = src.totalTimePlayed;
         currentTime = src.currentTime;
         totalPlaytime = src.totalPlaytime;
         if (src.craftNodeStatesByBiome != null)
@@ -115,6 +122,9 @@ public class LocalGameplayData
             peakLocation = peakLocation,
             clicks = clicks,
             diamonds = diamonds,
+            totalBlockBreaked = totalBlockBreaked,
+            totalDamageDealed = totalDamageDealed,
+            totalTimePlayed = totalTimePlayed,
             currentTime = currentTime,
             totalPlaytime = totalPlaytime,
             craftNodeStatesByBiome = BuildBiomeCraftNodeStates(),
@@ -229,4 +239,60 @@ public class LocalInventoryItem
 {
     public string itemName;
     public int quantity;
+}
+
+[Serializable]
+public sealed class LifetimeStats
+{
+    public float clicks;
+    public float diamonds;
+    public float totalBlockBreaked;
+    public float totalDamageDealed;
+    public float totalTimePlayed;
+
+    public void Set(
+        float clicksValue,
+        float diamondsValue,
+        float totalBlockBreakedValue,
+        float totalDamageDealedValue,
+        float totalTimePlayedValue)
+    {
+        clicks = clicksValue;
+        diamonds = diamondsValue;
+        totalBlockBreaked = totalBlockBreakedValue;
+        totalDamageDealed = totalDamageDealedValue;
+        totalTimePlayed = Mathf.Max(0f, totalTimePlayedValue);
+    }
+
+    public void ClampPlaytime(float totalPlaytime)
+    {
+        totalTimePlayed = Mathf.Max(totalTimePlayed, Mathf.Max(0f, totalPlaytime));
+    }
+
+    public void SyncFromRuntime(StatsManager stats, float totalPlaytime)
+    {
+        if (stats == null)
+            return;
+
+        float safeTime = Mathf.Max(Mathf.Max(0f, totalPlaytime), stats.Get(StatType.TotalTimePlayed));
+        clicks = stats.Get(StatType.Clicks);
+        diamonds = stats.Get(StatType.Diamond);
+        totalBlockBreaked = stats.Get(StatType.TotalBlockBreaked);
+        totalDamageDealed = stats.Get(StatType.TotalDamageDealed);
+        totalTimePlayed = safeTime;
+        stats.Set(StatType.TotalTimePlayed, safeTime);
+    }
+
+    public void ApplyToRuntime(StatsManager stats, float totalPlaytime)
+    {
+        if (stats == null)
+            return;
+
+        ClampPlaytime(totalPlaytime);
+        stats.Set(StatType.Clicks, clicks);
+        stats.Set(StatType.Diamond, diamonds);
+        stats.Set(StatType.TotalBlockBreaked, totalBlockBreaked);
+        stats.Set(StatType.TotalDamageDealed, totalDamageDealed);
+        stats.Set(StatType.TotalTimePlayed, totalTimePlayed);
+    }
 }

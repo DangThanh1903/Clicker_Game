@@ -5,6 +5,7 @@ using UniRx;
 
 public class LocationLoader : MonoBehaviour
 {
+    // Allowed global owner: active biome/location binding for the current run.
     public static LocationLoader Ins { get; private set; }
 
     public BlockSpawnLocation currentLocation;
@@ -29,6 +30,7 @@ public class LocationLoader : MonoBehaviour
     private bool _bootstrapped = false;
     public CraftNodeManager CurrentCraftNodeManager { get; private set; }
     public event Action<CraftNodeManager> CurrentCraftNodeManagerChanged;
+    public event Action<BlockSpawnLocation> LocationUnlocked;
 
     private void Awake()
     {
@@ -172,6 +174,7 @@ public class LocationLoader : MonoBehaviour
             DataSaver.Ins.SaveDataFn(true);
         }
 
+        LocationUnlocked?.Invoke(nextLocation);
         return true;
     }
 
@@ -280,7 +283,7 @@ public class LocationLoader : MonoBehaviour
 
         manager.ConfigureSaveScope(location.ToString(), reload: true);
         if (DataSaver.Ins != null)
-            DataSaver.Ins.RegisterCraftNodeManager(manager);
+            DataSaver.Ins.BindCraftNodeManager(manager);
 
         SetCurrentCraftNodeManager(manager);
     }

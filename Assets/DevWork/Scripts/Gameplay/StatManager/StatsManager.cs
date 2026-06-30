@@ -3,6 +3,7 @@ using System.Collections.Generic;
 
 public class StatsManager : StatsManagerBase
 {
+    // Allowed global owner: runtime player stats and lifetime counters mirrored from save data.
     public static StatsManager Ins { get; private set; }
 
     [SerializeField] private InventoryUIManager uiManager; // to read equipped items
@@ -45,7 +46,7 @@ public class StatsManager : StatsManagerBase
                 SyncEquippedItemPassiveBuffs();
                 CollectBuffModifiers(accumulator);
                 ApplyAccumulatedModifiers(accumulator);
-                ReCalculateHPAndMP();
+                RecalculateResourceCaps();
                 RaiseStatsRecalculated();
             }
             while (recalculateQueued);

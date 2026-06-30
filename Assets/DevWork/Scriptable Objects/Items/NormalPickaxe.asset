@@ -18,8 +18,6 @@ MonoBehaviour:
   modifiers:
   - statType: 4
     value: 5
-  - statType: 8
-    value: 50
   - statType: 10
     value: 3
   currentState: 0

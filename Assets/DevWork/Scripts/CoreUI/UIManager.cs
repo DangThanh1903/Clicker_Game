@@ -6,6 +6,7 @@ using UnityEngine.UI;
 
 public class UIManager : MonoBehaviour
 {
+    // Legacy global path: keep current scene wiring, but prefer feature presenters over new direct global access.
     public static UIManager Ins { get; private set; }
 
     [Header("Nav")]
@@ -41,11 +42,9 @@ public class UIManager : MonoBehaviour
     private readonly List<CanvasGroup> panelGroups = new List<CanvasGroup>();
     private readonly List<LayoutElement> navButtonLayouts = new List<LayoutElement>();
     private readonly List<float> navButtonBaseWidths = new List<float>();
+    private bool initialized;
+    private bool isInitializing;
     public int CurrentIndex => currentIndex;
-
-    [Header("Setting button")]
-    private bool isOpenSetting;
-    [SerializeField] private Button settingButton;
 
     [Header("Inventory Camera Focus")]
     [SerializeField] private int inventoryPageIndex = 0;
@@ -63,22 +62,13 @@ public class UIManager : MonoBehaviour
         // Cull fully transparent graphics to reduce overdraw
         foreach (var g in GetComponentsInChildren<Graphic>(true))
             g.canvasRenderer.cullTransparentMesh = true;
+
+        EnsureInitialized();
     }
 
-    void Start()
+    void OnEnable()
     {
-        if (viewport == null && uIPanel != null)
-            viewport = uIPanel.parent as RectTransform;
-
-        lastScreenWidth = Screen.width;
-        lastScreenHeight = Screen.height;
-
-        SetupButtons();
-        InitPanelGroups();
-        ActivateOnly(startIndex, snap: false);
-        RefreshLayout(snapToCurrent: true);
-        SetupBottomButtonWidthLayout();
-        BottomButtonAnim(startIndex);
+        EnsureInitialized();
     }
 
     void SetupButtons()
@@ -102,6 +92,8 @@ public class UIManager : MonoBehaviour
 
     private void TryOpenPage(int targetIndex, bool useInventoryCameraFocus)
     {
+        EnsureInitialized();
+
         if (navigationLocked)
             return;
 
@@ -147,6 +139,8 @@ public class UIManager : MonoBehaviour
 
     void SlideTo(int target)
     {
+        EnsureInitialized();
+
         if (navigationLocked) return;
         RefreshLayout(snapToCurrent: false);
         target = Mathf.Clamp(target, 0, panels.Count - 1);
@@ -214,6 +208,8 @@ public class UIManager : MonoBehaviour
 
     void ActivateOnly(int idx, bool snap)
     {
+        EnsureInitialized();
+
         if (keepPanelsActive)
         {
             SetPanelVisibilityRange(idx, idx, allowInteract: true);
@@ -286,6 +282,8 @@ public class UIManager : MonoBehaviour
 
     void LateUpdate()
     {
+        EnsureInitialized();
+
         if (!autoPageWidth)
             return;
 
@@ -332,11 +330,13 @@ public class UIManager : MonoBehaviour
 
     public void SetButtonsInteractable(bool on)
     {
+        EnsureInitialized();
         foreach (var b in buttons) b.interactable = on;
     }
 
     public void SetNavigationLocked(bool locked, bool forceToMain = false)
     {
+        EnsureInitialized();
         navigationLocked = locked;
         SetButtonsInteractable(!locked);
 
@@ -353,6 +353,7 @@ public class UIManager : MonoBehaviour
 
     void BottomButtonAnim(int index)
     {
+        EnsureInitialized();
         AnimateBottomButtonWidths(index);
 
         for (int j = 0; j < buttons.Count; j++)
@@ -489,10 +490,11 @@ public class UIManager : MonoBehaviour
         }
     }
 
-    public bool IsBlockCanClick() => startIndex == currentIndex && !isOpenSetting;
+    public bool IsBlockCanClick() => startIndex == currentIndex;
 
     public Button GetNavButton(int index)
     {
+        EnsureInitialized();
         if (buttons == null || index < 0 || index >= buttons.Count)
             return null;
         return buttons[index];
@@ -505,6 +507,8 @@ public class UIManager : MonoBehaviour
 
     public void SetLocationBackground(int index)
     {
+        EnsureInitialized();
+
         if (locationTexture2D == null || locationTexture2D.Length == 0)
         {
             Debug.LogWarning("[UIManager] Location textures are not assigned.");
@@ -521,6 +525,42 @@ public class UIManager : MonoBehaviour
         {
             if (image == null) continue;
             image.sprite = locationTexture2D[index];
+        }
+    }
+
+    private void EnsureInitialized()
+    {
+        if (initialized || isInitializing)
+            return;
+
+        isInitializing = true;
+        try
+        {
+            if (viewport == null && uIPanel != null)
+                viewport = uIPanel.parent as RectTransform;
+
+            lastScreenWidth = Screen.width;
+            lastScreenHeight = Screen.height;
+
+            SetupButtons();
+            InitPanelGroups();
+            ActivateOnly(startIndex, snap: false);
+            RefreshLayout(snapToCurrent: true);
+            SetupBottomButtonWidthLayout();
+            BottomButtonAnim(startIndex);
+            initialized = true;
+        }
+        finally
+        {
+            isInitializing = false;
+        }
+    }
+
+    private void OnValidate()
+    {
+        if (buttons != null && panels != null && buttons.Count != panels.Count)
+        {
+            Debug.LogWarning("[UIManager] Nav buttons count does not match panels count.", this);
         }
     }
 }

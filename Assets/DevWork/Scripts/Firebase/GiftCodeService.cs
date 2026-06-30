@@ -25,6 +25,10 @@ public static class GiftCodeService
 {
     private const string RedeemedStatusPending = "pending";
     private const string RedeemedStatusApplied = "applied";
+    private const string ReceiptFileName = "gift_code_receipts.json";
+    private static readonly SaveCoordinator saveCoordinator = SaveCoordinator.Ins;
+
+    private static GiftCodeReceiptData receiptData;
 
     private enum RedeemFlowState
     {
@@ -329,19 +333,70 @@ public static class GiftCodeService
     private static bool IsRewardAppliedLocally(string code)
     {
         if (string.IsNullOrEmpty(code)) return false;
-        return PlayerPrefs.GetInt(GetLocalReceiptKey(code), 0) == 1;
+
+        EnsureReceiptData();
+        if (receiptData.appliedCodes.Contains(code))
+            return true;
+
+        string legacyKey = GetLegacyLocalReceiptKey(code);
+        if (!PlayerPrefs.HasKey(legacyKey) || PlayerPrefs.GetInt(legacyKey, 0) != 1)
+            return false;
+
+        receiptData.appliedCodes.Add(code);
+        SaveReceiptData();
+        PlayerPrefs.DeleteKey(legacyKey);
+        PlayerPrefs.Save();
+        return true;
     }
 
     private static void MarkRewardAppliedLocally(string code)
     {
         if (string.IsNullOrEmpty(code)) return;
-        PlayerPrefs.SetInt(GetLocalReceiptKey(code), 1);
-        PlayerPrefs.Save();
+
+        EnsureReceiptData();
+        if (!receiptData.appliedCodes.Contains(code))
+        {
+            receiptData.appliedCodes.Add(code);
+            SaveReceiptData();
+        }
+
+        string legacyKey = GetLegacyLocalReceiptKey(code);
+        if (PlayerPrefs.HasKey(legacyKey))
+        {
+            PlayerPrefs.DeleteKey(legacyKey);
+            PlayerPrefs.Save();
+        }
     }
 
-    private static string GetLocalReceiptKey(string code)
+    private static void EnsureReceiptData()
+    {
+        if (receiptData != null)
+            return;
+
+        receiptData = new GiftCodeReceiptData();
+        if (!saveCoordinator.TryLoadJson(ReceiptFileName, out receiptData, "GiftCode"))
+        {
+            receiptData = new GiftCodeReceiptData();
+            return;
+        }
+
+        receiptData.appliedCodes ??= new List<string>();
+    }
+
+    private static void SaveReceiptData()
+    {
+        saveCoordinator.TrySaveJson(ReceiptFileName, receiptData ?? new GiftCodeReceiptData(), "GiftCode");
+    }
+
+    private static string GetLegacyLocalReceiptKey(string code)
     {
         return $"GIFT_CODE_APPLIED_{code}";
+    }
+
+    [Serializable]
+    private class GiftCodeReceiptData
+    {
+        public List<string> appliedCodes = new List<string>();
     }
 
     private class GiftCodePayload

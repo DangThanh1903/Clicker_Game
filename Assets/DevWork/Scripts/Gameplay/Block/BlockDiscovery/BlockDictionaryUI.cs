@@ -25,6 +25,11 @@ namespace Game.UI.Dictionary
         [SerializeField] private BlockPreviewCamera previewCamera;
 
         [Header("Biome Controls")]
+        [SerializeField] private BlockDictionaryBiomeControlsView biomeControlsView;
+        [SerializeField] private BlockDictionaryBiomeControlsView biomeControlsTemplate;
+        [SerializeField] private Transform biomeControlsParent;
+
+        [Header("Biome Controls (Legacy Direct Refs)")]
         [SerializeField] private TMP_Text biomeNameText;
         [SerializeField] private TMP_Text selectedBiomeNameText;
         [SerializeField] private Button previousBiomeButton;
@@ -47,10 +52,9 @@ namespace Game.UI.Dictionary
         private bool buttonListenersBound;
         private BlockDiscoveryService discoveryService;
         private bool warnedMissingPreviewCamera;
+        private bool warnedMissingBiomeControls;
         private bool hasViewedLocation;
-        private bool createdRuntimeControls;
         private BlockSpawnLocation viewedLocation = BlockSpawnLocation.Plain;
-        private RectTransform runtimeControlsRoot;
         private IDisposable locationSubscription;
 
         private void OnEnable()
@@ -413,28 +417,38 @@ namespace Game.UI.Dictionary
 
         private void BindBiomeButtons()
         {
-            if (buttonListenersBound) return;
+            if (buttonListenersBound)
+                return;
 
-            if (previousBiomeButton != null)
-                previousBiomeButton.onClick.AddListener(OnPreviousBiomeClicked);
-            if (nextBiomeButton != null)
-                nextBiomeButton.onClick.AddListener(OnNextBiomeClicked);
-            if (moveToBiomeButton != null)
-                moveToBiomeButton.onClick.AddListener(OnMoveToBiomeClicked);
+            BlockDictionaryBiomeControlsView controls = EnsureBiomeControls();
+            if (controls == null)
+                return;
+
+            if (controls.PreviousBiomeButton != null)
+                controls.PreviousBiomeButton.onClick.AddListener(OnPreviousBiomeClicked);
+            if (controls.NextBiomeButton != null)
+                controls.NextBiomeButton.onClick.AddListener(OnNextBiomeClicked);
+            if (controls.MoveToBiomeButton != null)
+                controls.MoveToBiomeButton.onClick.AddListener(OnMoveToBiomeClicked);
 
             buttonListenersBound = true;
         }
 
         private void UnbindBiomeButtons()
         {
-            if (!buttonListenersBound) return;
+            if (!buttonListenersBound)
+                return;
 
-            if (previousBiomeButton != null)
-                previousBiomeButton.onClick.RemoveListener(OnPreviousBiomeClicked);
-            if (nextBiomeButton != null)
-                nextBiomeButton.onClick.RemoveListener(OnNextBiomeClicked);
-            if (moveToBiomeButton != null)
-                moveToBiomeButton.onClick.RemoveListener(OnMoveToBiomeClicked);
+            BlockDictionaryBiomeControlsView controls = biomeControlsView;
+            if (controls != null)
+            {
+                if (controls.PreviousBiomeButton != null)
+                    controls.PreviousBiomeButton.onClick.RemoveListener(OnPreviousBiomeClicked);
+                if (controls.NextBiomeButton != null)
+                    controls.NextBiomeButton.onClick.RemoveListener(OnNextBiomeClicked);
+                if (controls.MoveToBiomeButton != null)
+                    controls.MoveToBiomeButton.onClick.RemoveListener(OnMoveToBiomeClicked);
+            }
 
             buttonListenersBound = false;
         }
@@ -497,156 +511,92 @@ namespace Game.UI.Dictionary
 
         private void RefreshBiomeControls()
         {
+            BlockDictionaryBiomeControlsView controls = EnsureBiomeControls();
+            if (controls == null)
+                return;
+
             BlockSpawnLocation currentLocation = LocationLoader.Ins != null
                 ? LocationLoader.Ins.currentLocation
                 : viewedLocation;
 
-            if (biomeNameText != null)
-                biomeNameText.text = currentLocation.ToString();
-            if (selectedBiomeNameText != null)
-                selectedBiomeNameText.text = viewedLocation.ToString();
-
             bool hasChoices = availableLocations.Count > 1;
-            if (previousBiomeButton != null)
-                previousBiomeButton.interactable = hasChoices;
-            if (nextBiomeButton != null)
-                nextBiomeButton.interactable = hasChoices;
-
             bool isCurrent = currentLocation == viewedLocation;
             bool isUnlocked = LocationLoader.Ins == null || LocationLoader.Ins.IsLocationUnlocked(viewedLocation);
             bool canMove = !isCurrent && isUnlocked;
-            if (moveToBiomeButton != null)
-                moveToBiomeButton.interactable = canMove;
-            if (moveToBiomeLabel != null)
+
+            string moveLabel = currentBiomeText;
+            if (!isCurrent)
             {
-                if (isCurrent)
-                    moveToBiomeLabel.text = currentBiomeText;
-                else
-                    moveToBiomeLabel.text = isUnlocked
-                        ? (selectedBiomeNameText == null ? $"{moveHereText} {viewedLocation}" : moveHereText)
-                        : lockedBiomeText;
+                moveLabel = isUnlocked
+                    ? (controls.SelectedBiomeText == null ? $"{moveHereText} {viewedLocation}" : moveHereText)
+                    : lockedBiomeText;
             }
+
+            controls.Apply(
+                currentLocation.ToString(),
+                viewedLocation.ToString(),
+                hasChoices,
+                canMove,
+                moveLabel);
         }
 
-        private void EnsureBiomeControls()
+        private BlockDictionaryBiomeControlsView EnsureBiomeControls()
         {
-            if (moveToBiomeLabel == null && moveToBiomeButton != null)
-                moveToBiomeLabel = moveToBiomeButton.GetComponentInChildren<TMP_Text>(true);
+            if (biomeControlsView == null)
+                biomeControlsView = GetComponentInChildren<BlockDictionaryBiomeControlsView>(true);
 
-            bool missingRefs = biomeNameText == null ||
-                               previousBiomeButton == null ||
-                               nextBiomeButton == null ||
-                               moveToBiomeButton == null;
+            if (biomeControlsView == null)
+                biomeControlsView = TryCreateLegacyControlsView();
 
-            if (!missingRefs || !autoCreateControlsIfMissing || createdRuntimeControls)
-                return;
+            if (biomeControlsView == null &&
+                autoCreateControlsIfMissing &&
+                biomeControlsTemplate != null)
+            {
+                Transform parent = biomeControlsParent != null ? biomeControlsParent : transform;
+                biomeControlsView = Instantiate(biomeControlsTemplate, parent, false);
+                biomeControlsView.name = biomeControlsTemplate.gameObject.name;
+            }
 
-            CreateRuntimeBiomeControls();
+            if (biomeControlsView == null)
+            {
+                if (!warnedMissingBiomeControls)
+                {
+                    Debug.LogWarning("[BlockDictionaryUI] Biome controls are missing. Assign a BlockDictionaryBiomeControlsView or a biomeControlsTemplate.", this);
+                    warnedMissingBiomeControls = true;
+                }
+
+                return null;
+            }
+
+            biomeControlsView.EnsureReferences();
+            return biomeControlsView;
         }
 
-        private void CreateRuntimeBiomeControls()
+        private BlockDictionaryBiomeControlsView TryCreateLegacyControlsView()
         {
-            var root = new GameObject("BiomeControls", typeof(RectTransform), typeof(Image), typeof(HorizontalLayoutGroup));
-            runtimeControlsRoot = root.GetComponent<RectTransform>();
-            runtimeControlsRoot.SetParent(transform, false);
-            runtimeControlsRoot.anchorMin = new Vector2(0.5f, 1f);
-            runtimeControlsRoot.anchorMax = new Vector2(0.5f, 1f);
-            runtimeControlsRoot.pivot = new Vector2(0.5f, 1f);
-            runtimeControlsRoot.anchoredPosition = new Vector2(0f, -48f);
-            runtimeControlsRoot.sizeDelta = new Vector2(620f, 72f);
+            if (biomeNameText == null &&
+                selectedBiomeNameText == null &&
+                previousBiomeButton == null &&
+                nextBiomeButton == null &&
+                moveToBiomeButton == null &&
+                moveToBiomeLabel == null)
+            {
+                return null;
+            }
 
-            var background = root.GetComponent<Image>();
-            background.color = new Color(0f, 0f, 0f, 0.45f);
-            background.raycastTarget = false;
+            BlockDictionaryBiomeControlsView legacyView = GetComponent<BlockDictionaryBiomeControlsView>();
+            if (legacyView == null)
+                legacyView = gameObject.AddComponent<BlockDictionaryBiomeControlsView>();
 
-            var layout = root.GetComponent<HorizontalLayoutGroup>();
-            layout.padding = new RectOffset(12, 12, 10, 10);
-            layout.spacing = 10f;
-            layout.childAlignment = TextAnchor.MiddleCenter;
-            layout.childControlWidth = true;
-            layout.childControlHeight = true;
-            layout.childForceExpandWidth = false;
-            layout.childForceExpandHeight = false;
+            legacyView.BindReferences(
+                biomeNameText,
+                selectedBiomeNameText,
+                previousBiomeButton,
+                nextBiomeButton,
+                moveToBiomeButton,
+                moveToBiomeLabel);
 
-            var font = ResolveControlFont();
-
-            biomeNameText = CreateRuntimeLabel(root.transform, "CurrentBiomeNameText", viewedLocation.ToString(), font, 180f);
-            previousBiomeButton = CreateRuntimeButton(root.transform, "PrevBiomeButton", "<", font, 64f);
-            selectedBiomeNameText = CreateRuntimeLabel(root.transform, "SelectedBiomeNameText", viewedLocation.ToString(), font, 180f);
-            nextBiomeButton = CreateRuntimeButton(root.transform, "NextBiomeButton", ">", font, 64f);
-            moveToBiomeButton = CreateRuntimeButton(root.transform, "MoveToBiomeButton", moveHereText, font, 120f);
-            moveToBiomeLabel = moveToBiomeButton.GetComponentInChildren<TMP_Text>(true);
-
-            runtimeControlsRoot.SetAsLastSibling();
-            createdRuntimeControls = true;
-        }
-
-        private TMP_FontAsset ResolveControlFont()
-        {
-            if (biomeNameText != null && biomeNameText.font != null)
-                return biomeNameText.font;
-
-            var anyText = GetComponentInChildren<TMP_Text>(true);
-            if (anyText != null && anyText.font != null)
-                return anyText.font;
-
-            return TMP_Settings.defaultFontAsset;
-        }
-
-        private Button CreateRuntimeButton(Transform parent, string name, string text, TMP_FontAsset font, float width)
-        {
-            var go = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button), typeof(LayoutElement));
-            var rt = go.GetComponent<RectTransform>();
-            rt.SetParent(parent, false);
-            rt.sizeDelta = new Vector2(width, 52f);
-
-            var image = go.GetComponent<Image>();
-            image.color = new Color(1f, 1f, 1f, 0.18f);
-
-            var layout = go.GetComponent<LayoutElement>();
-            layout.preferredWidth = width;
-            layout.preferredHeight = 52f;
-
-            var textGo = new GameObject("Label", typeof(RectTransform), typeof(TextMeshProUGUI));
-            var textRt = textGo.GetComponent<RectTransform>();
-            textRt.SetParent(go.transform, false);
-            textRt.anchorMin = Vector2.zero;
-            textRt.anchorMax = Vector2.one;
-            textRt.offsetMin = Vector2.zero;
-            textRt.offsetMax = Vector2.zero;
-
-            var label = textGo.GetComponent<TextMeshProUGUI>();
-            label.text = text;
-            label.alignment = TextAlignmentOptions.Center;
-            label.fontSize = 30f;
-            label.color = Color.white;
-            if (font != null)
-                label.font = font;
-
-            return go.GetComponent<Button>();
-        }
-
-        private TMP_Text CreateRuntimeLabel(Transform parent, string name, string text, TMP_FontAsset font, float width)
-        {
-            var go = new GameObject(name, typeof(RectTransform), typeof(LayoutElement), typeof(TextMeshProUGUI));
-            var rt = go.GetComponent<RectTransform>();
-            rt.SetParent(parent, false);
-            rt.sizeDelta = new Vector2(width, 52f);
-
-            var layout = go.GetComponent<LayoutElement>();
-            layout.preferredWidth = width;
-            layout.preferredHeight = 52f;
-
-            var label = go.GetComponent<TextMeshProUGUI>();
-            label.text = text;
-            label.alignment = TextAlignmentOptions.Center;
-            label.fontSize = 34f;
-            label.color = Color.white;
-            label.raycastTarget = false;
-            if (font != null)
-                label.font = font;
-
-            return label;
+            return legacyView.HasAnyReference() ? legacyView : null;
         }
     }
 }

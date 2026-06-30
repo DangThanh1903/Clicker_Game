@@ -27,6 +27,10 @@ public class LeaderboardPublicData
     [FirestoreProperty] public string displayName { get; set; }
     [FirestoreProperty] public string avatarId { get; set; }
     [FirestoreProperty] public float clicks { get; set; }
+    [FirestoreProperty] public float diamonds { get; set; }
+    [FirestoreProperty] public float totalBlockBreaked { get; set; }
+    [FirestoreProperty] public float totalDamageDealed { get; set; }
+    [FirestoreProperty] public float totalTimePlayed { get; set; }
     [FirestoreProperty] public float totalPlaytime { get; set; }
     [FirestoreProperty] public Timestamp updatedAt { get; set; }
 }
@@ -39,6 +43,9 @@ public class GameplaySaveData
     [FirestoreProperty] public string peakLocation { get; set; }
     [FirestoreProperty] public float clicks { get; set; }
     [FirestoreProperty] public float diamonds { get; set; }
+    [FirestoreProperty] public float totalBlockBreaked { get; set; }
+    [FirestoreProperty] public float totalDamageDealed { get; set; }
+    [FirestoreProperty] public float totalTimePlayed { get; set; }
     [FirestoreProperty] public float currentTime { get; set; }
     [FirestoreProperty] public float totalPlaytime { get; set; }
     [FirestoreProperty] public List<BiomeCraftNodeState> craftNodeStatesByBiome { get; set; }

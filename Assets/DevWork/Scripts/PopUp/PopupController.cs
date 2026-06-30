@@ -7,6 +7,7 @@ using UnityEngine.UI;
 
 public class PopupController : MonoBehaviour
 {
+    // Allowed global owner: modal popup stack and backdrop.
     public static PopupController Instance { get; private set; }
 
     [Header("Popup Root (Canvas or Panel)")]
@@ -20,25 +21,23 @@ public class PopupController : MonoBehaviour
     readonly Stack<PopupView> stack = new Stack<PopupView>();
     Tween backdropTween;
     bool isClosingTop;
+    bool isReady;
 
     void Awake()
     {
         if (Instance && Instance != this) { Destroy(gameObject); return; }
         Instance = this;
 
-        // Optional across scenes:
-        // DontDestroyOnLoad(gameObject);
-
-        if (!popupRoot)
-            Debug.LogWarning("PopupController: popupRoot is not assigned. Assign your popup Canvas/Panel.");
-
-        SetupBackdrop();
+        EnsureReady();
     }
 
     // Show by spawning from pool into popupRoot
     public async Task<PopupView> Show(PopupView popupPrefab)
     {
+        EnsureReady();
         if (popupPrefab == null) return null;
+        if (popupRoot == null)
+            return null;
 
         var go = LeanPool.Spawn(popupPrefab.gameObject, popupRoot);
         var popup = go.GetComponent<PopupView>();
@@ -60,7 +59,10 @@ public class PopupController : MonoBehaviour
     // Show with pre-open initialization (avoids visible content pop-in)
     public async Task<PopupView> Show(PopupView popupPrefab, System.Action<PopupView> initBeforeOpen)
     {
+        EnsureReady();
         if (popupPrefab == null) return null;
+        if (popupRoot == null)
+            return null;
 
         var go = LeanPool.Spawn(popupPrefab.gameObject, popupRoot);
         var popup = go.GetComponent<PopupView>();
@@ -122,6 +124,7 @@ public class PopupController : MonoBehaviour
 
     async Task FadeBackdropTo(float targetAlpha, bool enableRaycast)
     {
+        EnsureReady();
         if (!backdrop) return;
         var cg = EnsureBackdropCanvasGroup();
 
@@ -168,6 +171,18 @@ public class PopupController : MonoBehaviour
         backdrop.gameObject.SetActive(false);
     }
 
+    void EnsureReady()
+    {
+        if (isReady)
+            return;
+
+        if (popupRoot == null)
+            popupRoot = transform;
+
+        SetupBackdrop();
+        isReady = true;
+    }
+
     CanvasGroup EnsureBackdropCanvasGroup()
     {
         var cg = backdrop.GetComponent<CanvasGroup>();
@@ -191,6 +206,7 @@ public class PopupController : MonoBehaviour
 
     public bool IsAnyPopupOpen()
     {
+        EnsureReady();
         PruneStack();
 
         if (stack.Count == 0 && !isClosingTop)
@@ -228,5 +244,11 @@ public class PopupController : MonoBehaviour
 
         if (backdrop.gameObject.activeSelf)
             backdrop.gameObject.SetActive(false);
+    }
+
+    private void OnValidate()
+    {
+        if (popupRoot == null)
+            popupRoot = transform;
     }
 }

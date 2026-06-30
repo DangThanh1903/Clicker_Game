@@ -242,19 +242,12 @@ public class MonsterClickable : MonoBehaviour, IDamageReceiver, IPointerHitConte
 
     void HandleItemDrop()
     {
-        if (def == null || def.drops == null || def.drops.Count == 0) return;
+        if (def == null || def.drops == null || def.drops.Count == 0)
+            return;
 
         float luck = StatsManager.Ins != null ? StatsManager.Ins.Get(StatType.Lucky) : 0f;
         var drops = def.GetDroppedItems(luck);
-        if (drops == null || drops.Count == 0) return;
-
-        var grantEntries = new System.Collections.Generic.List<DropGrantEntry>(drops.Count);
-        foreach (var result in drops)
-        {
-            grantEntries.Add(new DropGrantEntry(result.item, result.amount));
-        }
-
-        DropGrantService.TryGrantDrops(grantEntries, out _, logContext: "[MonsterDrop]");
+        DropGrantService.TryGrantRolledDrops(drops, out _, logContext: "[MonsterDrop]");
     }
 
     void ResolveAndDespawn()
