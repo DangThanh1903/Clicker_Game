@@ -9,6 +9,7 @@ public enum TimeState { Day, Night, Any }
 public class TimeSystem : MonoBehaviour
 {
     public static TimeSystem Instance { get; private set; }
+    public bool IsInitialized { get; private set; }
 
     [Header("Timing")]
     [Min(0.01f)] public float updateTick = 0.1f;
@@ -74,13 +75,18 @@ public class TimeSystem : MonoBehaviour
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
         Instance = this;
         DontDestroyOnLoad(this);
-
-        // If you persist startTime externally, assign it here (optional):
-        startTime = DataSaver.Ins.CurrentTime;
     }
 
     private void Start()
     {
+        StartCoroutine(InitWhenReady());
+    }
+
+    private System.Collections.IEnumerator InitWhenReady()
+    {
+        yield return new WaitUntil(() => DataSaver.Ins != null && DataSaver.Ins.IsReady);
+
+        startTime = DataSaver.Ins != null ? DataSaver.Ins.CurrentTime : startTime;
         EnsureMainLight();
         if (timeScale < 0.05f)
             timeScale = 0.05f;
@@ -101,6 +107,7 @@ public class TimeSystem : MonoBehaviour
 
         // Apply once before ticking
         ApplyLighting(CurrentTime.Value / CycleLength);
+        IsInitialized = true;
 
         // Tick
         if (smoothTime)

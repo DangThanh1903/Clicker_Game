@@ -27,6 +27,8 @@ public class BlockManager : MonoBehaviour
     private float bossRemainingTime;
     private float bossTotalTime;
     private bool warnedMissingMonsterSpawner;
+    private bool canRefreshCurrentBlock;
+    private bool restoreSavedBlockOnNextRefresh;
     public bool IsBossTimerRunning => bossTimerCoroutine != null;
     public float BossRemainingTime => bossRemainingTime;
     public float BossTotalTime => bossTotalTime;
@@ -57,22 +59,17 @@ public class BlockManager : MonoBehaviour
 
     private IEnumerator InitWhenReady()
     {
-        yield return new WaitUntil(() => DataSaver.Ins != null);
+        yield return new WaitUntil(() => DataSaver.Ins != null && DataSaver.Ins.IsReady);
+        yield return new WaitUntil(() => locationLoader == null || locationLoader.IsInitialized);
+        yield return new WaitUntil(() => TimeSystem.Instance == null || TimeSystem.Instance.IsInitialized);
+        yield return new WaitUntil(() => WeatherManager.Instance == null || WeatherManager.Instance.IsInitialized);
 
         if (enableMonsterEncounters && monsterSpawner != null && currentBlock != null)
             monsterSpawner.SetBlockAnchor(currentBlock.transform);
 
-        if (currentBlock != null)
-        {
-            currentBlock.SetClickableBlock(DataSaver.Ins.currentBlock ?? "Dirt");
-            NotifyCurrentBlockChanged();
-        }
-
-        int startIndex = DataSaver.Ins.currentLocation.HasValue ? (int)DataSaver.Ins.currentLocation.Value : 1;
-        if (startIndex == 0)
-            startIndex = 1;
-        if (locationLoader != null)
-            locationLoader.SetLocation(startIndex, isInitiate: true);
+        canRefreshCurrentBlock = true;
+        restoreSavedBlockOnNextRefresh = true;
+        RefreshBlockForLocationChange();
     }
 
 
@@ -166,18 +163,13 @@ public class BlockManager : MonoBehaviour
 
         QuestSignals.BreakBlock(targetId, 1);
 
-        NormalWeatherName normalName =
-            (WeatherManager.Instance.CurrentNormalWeather.Value as NormalWeatherData)?.weatherName
-            ?? NormalWeatherName.Any;
-
-        SpecialWeatherName specialName =
-            (WeatherManager.Instance.CurrentSpecialWeather.Value as SpecialWeatherData)?.weatherName
-            ?? SpecialWeatherName.Any;
+        NormalWeatherName normalName = ResolveCurrentNormalWeather();
+        SpecialWeatherName specialName = ResolveCurrentSpecialWeather();
         DataSaver.Ins.SaveDataFn();
         CameraShakeController.TriggerBlockBreakShake(1.45f);
         currentBlock.SetClickableBlockByCondition(
             locationLoader.currentLocation,
-            TimeSystem.Instance.CurrentTimeState.Value,
+            ResolveCurrentTimeState(),
             normalName,
             specialName
         );
@@ -187,17 +179,33 @@ public class BlockManager : MonoBehaviour
 
     public void RefreshBlockForLocationChange()
     {
-        NormalWeatherName normalName =
-            (WeatherManager.Instance.CurrentNormalWeather.Value as NormalWeatherData)?.weatherName
-            ?? NormalWeatherName.Any;
+        if (currentBlock == null)
+            return;
 
-        SpecialWeatherName specialName =
-            (WeatherManager.Instance.CurrentSpecialWeather.Value as SpecialWeatherData)?.weatherName
-            ?? SpecialWeatherName.Any;
+        if (!canRefreshCurrentBlock)
+            return;
+
+        BlockSpawnLocation location = locationLoader != null
+            ? locationLoader.currentLocation
+            : (DataSaver.Ins != null && DataSaver.Ins.currentLocation.HasValue ? DataSaver.Ins.currentLocation.Value : BlockSpawnLocation.Plain);
+
+        TimeState timeState = ResolveCurrentTimeState();
+        NormalWeatherName normalName = ResolveCurrentNormalWeather();
+        SpecialWeatherName specialName = ResolveCurrentSpecialWeather();
+
+        if (restoreSavedBlockOnNextRefresh)
+        {
+            restoreSavedBlockOnNextRefresh = false;
+            if (TryRestoreSavedBlockForCurrentConditions(location, timeState, normalName, specialName))
+            {
+                NotifyCurrentBlockChanged();
+                return;
+            }
+        }
 
         currentBlock.SetClickableBlockByCondition(
-            locationLoader.currentLocation,
-            TimeSystem.Instance.CurrentTimeState.Value,
+            location,
+            timeState,
             normalName,
             specialName
         );
@@ -378,6 +386,58 @@ public class BlockManager : MonoBehaviour
     private bool IsMonsterEncounterRunning()
     {
         return enableMonsterEncounters && monsterSpawner != null && monsterSpawner.HasActiveEncounter;
+    }
+
+    private bool TryRestoreSavedBlockForCurrentConditions(
+        BlockSpawnLocation location,
+        TimeState timeState,
+        NormalWeatherName normalWeather,
+        SpecialWeatherName specialWeather)
+    {
+        if (currentBlock == null || DataSaver.Ins == null || currentBlock.blockUVDatabase == null)
+            return false;
+
+        string savedBlock = DataSaver.Ins.currentBlock;
+        if (string.IsNullOrWhiteSpace(savedBlock))
+        {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            DevLog.Log("[BlockInit] Saved block is empty. Falling back to condition roll.");
+#endif
+            return false;
+        }
+
+        if (!currentBlock.blockUVDatabase.IsBlockValidForConditions(savedBlock, location, timeState, normalWeather, specialWeather))
+        {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            DevLog.Log($"[BlockInit] Saved block '{savedBlock}' is invalid for location={location}, time={timeState}, normal={normalWeather}, special={specialWeather}. Falling back to condition roll.");
+#endif
+            return false;
+        }
+
+        currentBlock.SetClickableBlock(savedBlock);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        DevLog.Log($"[BlockInit] Restored saved block '{savedBlock}' for location={location}, time={timeState}, normal={normalWeather}, special={specialWeather}.");
+#endif
+        return true;
+    }
+
+    private static TimeState ResolveCurrentTimeState()
+    {
+        return TimeSystem.Instance != null
+            ? TimeSystem.Instance.CurrentTimeState.Value
+            : TimeState.Any;
+    }
+
+    private static NormalWeatherName ResolveCurrentNormalWeather()
+    {
+        return (WeatherManager.Instance != null ? WeatherManager.Instance.CurrentNormalWeather.Value as NormalWeatherData : null)?.weatherName
+            ?? NormalWeatherName.Any;
+    }
+
+    private static SpecialWeatherName ResolveCurrentSpecialWeather()
+    {
+        return (WeatherManager.Instance != null ? WeatherManager.Instance.CurrentSpecialWeather.Value as SpecialWeatherData : null)?.weatherName
+            ?? SpecialWeatherName.Any;
     }
 }
 

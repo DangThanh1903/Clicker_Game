@@ -1,4 +1,5 @@
 ﻿using UniRx;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using System;
@@ -9,6 +10,7 @@ using Lean.Pool;
 public class WeatherManager : MonoBehaviour
 {
     public static WeatherManager Instance { get; private set; }
+    public bool IsInitialized { get; private set; }
     [SerializeField] private List<NormalWeatherData> normalWeatherList;
     [SerializeField] private List<SpecialWeatherData> specialWeatherList;
     [SerializeField] private Vector3 weatherPos;
@@ -35,14 +37,22 @@ public class WeatherManager : MonoBehaviour
     }
     void Start()
     {
-        SetNormalWeather();
+        StartCoroutine(InitWhenReady());
     }
+
+    private IEnumerator InitWhenReady()
+    {
+        yield return new WaitUntil(() => TimeSystem.Instance == null || TimeSystem.Instance.IsInitialized);
+        SetNormalWeather();
+        IsInitialized = true;
+    }
+
     public void SetNormalWeather(float remainingTime = -1)
     {
         var nextWeather = GetRandomWeightedWeather(
             normalWeatherList,
             CurrentNormalWeather.Value as NormalWeatherData,
-            TimeSystem.Instance.CurrentTimeState.Value
+            ResolveCurrentTimeState()
         );
 
         if (nextWeather == null || CurrentNormalWeather.Value == nextWeather) return;
@@ -94,7 +104,7 @@ public class WeatherManager : MonoBehaviour
         var nextWeather = GetRandomWeightedWeather(
             specialWeatherList,
             CurrentSpecialWeather.Value as SpecialWeatherData,
-            TimeSystem.Instance.CurrentTimeState.Value
+            ResolveCurrentTimeState()
         );
 
         if (nextWeather == null || CurrentSpecialWeather.Value == nextWeather) return;
@@ -140,6 +150,13 @@ public class WeatherManager : MonoBehaviour
         }
 
         return validWeathers[0]; // fallback
+    }
+
+    private static TimeState ResolveCurrentTimeState()
+    {
+        return TimeSystem.Instance != null
+            ? TimeSystem.Instance.CurrentTimeState.Value
+            : TimeState.Any;
     }
 }
 

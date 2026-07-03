@@ -56,6 +56,18 @@ public class BlockUVDatabase : ScriptableObject
     public float GetGlowIntensity(string name)
         => Mathf.Max(0f, GetByName(name)?.glowIntensity ?? 0f);
 
+    public bool IsBlockValidForConditions(
+        string name,
+        BlockSpawnLocation location,
+        TimeState timeState,
+        NormalWeatherName normalWeather,
+        SpecialWeatherName specialWeather
+    )
+    {
+        BlockUVEntry entry = GetByName(name);
+        return MatchesConditions(entry, location, timeState, normalWeather, specialWeather);
+    }
+
     // =========================
     // FILTERING
     // =========================
@@ -67,20 +79,7 @@ public class BlockUVDatabase : ScriptableObject
         SpecialWeatherName specialWeather
     )
     {
-        return blocks.Where(b =>
-            (location == BlockSpawnLocation.Any ||
-             b.locationCondition == BlockSpawnLocation.Any ||
-             b.locationCondition == location) &&
-
-            (b.timeStateCondition == TimeState.Any ||
-             b.timeStateCondition == timeState) &&
-
-            (b.normalWeatherCondition == NormalWeatherName.Any ||
-             b.normalWeatherCondition == normalWeather) &&
-
-            (b.specialWeatherCondition == SpecialWeatherName.Any ||
-             b.specialWeatherCondition == specialWeather)
-        ).ToList();
+        return blocks.Where(b => MatchesConditions(b, location, timeState, normalWeather, specialWeather)).ToList();
     }
 
     // =========================
@@ -211,6 +210,27 @@ public class BlockUVDatabase : ScriptableObject
             if (!blocksByName.ContainsKey(block.blockName))
                 blocksByName[block.blockName] = block;
         }
+    }
+
+    private static bool MatchesConditions(
+        BlockUVEntry entry,
+        BlockSpawnLocation location,
+        TimeState timeState,
+        NormalWeatherName normalWeather,
+        SpecialWeatherName specialWeather)
+    {
+        if (entry == null)
+            return false;
+
+        return (location == BlockSpawnLocation.Any ||
+                entry.locationCondition == BlockSpawnLocation.Any ||
+                entry.locationCondition == location) &&
+               (entry.timeStateCondition == TimeState.Any ||
+                entry.timeStateCondition == timeState) &&
+               (entry.normalWeatherCondition == NormalWeatherName.Any ||
+                entry.normalWeatherCondition == normalWeather) &&
+               (entry.specialWeatherCondition == SpecialWeatherName.Any ||
+                entry.specialWeatherCondition == specialWeather);
     }
 }
 

@@ -62,11 +62,9 @@ public class UIManager : MonoBehaviour
         // Cull fully transparent graphics to reduce overdraw
         foreach (var g in GetComponentsInChildren<Graphic>(true))
             g.canvasRenderer.cullTransparentMesh = true;
-
-        EnsureInitialized();
     }
 
-    void OnEnable()
+    void Start()
     {
         EnsureInitialized();
     }

@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using EnhancedUI.EnhancedScroller;
 using TMPro;
@@ -35,6 +36,7 @@ public class BiomeCraftRecipeScroller : MonoBehaviour, IEnhancedScrollerDelegate
     private CraftNodeManager boundNodeManager;
     private InventoryData boundInventory;
     private InventoryController boundInventoryController;
+    private Coroutine pendingReloadRoutine;
 
     private void Awake()
     {
@@ -65,6 +67,7 @@ public class BiomeCraftRecipeScroller : MonoBehaviour, IEnhancedScrollerDelegate
         if (LocationLoader.Ins != null)
             LocationLoader.Ins.CurrentCraftNodeManagerChanged -= HandleCraftNodeManagerChanged;
 
+        StopPendingReload();
         UnbindNodeManager();
         UnbindInventory();
 
@@ -113,8 +116,7 @@ public class BiomeCraftRecipeScroller : MonoBehaviour, IEnhancedScrollerDelegate
         if (emptyText != null)
             emptyText.gameObject.SetActive(entries.Count == 0);
 
-        if (scroller != null)
-            scroller.ReloadData();
+        ReloadScrollerSafely();
     }
 
     public int GetNumberOfCells(EnhancedScroller scroller)
@@ -351,6 +353,64 @@ public class BiomeCraftRecipeScroller : MonoBehaviour, IEnhancedScrollerDelegate
             craftingController = InventoryController.Instance.CraftingController;
         if (inventoryUIManager == null && InventoryController.Instance != null)
             inventoryUIManager = InventoryController.Instance.InventoryUIManager;
+    }
+
+    private void ReloadScrollerSafely()
+    {
+        if (scroller == null)
+            return;
+
+        if (IsScrollerReady())
+        {
+            StopPendingReload();
+            scroller.ReloadData();
+            return;
+        }
+
+        if (pendingReloadRoutine == null && isActiveAndEnabled)
+            pendingReloadRoutine = StartCoroutine(ReloadScrollerWhenReady_Co());
+    }
+
+    private bool IsScrollerReady()
+    {
+        return scroller != null &&
+               scroller.ScrollRect != null &&
+               scroller.Container != null;
+    }
+
+    private IEnumerator ReloadScrollerWhenReady_Co()
+    {
+        const int maxFrames = 8;
+
+        for (int i = 0; i < maxFrames; i++)
+        {
+            yield return null;
+
+            if (!isActiveAndEnabled)
+            {
+                pendingReloadRoutine = null;
+                yield break;
+            }
+
+            if (!IsScrollerReady())
+                continue;
+
+            pendingReloadRoutine = null;
+            scroller.ReloadData();
+            yield break;
+        }
+
+        pendingReloadRoutine = null;
+        Debug.LogWarning("[BiomeCraftRecipeScroller] EnhancedScroller was not ready to reload.", this);
+    }
+
+    private void StopPendingReload()
+    {
+        if (pendingReloadRoutine == null)
+            return;
+
+        StopCoroutine(pendingReloadRoutine);
+        pendingReloadRoutine = null;
     }
 
     private static string BuildStatLine(Item item)

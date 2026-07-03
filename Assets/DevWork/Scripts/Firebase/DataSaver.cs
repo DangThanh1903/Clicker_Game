@@ -324,6 +324,9 @@ public class DataSaver : MonoBehaviour
             lifetimeStats.totalTimePlayed);
         TryApplyCachedStats();
 
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        DevLog.Log($"[SaveLoad] Loaded gameplay block='{currentBlock}', location='{currentLocation}', time={CurrentTime}.");
+#endif
         AnalyticsManager.Ins?.UpdateUserProperties(this);
         LoadCraftNodeStates(gameplay);
         LoadBiomeProgressData(gameplay);

@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections;
 using DG.Tweening;
+using UnityEngine.Rendering;
 
 [RequireComponent(typeof(DamageTargetRegistrant))]
 [RequireComponent(typeof(BlockMomentumSpinDriver))]
@@ -48,11 +49,24 @@ public partial class ClickableObject : MonoBehaviour, IDamageReceiver, IPointerH
     private static readonly int CrackIndexID = Shader.PropertyToID("_CrackIndex");
     private static readonly int ColorID = Shader.PropertyToID("_Color");
     private static readonly int BaseColorID = Shader.PropertyToID("_BaseColor");
+    private static readonly int BaseMapID = Shader.PropertyToID("_BaseMap");
+    private static readonly int MainTexID = Shader.PropertyToID("_MainTex");
+    private static readonly int EmissionMapID = Shader.PropertyToID("_EmissionMap");
     private static readonly int ScaleID = Shader.PropertyToID("_Scale");
     private static readonly int EmissionColorID = Shader.PropertyToID("_EmissionColor");
     private static readonly int GlowIntensityID = Shader.PropertyToID("_GlowIntensity");
     private static readonly int EmissionStrengthID = Shader.PropertyToID("_EmissionStrength");
     private static readonly int GlowPowerID = Shader.PropertyToID("_GlowPower");
+    private static readonly int SurfaceID = Shader.PropertyToID("_Surface");
+    private static readonly int BlendID = Shader.PropertyToID("_Blend");
+    private static readonly int SrcBlendID = Shader.PropertyToID("_SrcBlend");
+    private static readonly int DstBlendID = Shader.PropertyToID("_DstBlend");
+    private static readonly int SrcBlendAlphaID = Shader.PropertyToID("_SrcBlendAlpha");
+    private static readonly int DstBlendAlphaID = Shader.PropertyToID("_DstBlendAlpha");
+    private static readonly int ZWriteID = Shader.PropertyToID("_ZWrite");
+    private static readonly int AlphaClipID = Shader.PropertyToID("_AlphaClip");
+    private static readonly int CutoffID = Shader.PropertyToID("_Cutoff");
+    private static readonly int CullID = Shader.PropertyToID("_Cull");
     private MeshRenderer cubeRenderer;
     private float accumulatedHoldTime = 0f;
     private readonly float timeHoldReset = 0.1f;
@@ -81,9 +95,12 @@ public partial class ClickableObject : MonoBehaviour, IDamageReceiver, IPointerH
 
     [Header("Material & Atlas")]
     public Texture2D textureAtlas;
+    [Tooltip("Optional grayscale emission atlas. Must match the base atlas layout exactly.")]
+    public Texture2D emissionAtlas;
     public UnityEngine.Material cubeMaterial;
     public BlockUVDatabase blockUVDatabase;
     public Texture2D AtlasTexture => textureAtlas;
+    public Texture2D EmissionAtlasTexture => ResolveEmissionAtlasTexture();
     public int AtlasColumns => atlasColumns;
     public int AtlasRows => atlasRows;
     public bool AtlasFlipY => flipY;
@@ -97,6 +114,13 @@ public partial class ClickableObject : MonoBehaviour, IDamageReceiver, IPointerH
     private int outlineMaterialIndex = 2;
     [Header("Base Glow (Material Slot 0)")]
     [SerializeField] private bool applyBaseGlowFromOutline = true;
+    [Header("Emission Overlay")]
+    [SerializeField] private bool useEmissionOverlay = true;
+    [SerializeField, Min(1f)] private float emissionOverlayScale = 1.001f;
+    [SerializeField, Min(0f)] private float emissionOverlayIntensityScale = 0.15f;
+    [SerializeField, Min(0f)] private float emissionOverlayBonus = 0.1f;
+    [SerializeField, Min(1f)] private float emissionOverlayGlowBoost = 2.5f;
+    [SerializeField, Range(0f, 1f)] private float emissionOverlayCutoff = 0.01f;
     [Header("Point Light (Optional)")]
     [SerializeField] private bool applyPointLightFromGlow = true;
     [SerializeField] private Light blockPointLight;
@@ -136,11 +160,20 @@ public partial class ClickableObject : MonoBehaviour, IDamageReceiver, IPointerH
     private int lastDamageFrame = -1;
     private Mesh generatedCubeMesh;
     private MeshFilter meshFilter;
+    private MeshFilter emissionOverlayMeshFilter;
+    private MeshRenderer emissionOverlayRenderer;
+    private Material emissionOverlayMaterial;
     private readonly Vector2[] cubeUvBuffer = new Vector2[24];
     private Tween deathFlowTween;
     private BlockMomentumSpinDriver momentumSpinDriver;
     private bool warnedMissingPointLight;
+    private bool warnedMissingBaseTextureProperty;
+    private bool warnedMissingEmissionMapProperty;
+    private bool warnedMissingEmissionColorProperty;
+    private bool warnedInvalidPointLight;
+    private bool warnedMissingEmissionOverlayShader;
     private Color currentOutlineColor = Color.black;
+    private MaterialPropertyBlock emissionOverlayPropertyBlock;
 
     private CompositeDisposable runtimeSubs;
     void Awake()
@@ -148,11 +181,11 @@ public partial class ClickableObject : MonoBehaviour, IDamageReceiver, IPointerH
         crackPropertyBlock = new MaterialPropertyBlock();
         outlinePropertyBlock = new MaterialPropertyBlock();
         baseGlowPropertyBlock = new MaterialPropertyBlock();
+        emissionOverlayPropertyBlock = new MaterialPropertyBlock();
         cubeRenderer = GetComponent<MeshRenderer>();
         meshFilter = GetComponent<MeshFilter>();
         momentumSpinDriver = GetComponent<BlockMomentumSpinDriver>();
-        if (blockPointLight == null)
-            blockPointLight = GetComponentInChildren<Light>(true);
+        blockPointLight = ResolveBlockPointLight(blockPointLight);
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
         if (momentumSpinDriver == null)
             Debug.LogError("[ClickableObject] Missing BlockMomentumSpinDriver. Add it on prefab/scene.", this);
@@ -185,6 +218,12 @@ public partial class ClickableObject : MonoBehaviour, IDamageReceiver, IPointerH
         {
             Destroy(generatedCubeMesh);
             generatedCubeMesh = null;
+        }
+
+        if (emissionOverlayMaterial != null)
+        {
+            Destroy(emissionOverlayMaterial);
+            emissionOverlayMaterial = null;
         }
     }
 
@@ -402,11 +441,8 @@ public partial class ClickableObject : MonoBehaviour, IDamageReceiver, IPointerH
 
         if (cubeRenderer == null) cubeRenderer = gameObject.AddComponent<MeshRenderer>();
         ApplyBaseMaterialPreserveSlots();
-
-        if (cubeMaterial != null && textureAtlas != null && cubeMaterial.mainTexture != textureAtlas)
-        {
-            cubeMaterial.mainTexture = textureAtlas;
-        }
+        ApplyBaseMaterialTextures();
+        SyncEmissionOverlayMesh();
     }
 
     void ApplyBaseMaterialPreserveSlots()
@@ -426,6 +462,43 @@ public partial class ClickableObject : MonoBehaviour, IDamageReceiver, IPointerH
 
         mats[0] = cubeMaterial;
         cubeRenderer.sharedMaterials = mats;
+    }
+
+    void ApplyBaseMaterialTextures()
+    {
+        if (!TryGetBaseMaterial(out var baseMat))
+            return;
+
+        Texture2D resolvedEmissionAtlas = ResolveEmissionAtlasTexture();
+
+        cubeRenderer.GetPropertyBlock(baseGlowPropertyBlock, 0);
+
+        bool hasBaseTextureProperty = false;
+        if (baseMat.HasProperty(BaseMapID))
+        {
+            baseGlowPropertyBlock.SetTexture(BaseMapID, textureAtlas);
+            hasBaseTextureProperty = true;
+        }
+
+        if (baseMat.HasProperty(MainTexID))
+        {
+            baseGlowPropertyBlock.SetTexture(MainTexID, textureAtlas);
+            hasBaseTextureProperty = true;
+        }
+
+        if (!hasBaseTextureProperty)
+            WarnMissingBaseTextureProperty();
+
+        if (baseMat.HasProperty(EmissionMapID))
+        {
+            baseGlowPropertyBlock.SetTexture(EmissionMapID, resolvedEmissionAtlas);
+        }
+        else if (resolvedEmissionAtlas != null)
+        {
+            WarnMissingEmissionMapProperty();
+        }
+
+        cubeRenderer.SetPropertyBlock(baseGlowPropertyBlock, 0);
     }
 
     void ApplyOutlineColorFromDatabase()
@@ -461,26 +534,41 @@ public partial class ClickableObject : MonoBehaviour, IDamageReceiver, IPointerH
 
     void ApplyBaseGlowFromDatabase()
     {
-        if (cubeRenderer == null)
+        if (!TryGetBaseMaterial(out var baseMat))
             return;
 
-        var mats = cubeRenderer.sharedMaterials;
-        if (mats == null || mats.Length == 0)
-            return;
+        ApplyBaseMaterialTextures();
 
-        var baseMat = mats[0];
-        if (baseMat == null || !baseMat.HasProperty(EmissionColorID))
+        if (ShouldUseEmissionOverlay())
+        {
+            DisableBaseMaterialEmission(baseMat);
+            ApplyEmissionOverlayFromDatabase();
             return;
+        }
+
+        SetEmissionOverlayActive(false);
+
+        Texture2D resolvedEmissionAtlas = ResolveEmissionAtlasTexture();
+        bool expectsEmissionColor = resolvedEmissionAtlas != null;
+        if (applyBaseGlowFromOutline && blockUVDatabase != null)
+            expectsEmissionColor |= blockUVDatabase.GetGlowIntensity(blockName) > 0.0001f;
+
+        if (!baseMat.HasProperty(EmissionColorID))
+        {
+            if (expectsEmissionColor)
+                WarnMissingEmissionColorProperty();
+            return;
+        }
 
         Color emission = Color.black;
         if (applyBaseGlowFromOutline && blockUVDatabase != null)
         {
             Color tint = blockUVDatabase.GetOutlineColor(blockName);
             float dbIntensity = blockUVDatabase.GetGlowIntensity(blockName);
-            if (Mathf.Approximately(dbIntensity, 1f))
-                dbIntensity = 0f;
+            float strength = Mathf.Max(0f, dbIntensity);
+            if (resolvedEmissionAtlas == null)
+                strength = Mathf.Min(strength, 0.35f);
 
-            float strength = Mathf.Clamp(dbIntensity, 0f, 0.35f);
             emission = new Color(tint.r * strength, tint.g * strength, tint.b * strength, 1f);
 
             if (strength > 0.0001f)
@@ -496,8 +584,54 @@ public partial class ClickableObject : MonoBehaviour, IDamageReceiver, IPointerH
         cubeRenderer.SetPropertyBlock(baseGlowPropertyBlock, 0);
     }
 
+    void ApplyEmissionOverlayFromDatabase()
+    {
+        if (!ShouldUseEmissionOverlay() || blockUVDatabase == null)
+        {
+            SetEmissionOverlayActive(false);
+            return;
+        }
+
+        float glow = Mathf.Max(0f, blockUVDatabase.GetGlowIntensity(blockName));
+        if (glow <= 0.0001f)
+        {
+            SetEmissionOverlayActive(false);
+            return;
+        }
+
+        Texture2D resolvedEmissionAtlas = ResolveEmissionAtlasTexture();
+        if (resolvedEmissionAtlas == null)
+        {
+            SetEmissionOverlayActive(false);
+            return;
+        }
+
+        if (!EnsureEmissionOverlayRenderer())
+        {
+            SetEmissionOverlayActive(false);
+            return;
+        }
+
+        Color tint = blockUVDatabase.GetOutlineColor(blockName);
+        float strength = emissionOverlayBonus + (Mathf.Max(1f, glow) * emissionOverlayIntensityScale);
+        float glowStrength = strength * emissionOverlayGlowBoost;
+        Color overlayColor = new Color(tint.r * glowStrength, tint.g * glowStrength, tint.b * glowStrength, 1f);
+
+        emissionOverlayRenderer.GetPropertyBlock(emissionOverlayPropertyBlock);
+        emissionOverlayPropertyBlock.Clear();
+        emissionOverlayPropertyBlock.SetTexture(BaseMapID, resolvedEmissionAtlas);
+        emissionOverlayPropertyBlock.SetTexture(MainTexID, resolvedEmissionAtlas);
+        emissionOverlayPropertyBlock.SetColor(BaseColorID, overlayColor);
+        emissionOverlayPropertyBlock.SetColor(ColorID, overlayColor);
+        emissionOverlayRenderer.SetPropertyBlock(emissionOverlayPropertyBlock);
+        emissionOverlayRenderer.enabled = true;
+    }
+
     void ApplyPointLightFromDatabase()
     {
+        if (blockPointLight != null && !IsUsableBlockPointLight(blockPointLight))
+            blockPointLight = ResolveBlockPointLight(blockPointLight);
+
         if (blockPointLight == null)
         {
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
@@ -532,6 +666,177 @@ public partial class ClickableObject : MonoBehaviour, IDamageReceiver, IPointerH
             c.a = 1f;
             blockPointLight.color = c;
         }
+    }
+
+    private Light ResolveBlockPointLight(Light candidate)
+    {
+        if (IsUsableBlockPointLight(candidate))
+            return candidate;
+
+        Light[] lights = GetComponentsInChildren<Light>(true);
+        for (int i = 0; i < lights.Length; i++)
+        {
+            if (IsUsableBlockPointLight(lights[i]))
+                return lights[i];
+        }
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        if (candidate != null && !warnedInvalidPointLight)
+        {
+            warnedInvalidPointLight = true;
+            Debug.LogWarning("[ClickableObject] blockPointLight must be a local Point or Spot light on this block prefab. Ignoring invalid reference.", this);
+        }
+#endif
+        return null;
+    }
+
+    private bool IsUsableBlockPointLight(Light light)
+    {
+        if (light == null)
+            return false;
+
+        if (light.type == LightType.Directional)
+            return false;
+
+        return light.transform == transform || light.transform.IsChildOf(transform);
+    }
+
+    private bool ShouldUseEmissionOverlay()
+    {
+        return useEmissionOverlay && ResolveEmissionAtlasTexture() != null;
+    }
+
+    private Texture2D ResolveEmissionAtlasTexture()
+    {
+        if (emissionAtlas != null)
+            return emissionAtlas;
+
+        if (cubeMaterial == null || !cubeMaterial.HasProperty(EmissionMapID))
+            return null;
+
+        return cubeMaterial.GetTexture(EmissionMapID) as Texture2D;
+    }
+
+    private void DisableBaseMaterialEmission(Material baseMat)
+    {
+        if (baseMat == null)
+            return;
+
+        baseMat.DisableKeyword("_EMISSION");
+        cubeRenderer.GetPropertyBlock(baseGlowPropertyBlock, 0);
+        baseGlowPropertyBlock.SetColor(EmissionColorID, Color.black);
+        cubeRenderer.SetPropertyBlock(baseGlowPropertyBlock, 0);
+    }
+
+    private void SyncEmissionOverlayMesh()
+    {
+        if (emissionOverlayMeshFilter == null || generatedCubeMesh == null)
+            return;
+
+        if (emissionOverlayMeshFilter.sharedMesh != generatedCubeMesh)
+            emissionOverlayMeshFilter.sharedMesh = generatedCubeMesh;
+
+        Transform overlayTransform = emissionOverlayRenderer != null ? emissionOverlayRenderer.transform : null;
+        if (overlayTransform != null)
+        {
+            overlayTransform.localPosition = Vector3.zero;
+            overlayTransform.localRotation = Quaternion.identity;
+            overlayTransform.localScale = Vector3.one * emissionOverlayScale;
+        }
+    }
+
+    private bool EnsureEmissionOverlayRenderer()
+    {
+        if (!ShouldUseEmissionOverlay())
+            return false;
+
+        if (!EnsureEmissionOverlayMaterial())
+            return false;
+
+        if (emissionOverlayRenderer == null || emissionOverlayMeshFilter == null)
+        {
+            Transform overlayTransform = transform.Find("EmissionOverlay");
+            GameObject overlayObject;
+            if (overlayTransform != null)
+            {
+                overlayObject = overlayTransform.gameObject;
+            }
+            else
+            {
+                overlayObject = new GameObject("EmissionOverlay");
+                overlayObject.transform.SetParent(transform, false);
+                overlayObject.layer = gameObject.layer;
+            }
+
+            emissionOverlayMeshFilter = overlayObject.GetComponent<MeshFilter>();
+            if (emissionOverlayMeshFilter == null)
+                emissionOverlayMeshFilter = overlayObject.AddComponent<MeshFilter>();
+
+            emissionOverlayRenderer = overlayObject.GetComponent<MeshRenderer>();
+            if (emissionOverlayRenderer == null)
+                emissionOverlayRenderer = overlayObject.AddComponent<MeshRenderer>();
+
+            emissionOverlayRenderer.sharedMaterial = emissionOverlayMaterial;
+            emissionOverlayRenderer.shadowCastingMode = ShadowCastingMode.Off;
+            emissionOverlayRenderer.receiveShadows = false;
+            emissionOverlayRenderer.lightProbeUsage = LightProbeUsage.Off;
+            emissionOverlayRenderer.reflectionProbeUsage = ReflectionProbeUsage.Off;
+            emissionOverlayRenderer.motionVectorGenerationMode = MotionVectorGenerationMode.ForceNoMotion;
+            emissionOverlayRenderer.allowOcclusionWhenDynamic = false;
+        }
+
+        if (emissionOverlayRenderer.sharedMaterial != emissionOverlayMaterial)
+            emissionOverlayRenderer.sharedMaterial = emissionOverlayMaterial;
+
+        SyncEmissionOverlayMesh();
+        return true;
+    }
+
+    private bool EnsureEmissionOverlayMaterial()
+    {
+        if (emissionOverlayMaterial != null)
+            return true;
+
+        Shader overlayShader = Shader.Find("Universal Render Pipeline/Unlit");
+        if (overlayShader == null)
+        {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (!warnedMissingEmissionOverlayShader)
+            {
+                warnedMissingEmissionOverlayShader = true;
+                Debug.LogWarning("[ClickableObject] Missing URP Unlit shader. Emission overlay cannot be created.", this);
+            }
+#endif
+            return false;
+        }
+
+        emissionOverlayMaterial = new Material(overlayShader)
+        {
+            name = "BlockEmissionOverlay (Runtime)",
+            renderQueue = (int)RenderQueue.Transparent + 10
+        };
+
+        emissionOverlayMaterial.SetFloat(SurfaceID, 1f);
+        emissionOverlayMaterial.SetFloat(BlendID, 0f);
+        emissionOverlayMaterial.SetFloat(SrcBlendID, (float)BlendMode.One);
+        emissionOverlayMaterial.SetFloat(DstBlendID, (float)BlendMode.One);
+        emissionOverlayMaterial.SetFloat(SrcBlendAlphaID, (float)BlendMode.One);
+        emissionOverlayMaterial.SetFloat(DstBlendAlphaID, (float)BlendMode.One);
+        emissionOverlayMaterial.SetFloat(ZWriteID, 0f);
+        emissionOverlayMaterial.SetFloat(CullID, (float)CullMode.Back);
+        emissionOverlayMaterial.SetFloat(AlphaClipID, 1f);
+        emissionOverlayMaterial.SetFloat(CutoffID, emissionOverlayCutoff);
+        emissionOverlayMaterial.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+        emissionOverlayMaterial.EnableKeyword("_ALPHATEST_ON");
+        return true;
+    }
+
+    private void SetEmissionOverlayActive(bool active)
+    {
+        if (emissionOverlayRenderer == null)
+            return;
+
+        emissionOverlayRenderer.enabled = active;
     }
 
     bool TryGetOutlineSlot(out int slotIndex, out Material outlineMaterial)
@@ -628,6 +933,54 @@ public partial class ClickableObject : MonoBehaviour, IDamageReceiver, IPointerH
         }
 
         return false;
+    }
+
+    bool TryGetBaseMaterial(out Material baseMat)
+    {
+        baseMat = null;
+
+        if (cubeRenderer == null)
+            return false;
+
+        var mats = cubeRenderer.sharedMaterials;
+        if (mats == null || mats.Length == 0)
+            return false;
+
+        baseMat = mats[0];
+        return baseMat != null;
+    }
+
+    void WarnMissingBaseTextureProperty()
+    {
+        if (warnedMissingBaseTextureProperty)
+            return;
+
+        warnedMissingBaseTextureProperty = true;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        Debug.LogWarning("[ClickableObject] Base material slot 0 is missing _BaseMap/_MainTex texture property.", this);
+#endif
+    }
+
+    void WarnMissingEmissionMapProperty()
+    {
+        if (warnedMissingEmissionMapProperty)
+            return;
+
+        warnedMissingEmissionMapProperty = true;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        Debug.LogWarning("[ClickableObject] Base material slot 0 is missing _EmissionMap. Falling back to uniform emission color.", this);
+#endif
+    }
+
+    void WarnMissingEmissionColorProperty()
+    {
+        if (warnedMissingEmissionColorProperty)
+            return;
+
+        warnedMissingEmissionColorProperty = true;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        Debug.LogWarning("[ClickableObject] Base material slot 0 is missing _EmissionColor. Block emission cannot be applied.", this);
+#endif
     }
 
     void EnsureGeneratedCubeMesh()

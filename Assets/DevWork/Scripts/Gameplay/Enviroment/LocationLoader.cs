@@ -7,6 +7,7 @@ public class LocationLoader : MonoBehaviour
 {
     // Allowed global owner: active biome/location binding for the current run.
     public static LocationLoader Ins { get; private set; }
+    public bool IsInitialized { get; private set; }
 
     public BlockSpawnLocation currentLocation;
     private const BlockSpawnLocation DefaultUnlockedLocation = BlockSpawnLocation.Plain;
@@ -48,10 +49,23 @@ public class LocationLoader : MonoBehaviour
 
     private void Start()
     {
+        StartCoroutine(InitWhenReady());
+    }
+
+    private System.Collections.IEnumerator InitWhenReady()
+    {
+        if (DataSaver.Ins != null)
+            yield return new WaitUntil(() => DataSaver.Ins.IsReady);
+
+        if (DataSaver.Ins != null && DataSaver.Ins.currentLocation.HasValue && DataSaver.Ins.currentLocation.Value != BlockSpawnLocation.Any)
+            currentLocation = DataSaver.Ins.currentLocation.Value;
+
         EnsureProgressInitialized();
 
         if (!_bootstrapped)
             InitialLocation();
+
+        IsInitialized = true;
     }
 
     private void EnsureProgressInitialized()
@@ -79,6 +93,9 @@ public class LocationLoader : MonoBehaviour
             DevLog.Log($"No LocationData for {currentLocation}");
             return;
         }
+
+        if ((int)currentLocation > 0)
+            UIManager.Ins?.SetLocationBackground((int)currentLocation - 1);
 
         SpawnLocation(loc.Value, isInitiate: true);
         SwapCraftingTree(loc.Value);
