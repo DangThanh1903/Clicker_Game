@@ -6,6 +6,13 @@ using DG.Tweening; // <-- DOTween namespace
 
 public class InventorySlider : MonoBehaviour
 {
+    [Serializable]
+    private struct PageFeatureRequirement
+    {
+        public RectTransform panel;
+        public string featureId;
+    }
+
     [Header("UI References")]
     [SerializeField] private RectTransform contentContainer;
     [SerializeField] private RectTransform viewport;
@@ -18,10 +25,15 @@ public class InventorySlider : MonoBehaviour
     [SerializeField] private bool matchPageWidth = true;
     [SerializeField] private float slideDuration = 0.5f;
 
+    [Header("Journal Gates")]
+    [SerializeField] private List<PageFeatureRequirement> pageFeatureRequirements = new List<PageFeatureRequirement>();
+
     [SerializeField] private int currentPage = 0;
     private int maxPage = 3;
 
-    private List<RectTransform> panels = new List<RectTransform>();
+    private readonly List<RectTransform> panels = new List<RectTransform>();
+    private readonly List<RectTransform> visiblePanels = new List<RectTransform>();
+    private JournalManager boundJournalManager;
     private Tween slideTween;
     public Action<int, int> OnPageChanged;
     private bool initialized;
@@ -31,16 +43,30 @@ public class InventorySlider : MonoBehaviour
 
     private void Awake()
     {
+        JournalManager.GetOrCreate();
         CachePanels();
-        maxPage = Mathf.Max(0, panels.Count - 1);
+        TryBindJournalManager();
+        RefreshVisiblePanels(true);
 
         leftButton?.onClick.AddListener(MoveLeft);
         rightButton?.onClick.AddListener(MoveRight);
-
-        UpdateLayout(true);
-        SyncCurrentPageFromPosition();
-        UpdateButtonInteractable();
         initialized = true;
+    }
+
+    private void OnEnable()
+    {
+        TryBindJournalManager();
+        RefreshVisiblePanels(true);
+    }
+
+    private void OnDisable()
+    {
+        slideTween?.Kill();
+
+        if (boundJournalManager != null)
+            boundJournalManager.StateChanged -= HandleJournalStateChanged;
+
+        boundJournalManager = null;
     }
 
     private void OnRectTransformDimensionsChange()
@@ -48,7 +74,7 @@ public class InventorySlider : MonoBehaviour
         if (!initialized)
             return;
 
-        UpdateLayout(true);
+        RefreshVisiblePanels(false);
         UpdateButtonInteractable();
     }
 
@@ -131,9 +157,9 @@ public class InventorySlider : MonoBehaviour
 
         if (slideDistance > 0f)
         {
-            for (int i = 0; i < panels.Count; i++)
+            for (int i = 0; i < visiblePanels.Count; i++)
             {
-                var panel = panels[i];
+                var panel = visiblePanels[i];
                 if (matchPageWidth)
                     panel.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, slideDistance);
                 panel.anchoredPosition = new Vector2(slideDistance * i, panel.anchoredPosition.y);
@@ -166,7 +192,66 @@ public class InventorySlider : MonoBehaviour
 
     private void UpdateButtonInteractable()
     {
-        leftButton.interactable = currentPage > 0;
-        rightButton.interactable = currentPage < maxPage;
+        if (leftButton != null)
+            leftButton.interactable = currentPage > 0;
+        if (rightButton != null)
+            rightButton.interactable = currentPage < maxPage;
+    }
+
+    private void RefreshVisiblePanels(bool snapContent)
+    {
+        visiblePanels.Clear();
+
+        for (int i = 0; i < panels.Count; i++)
+        {
+            RectTransform panel = panels[i];
+            if (panel == null)
+                continue;
+
+            bool unlocked = IsPanelUnlocked(panel);
+            panel.gameObject.SetActive(unlocked);
+            if (unlocked)
+                visiblePanels.Add(panel);
+        }
+
+        maxPage = Mathf.Max(0, visiblePanels.Count - 1);
+        currentPage = Mathf.Clamp(currentPage, 0, maxPage);
+        UpdateLayout(snapContent);
+        UpdateButtonInteractable();
+    }
+
+    private bool IsPanelUnlocked(RectTransform panel)
+    {
+        for (int i = 0; i < pageFeatureRequirements.Count; i++)
+        {
+            PageFeatureRequirement requirement = pageFeatureRequirements[i];
+            if (requirement.panel != panel)
+                continue;
+
+            if (string.IsNullOrWhiteSpace(requirement.featureId))
+                return true;
+
+            return JournalManager.Ins != null && JournalManager.Ins.IsFeatureUnlocked(requirement.featureId);
+        }
+
+        return true;
+    }
+
+    private void TryBindJournalManager()
+    {
+        if (boundJournalManager == JournalManager.Ins && boundJournalManager != null)
+            return;
+
+        if (boundJournalManager != null)
+            boundJournalManager.StateChanged -= HandleJournalStateChanged;
+
+        boundJournalManager = JournalManager.Ins;
+        if (boundJournalManager != null)
+            boundJournalManager.StateChanged += HandleJournalStateChanged;
+    }
+
+    private void HandleJournalStateChanged()
+    {
+        RefreshVisiblePanels(true);
     }
 }

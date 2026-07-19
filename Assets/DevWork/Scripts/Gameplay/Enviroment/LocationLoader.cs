@@ -178,20 +178,25 @@ public class LocationLoader : MonoBehaviour
             return false;
 
         BlockSpawnLocation nextLocation = (BlockSpawnLocation)nextIndex;
-        if (nextLocation == BlockSpawnLocation.Any)
+        return TryUnlockLocation(nextLocation);
+    }
+
+    public bool TryUnlockLocation(BlockSpawnLocation location)
+    {
+        if (location == BlockSpawnLocation.Any || !Enum.IsDefined(typeof(BlockSpawnLocation), location))
             return false;
 
         BlockSpawnLocation peak = GetHighestUnlockedLocation();
-        if (peak >= nextLocation)
+        if (peak >= location)
             return false;
 
         if (DataSaver.Ins != null)
         {
-            DataSaver.Ins.PeakLocation = nextLocation;
+            DataSaver.Ins.PeakLocation = location;
             DataSaver.Ins.SaveDataFn(true);
         }
 
-        LocationUnlocked?.Invoke(nextLocation);
+        LocationUnlocked?.Invoke(location);
         return true;
     }
 

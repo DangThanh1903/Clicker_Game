@@ -74,77 +74,76 @@ public partial class ClickableObject : MonoBehaviour, IDamageReceiver, IPointerH
     bool isDyingEffect;
     private bool breakFinalized;
 
-    [Header("Settings")]
-    [SerializeField] private int crackLevels = 9;
+    [Header("Shared Config")]
+    [SerializeField] private ClickableBlockConfig config;
+    public ClickableBlockConfig Config => config;
 
-    [Header("Atlas Settings")]
-    [SerializeField] private int atlasColumns = 6;
-    [SerializeField] private int atlasRows = 10;
-    [SerializeField] private int blockColumns = 3;
-    [SerializeField] private int blockRows = 2;
-    private bool flipY = true;
-    private Vector2Int[] faceTiles = new Vector2Int[6]
-    {
-    new Vector2Int(0, 0), // Back
-    new Vector2Int(1, 0), // Front
-    new Vector2Int(2, 0), // Top
-    new Vector2Int(0, 1), // Under
-    new Vector2Int(1, 1), // Left
-    new Vector2Int(2, 1)  // Right
-    };
-
-    [Header("Material & Atlas")]
-    public Texture2D textureAtlas;
-    [Tooltip("Optional grayscale emission atlas. Must match the base atlas layout exactly.")]
-    public Texture2D emissionAtlas;
-    public UnityEngine.Material cubeMaterial;
-    public BlockUVDatabase blockUVDatabase;
+    private int crackLevels => config != null ? config.CrackLevels : 9;
+    private int atlasColumns => config != null ? config.AtlasColumns : 6;
+    private int atlasRows => config != null ? config.AtlasRows : 10;
+    private int blockColumns => config != null ? config.BlockColumns : 3;
+    private int blockRows => config != null ? config.BlockRows : 2;
+    private bool flipY => config == null || config.FlipY;
+    private Texture2D textureAtlas => config != null ? config.TextureAtlas : null;
+    private Texture2D emissionAtlas => config != null ? config.EmissionAtlas : null;
+    private Material cubeMaterial => config != null ? config.CubeMaterial : null;
+    public BlockUVDatabase blockUVDatabase => config != null ? config.BlockUVDatabase : null;
+    public BlockUVDatabase BlockDatabase => blockUVDatabase;
     public Texture2D AtlasTexture => textureAtlas;
     public Texture2D EmissionAtlasTexture => ResolveEmissionAtlasTexture();
     public int AtlasColumns => atlasColumns;
     public int AtlasRows => atlasRows;
     public bool AtlasFlipY => flipY;
-    [Header("Cracking layer")]
+    private int outlineMaterialIndex => config != null ? config.OutlineMaterialIndex : 2;
+    private bool applyBaseGlowFromOutline => config == null || config.ApplyBaseGlowFromOutline;
+    private bool useEmissionOverlay => config == null || config.UseEmissionOverlay;
+    private float emissionOverlayScale => config != null ? config.EmissionOverlayScale : 1.001f;
+    private float emissionOverlayIntensityScale => config != null ? config.EmissionOverlayIntensityScale : 0.15f;
+    private float emissionOverlayBonus => config != null ? config.EmissionOverlayBonus : 0.1f;
+    private float emissionOverlayGlowBoost => config != null ? config.EmissionOverlayGlowBoost : 2.5f;
+    private float emissionOverlayCutoff => config != null ? config.EmissionOverlayCutoff : 0.01f;
+    private bool applyPointLightFromGlow => config == null || config.ApplyPointLightFromGlow;
+    private bool pointLightUseOutlineColor => config == null || config.PointLightUseOutlineColor;
+    private float pointLightMinIntensity => config != null ? config.PointLightMinIntensity : 4f;
+    private float pointLightMaxIntensity => config != null ? config.PointLightMaxIntensity : 15f;
+    private float pointLightGlowAtMaxIntensity => config != null ? config.PointLightGlowAtMaxIntensity : 1f;
+    private float pointLightRange => config != null ? config.PointLightRange : 7f;
+    private bool enableAura => config == null || config.EnableAura;
+    private float auraWeightThreshold => config != null ? config.AuraWeightThreshold : 10f;
+    private float auraMinIntensity => config != null ? config.AuraMinIntensity : 1f;
+    private float auraMaxIntensity => config != null ? config.AuraMaxIntensity : 2f;
+    private float auraGlowAtMaxIntensity => config != null ? config.AuraGlowAtMaxIntensity : 4f;
+    private float auraMinimumVisibleColor => config != null ? config.AuraMinimumVisibleColor : 0.05f;
+    private float baseBlockScale => config != null ? config.BaseBlockScale : 2f;
+    private float fullHealthScaleMultiplier => config != null ? config.FullHealthScaleMultiplier : 0.82f;
+    private float growNearDeathMaxScale => config != null ? config.GrowNearDeathMaxScale : 1.2f;
+    private float nearDeathGrowthExponent => config != null ? config.NearDeathGrowthExponent : 2.2f;
+    private float growThenExplodeBurstScale => config != null ? config.GrowThenExplodeBurstScale : 1.32f;
+    private float growThenExplodeBurstDuration => config != null ? config.GrowThenExplodeBurstDuration : 0.1f;
+    private Ease growThenExplodeBurstEase => config != null ? config.GrowThenExplodeBurstEase : Ease.OutBack;
+    private bool scaleHitPitchByRemainingHealth => config == null || config.ScaleHitPitchByRemainingHealth;
+    private float hitPitchAtFullHealth => config != null ? config.HitPitchAtFullHealth : 1f;
+    private float hitPitchAtZeroHealth => config != null ? config.HitPitchAtZeroHealth : 1.35f;
+    private float hitPitchCurvePower => config != null ? config.HitPitchCurvePower : 1.35f;
+
+    private readonly Vector2Int[] faceTiles =
+    {
+        new Vector2Int(0, 0), // Back
+        new Vector2Int(1, 0), // Front
+        new Vector2Int(2, 0), // Top
+        new Vector2Int(0, 1), // Under
+        new Vector2Int(1, 1), // Left
+        new Vector2Int(2, 1)  // Right
+    };
+    [Header("Cracking Layer")]
     [SerializeField] private MeshRenderer crackMeshRenderer;
     private MaterialPropertyBlock crackPropertyBlock;
     private MaterialPropertyBlock outlinePropertyBlock;
     private MaterialPropertyBlock baseGlowPropertyBlock;
-    [Header("Outline")]
-    [SerializeField, Min(0), Tooltip("Material slot index (0-based). Used as fallback when auto-detect cannot find outline material.")]
-    private int outlineMaterialIndex = 2;
-    [Header("Base Glow (Material Slot 0)")]
-    [SerializeField] private bool applyBaseGlowFromOutline = true;
-    [Header("Emission Overlay")]
-    [SerializeField] private bool useEmissionOverlay = true;
-    [SerializeField, Min(1f)] private float emissionOverlayScale = 1.001f;
-    [SerializeField, Min(0f)] private float emissionOverlayIntensityScale = 0.15f;
-    [SerializeField, Min(0f)] private float emissionOverlayBonus = 0.1f;
-    [SerializeField, Min(1f)] private float emissionOverlayGlowBoost = 2.5f;
-    [SerializeField, Range(0f, 1f)] private float emissionOverlayCutoff = 0.01f;
-    [Header("Point Light (Optional)")]
-    [SerializeField] private bool applyPointLightFromGlow = true;
+    [Header("Scene References")]
     [SerializeField] private Light blockPointLight;
-    [SerializeField] private bool pointLightUseOutlineColor = true;
-    [SerializeField, Min(0f)] private float pointLightMinIntensity = 4f;
-    [SerializeField, Min(0f)] private float pointLightMaxIntensity = 15f;
-    [SerializeField, Min(0.0001f)] private float pointLightGlowAtMaxIntensity = 1f;
-    [SerializeField, Min(0f)] private float pointLightRange = 7f;
-    [Header("Animation")]
+    [SerializeField] private BlockAuraController auraView;
     [SerializeField] private BlockAnimationController animCtrl;
-    [SerializeField, Min(1f)] private float baseBlockScale = 2f;
-
-    [Header("Death Flow - Grow Then Explode")]
-    [SerializeField, Range(0.2f, 1f)] private float fullHealthScaleMultiplier = 0.82f;
-    [SerializeField, Min(1f)] private float growNearDeathMaxScale = 1.2f;
-    [SerializeField, Min(1f)] private float nearDeathGrowthExponent = 2.2f;
-    [SerializeField, Min(1f)] private float growThenExplodeBurstScale = 1.32f;
-    [SerializeField, Min(0.01f)] private float growThenExplodeBurstDuration = 0.1f;
-    [SerializeField] private Ease growThenExplodeBurstEase = Ease.OutBack;
-    [Header("Hit SFX Pitch by Health")]
-    [SerializeField] private bool scaleHitPitchByRemainingHealth = true;
-    [SerializeField, Range(0.1f, 3f)] private float hitPitchAtFullHealth = 1f;
-    [SerializeField, Range(0.1f, 3f)] private float hitPitchAtZeroHealth = 1.35f;
-    [SerializeField, Min(0.1f)] private float hitPitchCurvePower = 1.35f;
 
     private Vector2 onClickPos;
     private float blockSpawnTime;
@@ -174,7 +173,6 @@ public partial class ClickableObject : MonoBehaviour, IDamageReceiver, IPointerH
     private bool warnedMissingEmissionOverlayShader;
     private Color currentOutlineColor = Color.black;
     private MaterialPropertyBlock emissionOverlayPropertyBlock;
-
     private CompositeDisposable runtimeSubs;
     void Awake()
     {
@@ -187,6 +185,8 @@ public partial class ClickableObject : MonoBehaviour, IDamageReceiver, IPointerH
         momentumSpinDriver = GetComponent<BlockMomentumSpinDriver>();
         blockPointLight = ResolveBlockPointLight(blockPointLight);
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
+        if (config == null)
+            Debug.LogError("[ClickableObject] Missing ClickableBlockConfig.", this);
         if (momentumSpinDriver == null)
             Debug.LogError("[ClickableObject] Missing BlockMomentumSpinDriver. Add it on prefab/scene.", this);
 #endif
@@ -204,6 +204,7 @@ public partial class ClickableObject : MonoBehaviour, IDamageReceiver, IPointerH
     void OnDisable()
     {
         KillDeathFlowTween();
+        StopAura();
         runtimeSubs?.Dispose();
         runtimeSubs = null;
 
@@ -264,18 +265,26 @@ public partial class ClickableObject : MonoBehaviour, IDamageReceiver, IPointerH
         ApplyOutlineColorFromDatabase();
         ApplyBaseGlowFromDatabase();
         ApplyPointLightFromDatabase();
+        UpdateAuraFromBlock();
         OnAppear();
     }
     public void SetClickableBlockByCondition(BlockSpawnLocation blockSpawnLocation, TimeState timeState, NormalWeatherName normalWeatherName, SpecialWeatherName specialWeatherName)
     {
-        SetClickableBlock(
-            blockUVDatabase.GetRandomBlockByConditions(
+        BlockUVEntry entry = blockUVDatabase.GetRandomBlockByConditions(
             blockSpawnLocation,
             timeState,
             normalWeatherName,
             specialWeatherName,
-            StatsManager.Ins.Get(StatType.Lucky)).blockName
-        );
+            StatsManager.Ins.Get(StatType.Lucky));
+
+        if (entry == null || string.IsNullOrWhiteSpace(entry.blockName))
+        {
+            Debug.LogWarning($"[ClickableObject] No valid block found for {blockSpawnLocation}/{timeState}/{normalWeatherName}/{specialWeatherName}. Falling back to Dirt.", this);
+            SetClickableBlock("Dirt");
+            return;
+        }
+
+        SetClickableBlock(entry.blockName);
     }
     #endregion
     #region CLICK_LOGIC -------------------------------------------------------------------------------------

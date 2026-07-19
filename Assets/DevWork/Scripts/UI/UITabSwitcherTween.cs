@@ -26,6 +26,9 @@ public class UITabSwitcherTween : MonoBehaviour
     [SerializeField] private bool autoSlideOffset = true;
     [SerializeField] private bool snapOnResize = true;
 
+    [Header("Journal Gates")]
+    [SerializeField] private string dailyFeatureId = "Daily";
+
     private Vector2 _progressTabPos;
     private Vector2 _dailyTabPos;
 
@@ -34,6 +37,7 @@ public class UITabSwitcherTween : MonoBehaviour
 
     private Tween _selectorTween;
     private Tween _contentTween;
+    private JournalManager _boundJournalManager;
 
     private int _currentTab = 0; // 0=progress, 1=daily
     public event Action<int> OnTabChanged;
@@ -41,6 +45,7 @@ public class UITabSwitcherTween : MonoBehaviour
 
     private void Awake()
     {
+        JournalManager.GetOrCreate();
         if (contentViewport == null && progressTabContent != null)
             contentViewport = progressTabContent.parent as RectTransform;
 
@@ -49,11 +54,14 @@ public class UITabSwitcherTween : MonoBehaviour
         // Button listeners
         progressTabButton.onClick.AddListener(() => ShowTab(0));
         dailyTabButton.onClick.AddListener(() => ShowTab(1));
+        TryBindJournalManager();
     }
 
     private void OnEnable()
     {
         _currentTab = 0;
+        TryBindJournalManager();
+        RefreshDailyGate();
         UpdateLayout(true);
 
         UpdateButtonInteractable();
@@ -63,6 +71,11 @@ public class UITabSwitcherTween : MonoBehaviour
     {
         _selectorTween?.Kill();
         _contentTween?.Kill();
+
+        if (_boundJournalManager != null)
+            _boundJournalManager.StateChanged -= HandleJournalStateChanged;
+
+        _boundJournalManager = null;
     }
 
     private void OnRectTransformDimensionsChange()
@@ -77,6 +90,9 @@ public class UITabSwitcherTween : MonoBehaviour
 
     public void ShowTab(int index)
     {
+        if (index == 1 && !IsDailyUnlocked())
+            index = 0;
+
         if (_currentTab == index) return;
         int previous = _currentTab;
         _currentTab = index;
@@ -144,8 +160,11 @@ public class UITabSwitcherTween : MonoBehaviour
     private void UpdateButtonInteractable()
     {
         // Active tab = not interactable (looks "selected")
-        progressTabButton.interactable = _currentTab != 0;
-        dailyTabButton.interactable = _currentTab != 1;
+        if (progressTabButton != null)
+            progressTabButton.interactable = _currentTab != 0;
+
+        if (dailyTabButton != null)
+            dailyTabButton.interactable = IsDailyUnlocked() && _currentTab != 1;
     }
 
     private void CachePositions()
@@ -180,7 +199,14 @@ public class UITabSwitcherTween : MonoBehaviour
         if (progressTabContent == null || dailyTabContent == null)
             return;
 
-        if (_currentTab == 0)
+        if (!IsDailyUnlocked())
+        {
+            progressTabContent.anchoredPosition = _progressContentPos;
+            dailyTabContent.anchoredPosition = _dailyContentPos + new Vector2(slideOffset, 0f);
+            progressTabContent.gameObject.SetActive(true);
+            dailyTabContent.gameObject.SetActive(false);
+        }
+        else if (_currentTab == 0)
         {
             progressTabContent.anchoredPosition = _progressContentPos;
             dailyTabContent.anchoredPosition = _dailyContentPos + new Vector2(slideOffset, 0f);
@@ -200,5 +226,43 @@ public class UITabSwitcherTween : MonoBehaviour
             float targetX = (_currentTab == 0) ? _progressTabPos.x : _dailyTabPos.x;
             selectorBar.anchoredPosition = new Vector2(targetX, selectorBar.anchoredPosition.y);
         }
+    }
+
+    private void TryBindJournalManager()
+    {
+        if (_boundJournalManager == JournalManager.Ins && _boundJournalManager != null)
+            return;
+
+        if (_boundJournalManager != null)
+            _boundJournalManager.StateChanged -= HandleJournalStateChanged;
+
+        _boundJournalManager = JournalManager.Ins;
+        if (_boundJournalManager != null)
+            _boundJournalManager.StateChanged += HandleJournalStateChanged;
+    }
+
+    private void HandleJournalStateChanged()
+    {
+        RefreshDailyGate();
+        UpdateLayout(true);
+        UpdateButtonInteractable();
+    }
+
+    private void RefreshDailyGate()
+    {
+        bool unlocked = IsDailyUnlocked();
+        if (!unlocked)
+            _currentTab = 0;
+
+        if (dailyTabButton != null)
+            dailyTabButton.gameObject.SetActive(unlocked);
+        if (dailyTabContent != null && !unlocked)
+            dailyTabContent.gameObject.SetActive(false);
+    }
+
+    private bool IsDailyUnlocked()
+    {
+        return string.IsNullOrWhiteSpace(dailyFeatureId) ||
+               (JournalManager.Ins != null && JournalManager.Ins.IsFeatureUnlocked(dailyFeatureId));
     }
 }

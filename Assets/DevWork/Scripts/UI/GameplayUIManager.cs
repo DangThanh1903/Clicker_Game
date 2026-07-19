@@ -16,12 +16,14 @@ public class GameplayUIManager : MonoBehaviour
     [SerializeField] private Sprite idleSprite;
 
     private GameplayHudStatsBinder statsBinder;
+    private GameplayJournalHudBinder journalHudBinder;
     private GameplayHudTargetBinder targetBinder;
     private GameplayHudResourceBinder resourceBinder;
 
     private void Awake()
     {
-        statsBinder = new GameplayHudStatsBinder(clickNumberUI, clickPerTickUI, diamondUI);
+        statsBinder = new GameplayHudStatsBinder(clickPerTickUI, diamondUI);
+        journalHudBinder = new GameplayJournalHudBinder(clickNumberUI);
         targetBinder = new GameplayHudTargetBinder(blockNameUI, blockHealthUI);
         resourceBinder = new GameplayHudResourceBinder(runTimerUI, manaUI, manaSprite, staminaSprite, idleSprite);
     }
@@ -29,6 +31,7 @@ public class GameplayUIManager : MonoBehaviour
     private void OnEnable()
     {
         EnsureBinders();
+        journalHudBinder.Bind();
         statsBinder.Bind();
         targetBinder.Bind();
         resourceBinder.RefreshImmediate();
@@ -36,6 +39,7 @@ public class GameplayUIManager : MonoBehaviour
 
     private void OnDisable()
     {
+        journalHudBinder?.Dispose();
         statsBinder?.Dispose();
         targetBinder?.Unbind();
     }
@@ -43,6 +47,7 @@ public class GameplayUIManager : MonoBehaviour
     private void Update()
     {
         EnsureBinders();
+        journalHudBinder.Tick();
         statsBinder.Tick();
         targetBinder.Tick();
         resourceBinder.Tick();
@@ -50,7 +55,8 @@ public class GameplayUIManager : MonoBehaviour
 
     private void EnsureBinders()
     {
-        statsBinder ??= new GameplayHudStatsBinder(clickNumberUI, clickPerTickUI, diamondUI);
+        statsBinder ??= new GameplayHudStatsBinder(clickPerTickUI, diamondUI);
+        journalHudBinder ??= new GameplayJournalHudBinder(clickNumberUI);
         targetBinder ??= new GameplayHudTargetBinder(blockNameUI, blockHealthUI);
         resourceBinder ??= new GameplayHudResourceBinder(runTimerUI, manaUI, manaSprite, staminaSprite, idleSprite);
     }

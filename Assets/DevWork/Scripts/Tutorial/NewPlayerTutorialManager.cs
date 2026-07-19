@@ -7,6 +7,7 @@ using UnityEngine.UI;
 using TMPro;
 using UnityEngine.Serialization;
 
+[Obsolete("Legacy tutorial is disabled. Use Journal onboarding instead.")]
 public class NewPlayerTutorialManager : MonoBehaviour
 {
     private const float AutoStepDelay = 7f;
@@ -22,6 +23,7 @@ public class NewPlayerTutorialManager : MonoBehaviour
     [SerializeField] private Transform overlayRoot;
 
     [Header("First-Time Gates")]
+    [SerializeField] private bool enableLegacyTutorial = false;
     [SerializeField] private bool runOnlyFirstTime = true;
     [SerializeField] private string onboardingDoneKey = "tutorial.onboarding.v1.done";
     [SerializeField] private string recipeDoneKey = "tutorial.recipe.v1.done";
@@ -92,6 +94,12 @@ public class NewPlayerTutorialManager : MonoBehaviour
 
     private void Start()
     {
+        if (!enableLegacyTutorial)
+        {
+            enabled = false;
+            return;
+        }
+
         ResolveReferencesOnce();
         CacheOverlays();
         SubscribeSignals();

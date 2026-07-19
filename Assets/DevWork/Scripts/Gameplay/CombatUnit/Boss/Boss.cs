@@ -143,6 +143,12 @@ public class Boss : MonoBehaviour, IDamageReceiver
         hasDied = true;
         DamageStatsRecorder.RecordBlockBreak();
         string id = string.IsNullOrEmpty(bossId) ? gameObject.name : bossId;
+        string biomeId = rewardEntry != null
+            ? rewardEntry.biome.ToString()
+            : (DataSaver.Ins != null && DataSaver.Ins.currentLocation.HasValue
+                ? DataSaver.Ins.currentLocation.Value.ToString()
+                : BlockSpawnLocation.Plain.ToString());
+        GameplayProgressSignals.RaiseBossKilled(id, biomeId);
         AnalyticsManager.Ins?.TrackBossKill(id, Mathf.Max(0f, BossNow - spawnTime));
         HandleItemDrop();
         Died?.Invoke(this); 

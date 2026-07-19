@@ -117,6 +117,25 @@ public class CraftNodeManager : MonoBehaviour
         SaveNodeStates();
     }
 
+    public void ApplyExternalRecipeUnlocks(IReadOnlyCollection<string> allowedRecipeIds)
+    {
+        for (int i = 0; i < allNodes.Count; i++)
+        {
+            CraftNode node = allNodes[i];
+            if (node == null)
+                continue;
+
+            Item primaryItem = node.GetPrimaryRecipeItem();
+            string recipeId = primaryItem != null && !string.IsNullOrWhiteSpace(primaryItem.itemName)
+                ? primaryItem.itemName
+                : node.nodeName;
+            bool unlocked = ContainsIgnoreCase(allowedRecipeIds, recipeId);
+            node.SetExternalUnlocked(unlocked);
+        }
+
+        RecheckAllNodes();
+    }
+
     private void EnqueueUnlockPopup(CraftNode node)
     {
         if (!showRecipeUnlockPopup || node == null)
@@ -338,6 +357,20 @@ public class CraftNodeManager : MonoBehaviour
     {
         foreach (var node in allNodes)
             node?.RecheckState(true);
+    }
+
+    private static bool ContainsIgnoreCase(IReadOnlyCollection<string> source, string value)
+    {
+        if (source == null || string.IsNullOrWhiteSpace(value))
+            return false;
+
+        foreach (string entry in source)
+        {
+            if (string.Equals(entry, value, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        return false;
     }
     #endregion
 }

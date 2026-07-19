@@ -23,6 +23,7 @@ public class CraftNode : MonoBehaviour, IPointerClickHandler
     public TMP_Text DoneText;
     private List<InventoryData> inventoryDependencies = new List<InventoryData>();
     private CompositeDisposable disposables = new CompositeDisposable();
+    private bool externalUnlocked = true;
     public Subject<Unit> OnNodeFinished = new Subject<Unit>();
     public System.Action<CraftNodeState, CraftNodeState> OnStateChanged;
 
@@ -113,7 +114,7 @@ public class CraftNode : MonoBehaviour, IPointerClickHandler
             return;
 
         CraftNodeState nextState;
-        if (!AreRequiredNodesFinished())
+        if (!externalUnlocked || !AreRequiredNodesFinished())
             nextState = CraftNodeState.Locked;
         else
             nextState = CraftNodeState.Unlocked;
@@ -142,6 +143,16 @@ public class CraftNode : MonoBehaviour, IPointerClickHandler
     public void RecheckState(bool isInitial = false)
     {
         CheckState(isInitial);
+    }
+
+    public void SetExternalUnlocked(bool unlocked)
+    {
+        if (externalUnlocked == unlocked)
+            return;
+
+        externalUnlocked = unlocked;
+        if (State != CraftNodeState.Finished)
+            RecheckState();
     }
 
     public void FinishNode() // Called by player click

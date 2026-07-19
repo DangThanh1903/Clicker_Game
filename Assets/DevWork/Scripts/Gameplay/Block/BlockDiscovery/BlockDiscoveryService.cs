@@ -40,6 +40,12 @@ namespace Game.Discovery
             if (_blocks.Add(blockName))
             {
                 Save();
+                string biomeId = LocationLoader.Ins != null
+                    ? LocationLoader.Ins.currentLocation.ToString()
+                    : (DataSaver.Ins != null && DataSaver.Ins.currentLocation.HasValue
+                        ? DataSaver.Ins.currentLocation.Value.ToString()
+                        : BlockSpawnLocation.Plain.ToString());
+                GameplayProgressSignals.RaiseBlockDiscovered(blockName, biomeId);
                 OnBlockDiscovered?.Invoke(blockName);
             }
         }

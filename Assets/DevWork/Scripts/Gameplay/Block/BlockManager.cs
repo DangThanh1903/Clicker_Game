@@ -63,6 +63,7 @@ public class BlockManager : MonoBehaviour
         yield return new WaitUntil(() => locationLoader == null || locationLoader.IsInitialized);
         yield return new WaitUntil(() => TimeSystem.Instance == null || TimeSystem.Instance.IsInitialized);
         yield return new WaitUntil(() => WeatherManager.Instance == null || WeatherManager.Instance.IsInitialized);
+        JournalManager.GetOrCreate();
 
         if (enableMonsterEncounters && monsterSpawner != null && currentBlock != null)
             monsterSpawner.SetBlockAnchor(currentBlock.transform);
@@ -95,6 +96,12 @@ public class BlockManager : MonoBehaviour
         if (activeBossInfo.bossPrefab == null)
         {
             Debug.LogWarning($"[BossSpawner] Boss prefab is null for boss {activeBossInfo.bossName}");
+            return null;
+        }
+
+        if (JournalManager.Ins != null && !JournalManager.Ins.IsBossUnlocked(activeBossInfo.bossName))
+        {
+            DevLog.Log($"[BossSpawner] Boss {activeBossInfo.bossName} is still locked by Journal.");
             return null;
         }
 
@@ -131,13 +138,6 @@ public class BlockManager : MonoBehaviour
     }
     public void OnBossDied(Boss boss)
     {
-        BlockSpawnLocation clearedLocation = activeBossInfo != null
-            ? activeBossInfo.biome
-            : (locationLoader != null ? locationLoader.currentLocation : BlockSpawnLocation.Plain);
-
-        if (locationLoader != null)
-            locationLoader.TryUnlockNextLocationFromBoss(clearedLocation);
-
         if (activeBossComp != null) activeBossComp.Died -= OnBossDied;
         StopBossTimer();
 
@@ -162,6 +162,7 @@ public class BlockManager : MonoBehaviour
         string targetId = $"{blockId}@{biomeName}";
 
         QuestSignals.BreakBlock(targetId, 1);
+        GameplayProgressSignals.RaiseBlockBroken(blockId, biomeName, 1);
 
         NormalWeatherName normalName = ResolveCurrentNormalWeather();
         SpecialWeatherName specialName = ResolveCurrentSpecialWeather();

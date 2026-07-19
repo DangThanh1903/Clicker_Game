@@ -91,6 +91,7 @@ public class CraftingController : MonoBehaviour
 
         // Emit quest signal
         QuestSignals.CraftItem(craftedId, craftedAmount);
+        GameplayProgressSignals.RaiseItemCrafted(craftedId, craftedAmount);
         AnalyticsManager.Ins?.TrackCraftComplete(craftedId, craftedAmount);
     }
 

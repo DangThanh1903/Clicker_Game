@@ -809,6 +809,7 @@ MonoBehaviour:
   contentViewport: {fileID: 0}
   autoSlideOffset: 1
   snapOnResize: 1
+  dailyFeatureId: Daily
 --- !u!225 &6731625871709911625
 CanvasGroup:
   m_ObjectHideFlags: 0

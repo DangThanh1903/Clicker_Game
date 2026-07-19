@@ -125,6 +125,7 @@ public static class DropGrantService
 
             hasGrantedAny = true;
             QuestSignals.CollectItem(item.itemName, added);
+            GameplayProgressSignals.RaiseItemCollected(item.itemName, added);
 
             Toaster.ShowPickupItems(item.icon, added);
             BiomeProgressionService.NotifyItemEarned(item, added);

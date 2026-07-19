@@ -28,6 +28,14 @@ public class BlockUVDatabase : ScriptableObject
 {
     [Header("Block Entries")]
     public List<BlockUVEntry> blocks = new();
+
+    [Header("Journal Bonus Drops")]
+    [SerializeField] private string clayBonusFeatureId = "ClayBonusResin";
+    [SerializeField] private string clayBonusBlockName = "Clay";
+    [SerializeField] private Item clayBonusItem;
+    [SerializeField, Min(1)] private int clayBonusAmount = 1;
+    [SerializeField, Range(0f, 1f)] private float clayBonusChance = 1f;
+
     private Dictionary<string, BlockUVEntry> blocksByName;
 
     // =========================
@@ -166,7 +174,9 @@ public class BlockUVDatabase : ScriptableObject
         if (block == null)
             return new List<ItemDropResult>();
 
-        return block.GetDropResults(luck);
+        List<ItemDropResult> results = block.GetDropResults(luck);
+        AppendJournalBonusDrops(name, results);
+        return results;
     }
 
 #if UNITY_EDITOR
@@ -230,7 +240,43 @@ public class BlockUVDatabase : ScriptableObject
                (entry.normalWeatherCondition == NormalWeatherName.Any ||
                 entry.normalWeatherCondition == normalWeather) &&
                (entry.specialWeatherCondition == SpecialWeatherName.Any ||
-                entry.specialWeatherCondition == specialWeather);
+                entry.specialWeatherCondition == specialWeather) &&
+               (JournalManager.Ins == null || JournalManager.Ins.IsBlockUnlocked(entry.blockName));
+    }
+
+    private void AppendJournalBonusDrops(string blockName, List<ItemDropResult> results)
+    {
+        if (results == null || string.IsNullOrWhiteSpace(blockName))
+            return;
+
+        if (!string.Equals(blockName, clayBonusBlockName, StringComparison.OrdinalIgnoreCase))
+            return;
+
+        if (clayBonusItem == null || clayBonusItem.Type == ItemType.None)
+            return;
+
+        if (!string.IsNullOrWhiteSpace(clayBonusFeatureId) &&
+            (JournalManager.Ins == null || !JournalManager.Ins.IsFeatureUnlocked(clayBonusFeatureId)))
+        {
+            return;
+        }
+
+        if (UnityEngine.Random.value > Mathf.Clamp01(clayBonusChance))
+            return;
+
+        results.Add(new ItemDropResult(CreateBonusDrop(clayBonusItem), Mathf.Max(1, clayBonusAmount)));
+    }
+
+    private static ItemDrop CreateBonusDrop(Item item)
+    {
+        return new ItemDrop
+        {
+            item = item,
+            minAmount = 1,
+            maxAmount = 1,
+            dropChance = 1f,
+            isSecret = false
+        };
     }
 }
 

@@ -1087,3 +1087,8 @@ MonoBehaviour:
     outlineColor: {r: 0, g: 0, b: 0, a: 1}
     glowIntensity: 0
     drops: []
+  clayBonusFeatureId: ClayBonusResin
+  clayBonusBlockName: Clay
+  clayBonusItem: {fileID: 11400000, guid: 43dafd87ea180c740acd40a552af12c9, type: 2}
+  clayBonusAmount: 1
+  clayBonusChance: 1

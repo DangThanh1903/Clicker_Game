@@ -18,6 +18,7 @@ public partial class ClickableObject
 
     private void OnDisappear()
     {
+        StopAura();
         isDyingEffect = true;
         breakFinalized = false;
         KillDeathFlowTween();
@@ -120,5 +121,66 @@ public partial class ClickableObject
         float nearDeath01 = 1f - hp01;
         float curved = Mathf.Pow(nearDeath01, Mathf.Max(0.1f, hitPitchCurvePower));
         return Mathf.Lerp(hitPitchAtFullHealth, hitPitchAtZeroHealth, curved);
+    }
+
+    private void UpdateAuraFromBlock()
+    {
+        if (!enableAura || blockUVDatabase == null || string.IsNullOrWhiteSpace(blockName))
+        {
+            StopAura();
+            return;
+        }
+
+        if (!TryResolveAuraColor(out Color auraColor))
+        {
+            StopAura();
+            return;
+        }
+
+        float blockWeight = Mathf.Max(0f, BlockWeight);
+        float glowIntensity = blockUVDatabase.GetGlowIntensity(blockName);
+        bool shouldShowAura = blockWeight <= auraWeightThreshold;
+        if (!shouldShowAura)
+        {
+            StopAura();
+            return;
+        }
+
+        if (!ResolveAuraView())
+        {
+            StopAura();
+            return;
+        }
+
+        float glowScore = Mathf.Clamp01(glowIntensity / Mathf.Max(0.0001f, auraGlowAtMaxIntensity));
+        float intensity = Mathf.Lerp(auraMinIntensity, auraMaxIntensity, glowScore);
+
+        auraView.SetState(true, auraColor, intensity);
+    }
+
+    private bool ResolveAuraView()
+    {
+        if (auraView != null)
+            return true;
+
+        auraView = GetComponentInChildren<BlockAuraController>(true);
+        if (auraView == null)
+            return false;
+
+        auraView.Hide();
+        return true;
+    }
+
+    private void StopAura()
+    {
+        if (ResolveAuraView())
+            auraView.Hide();
+    }
+
+    private bool TryResolveAuraColor(out Color auraColor)
+    {
+        auraColor = currentOutlineColor;
+        auraColor.a = Mathf.Clamp01(auraColor.a);
+        return auraColor.a > 0.0001f && auraColor.maxColorComponent >= auraMinimumVisibleColor;
     }
 }
